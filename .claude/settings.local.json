@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(bun --version)",
+      "Bash(ls ~/Developer/Repositories/Personal/blueprint/src/routes/+layout*)"
+    ]
+  }
+}
