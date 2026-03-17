@@ -10,6 +10,7 @@
 	let { value, onchange, disabled = false }: Props = $props();
 
 	const tiers: { name: TierName; label: string }[] = [
+		{ name: 'free', label: 'Free' },
 		{ name: 'frontier', label: 'Frontier' },
 		{ name: 'balanced', label: 'Balanced' },
 		{ name: 'budget', label: 'Budget' }

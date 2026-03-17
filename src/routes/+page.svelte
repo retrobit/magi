@@ -6,7 +6,7 @@
 	import type { TierName } from '$lib/magi/types';
 	import type { StrategyName } from '$lib/magi/consensus';
 
-	let tier: TierName = $state('balanced');
+	let tier: TierName = $state('free');
 	let strategy: StrategyName = $state('synthesis');
 	let query = $state('');
 	let loading = $state(false);

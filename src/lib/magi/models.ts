@@ -1,14 +1,14 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import {
-	ANTHROPIC_API_KEY,
-	OPENAI_API_KEY,
-	GOOGLE_GENERATIVE_AI_API_KEY
-} from '$env/static/private';
 import type { TierName, TierConfig, ProviderName } from './types';
 
 export const TIERS: Record<TierName, TierConfig> = {
+	free: {
+		anthropic: 'nvidia/nemotron-3-super-120b-a12b:free',
+		openai: 'arcee-ai/trinity-large-preview:free',
+		google: 'stepfun/step-3.5-flash:free'
+	},
 	frontier: {
 		anthropic: 'claude-opus-4-6',
 		openai: 'gpt-5.2',
@@ -26,12 +26,19 @@ export const TIERS: Record<TierName, TierConfig> = {
 	}
 };
 
-const anthropic = createAnthropic({ apiKey: ANTHROPIC_API_KEY });
-const openai = createOpenAI({ apiKey: OPENAI_API_KEY });
-const google = createGoogleGenerativeAI({ apiKey: GOOGLE_GENERATIVE_AI_API_KEY });
+const anthropic = createAnthropic();
+const openai = createOpenAI();
+const google = createGoogleGenerativeAI();
+const openrouter = createOpenAI({
+	baseURL: 'https://openrouter.ai/api/v1',
+	apiKey: process.env.OPENROUTER_API_KEY
+});
 
 export function getModel(provider: ProviderName, tier: TierName) {
 	const modelId = TIERS[tier][provider];
+	if (tier === 'free') {
+		return openrouter.chat(modelId);
+	}
 	switch (provider) {
 		case 'anthropic':
 			return anthropic(modelId);

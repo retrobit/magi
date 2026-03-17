@@ -1,4 +1,4 @@
-export type TierName = 'frontier' | 'balanced' | 'budget';
+export type TierName = 'free' | 'frontier' | 'balanced' | 'budget';
 
 export type ProviderName = 'anthropic' | 'openai' | 'google';
 
