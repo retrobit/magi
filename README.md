@@ -58,7 +58,7 @@ Users can select a tier to control quality vs. cost:
 
 The consensus engine is pluggable. Available strategies:
 
-- **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusProvider` request parameter (defaults to Anthropic).
+- **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusNode` request parameter (defaults to the first node, MELCHIOR).
 
 Future strategies (planned):
 
@@ -127,7 +127,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
   "query": "Your question here",
   "tier": "free",
   "strategy": "synthesis",
-  "consensusGateway": "openrouter"
+  "consensusNode": "MELCHIOR"
 }
 ```
 
@@ -136,15 +136,15 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `query`             | string | Yes      | 1–10,000 characters                     |
 | `tier`              | string | Yes      | `frontier`, `balanced`, `budget`, `free`|
 | `strategy`          | string | Yes      | `synthesis`                             |
-| `consensusGateway`  | string | No       | Must be one of the node gateways for the chosen tier (defaults to first node’s gateway) |
+| `consensusNode`     | string | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`) |
 
 **SSE events:**
 
 | Event                | Payload                                          | Description                          |
 | -------------------- | ------------------------------------------------ | ------------------------------------ |
-| `config`             | `NodeAssignment[]`                               | Node-to-gateway mapping              |
-| `model-response`     | `{ node, gateway, text }`                        | Individual model response             |
-| `model-error`        | `{ node, gateway, error }`                       | Individual model failure              |
+| `config`             | `NodeAssignment[]`                               | Node-to-model assignment mapping      |
+| `model-response`     | `{ node, gateway, provider, text }`              | Individual model response             |
+| `model-error`        | `{ node, gateway, provider, error }`             | Individual model failure              |
 | `partial-consensus`  | `{ responded, total }`                           | Warning: not all models responded     |
 | `consensus-chunk`    | `{ text }`                                       | Streaming consensus text delta        |
 | `consensus-complete` | `{ text }`                                       | Full consensus text                   |
