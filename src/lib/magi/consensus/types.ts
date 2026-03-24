@@ -1,5 +1,6 @@
 import type { LanguageModel } from 'ai';
-import type { MagiResponse, ProviderName, TierName } from '../types';
+import type { MagiResponse, GatewayName } from '../types';
+import type { NodeAssignment } from '../config';
 
 export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
@@ -8,9 +9,9 @@ export type ConsensusEvent =
 export interface ConsensusContext {
 	responses: MagiResponse[];
 	query: string;
-	getModel: (provider: ProviderName, tier: TierName) => LanguageModel;
-	tier: TierName;
-	consensusProvider: ProviderName;
+	getModel: (gateway: GatewayName, modelId: string) => LanguageModel;
+	nodeAssignments: readonly NodeAssignment[];
+	consensusNodeIndex: number;
 	signal?: AbortSignal;
 }
 

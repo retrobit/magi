@@ -3,19 +3,22 @@
 	import StrategySelector from '$lib/components/StrategySelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
-	import { DEFAULT_MAGI_CONFIG, type NodeAssignment } from '$lib/magi/config';
+	import { TIER_CONFIGS, type NodeAssignment } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
 		type TierName,
 		type MagiNodeName,
+		type GatewayName,
 		type ProviderName,
 		type MagiResponse
 	} from '$lib/magi/types';
+	import { findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
 	import { onDestroy } from 'svelte';
 
 	interface MagiModelError {
 		node: MagiNodeName;
+		gateway: GatewayName;
 		provider: ProviderName;
 		error: string;
 	}
@@ -25,7 +28,7 @@
 	let query = $state('');
 	let loading = $state(false);
 
-	let nodeConfig = $state<readonly NodeAssignment[]>(DEFAULT_MAGI_CONFIG);
+	let nodeConfig = $state<readonly NodeAssignment[]>(TIER_CONFIGS[DEFAULT_TIER]);
 	let responses = $state<MagiResponse[]>([]);
 	let modelErrors = $state<MagiModelError[]>([]);
 	let consensusStream = $state('');
@@ -49,6 +52,11 @@
 		return 'idle';
 	}
 
+	function getModelDisplayName(assignment: NodeAssignment): string {
+		const entry = findModelEntry(assignment.gateway, assignment.modelId);
+		return entry?.displayName ?? assignment.modelId;
+	}
+
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!query.trim() || loading) return;
@@ -57,7 +65,7 @@
 		abortController = new AbortController();
 
 		loading = true;
-		nodeConfig = DEFAULT_MAGI_CONFIG;
+		nodeConfig = TIER_CONFIGS[tier];
 		responses = [];
 		modelErrors = [];
 		consensusStream = '';
@@ -204,13 +212,15 @@
 
 		<!-- Three MAGI panels -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-			{#each nodeConfig as { node, provider } (node)}
+			{#each nodeConfig as assignment (assignment.node)}
 				<MagiPanel
-					name={node}
-					{provider}
-					text={responseMap.get(node)?.text ?? ''}
-					error={errorMap.get(node) ?? ''}
-					status={getNodeStatus(node)}
+					name={assignment.node}
+					gateway={assignment.gateway}
+					provider={assignment.provider}
+					modelDisplayName={getModelDisplayName(assignment)}
+					text={responseMap.get(assignment.node)?.text ?? ''}
+					error={errorMap.get(assignment.node) ?? ''}
+					status={getNodeStatus(assignment.node)}
 				/>
 			{/each}
 		</div>

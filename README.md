@@ -48,6 +48,12 @@ Users can select a tier to control quality vs. cost:
 | **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 3 Flash |
 | **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 3 Flash |
 
+| Tier     | OpenRouter            | OpenRouter               | OpenRouter            |
+| -------- | --------------------- | ------------------------ | --------------------- |
+| **Free** | Step 3.5 Flash (StepFun) | Nemotron 3 Super (NVIDIA) | Trinity Large (Arcee AI) |
+
+> The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai) using diverse free models. Set `OPENROUTER_API_KEY` to enable it.
+
 ## 🧠 Consensus Strategies
 
 The consensus engine is pluggable. Available strategies:
@@ -66,6 +72,7 @@ Future strategies (planned):
   - [Anthropic](https://console.anthropic.com)
   - [OpenAI](https://platform.openai.com)
   - [Google AI Studio](https://aistudio.google.com)
+  - [OpenRouter](https://openrouter.ai/keys) (for the free tier)
 
 ## 🛠 Setup
 
@@ -85,6 +92,7 @@ cp .env.local.example .env.local
 | `ANTHROPIC_API_KEY`            | Yes      | Anthropic API key for Claude models                                                          |
 | `OPENAI_API_KEY`               | Yes      | OpenAI API key for GPT models                                                                |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Yes      | Google AI Studio key for Gemini models                                                       |
+| `OPENROUTER_API_KEY`           | Free tier| OpenRouter API key for free-tier models ([get one here](https://openrouter.ai/keys))         |
 | `MAGI_API_KEY`                 | No       | Set to require Bearer token auth on `/api/magi`. Leave unset when using only the built-in UI |
 
 ### Development
@@ -117,26 +125,26 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 ```json
 {
   "query": "Your question here",
-  "tier": "balanced",
+  "tier": "free",
   "strategy": "synthesis",
-  "consensusProvider": "anthropic"
+  "consensusGateway": "openrouter"
 }
 ```
 
 | Field               | Type   | Required | Values                                  |
 | ------------------- | ------ | -------- | --------------------------------------- |
 | `query`             | string | Yes      | 1–10,000 characters                     |
-| `tier`              | string | Yes      | `frontier`, `balanced`, `budget`        |
+| `tier`              | string | Yes      | `frontier`, `balanced`, `budget`, `free`|
 | `strategy`          | string | Yes      | `synthesis`                             |
-| `consensusProvider`  | string | No       | `anthropic`, `openai`, `google` (default: `anthropic`) |
+| `consensusGateway`  | string | No       | Must be one of the node gateways for the chosen tier (defaults to first node’s gateway) |
 
 **SSE events:**
 
 | Event                | Payload                                          | Description                          |
 | -------------------- | ------------------------------------------------ | ------------------------------------ |
-| `config`             | `NodeAssignment[]`                               | Node-to-provider mapping             |
-| `model-response`     | `{ node, provider, text }`                       | Individual model response             |
-| `model-error`        | `{ node, provider, error }`                      | Individual model failure              |
+| `config`             | `NodeAssignment[]`                               | Node-to-gateway mapping              |
+| `model-response`     | `{ node, gateway, text }`                        | Individual model response             |
+| `model-error`        | `{ node, gateway, error }`                       | Individual model failure              |
 | `partial-consensus`  | `{ responded, total }`                           | Warning: not all models responded     |
 | `consensus-chunk`    | `{ text }`                                       | Streaming consensus text delta        |
 | `consensus-complete` | `{ text }`                                       | Full consensus text                   |
@@ -159,7 +167,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 const res = await fetch('/api/magi', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query: 'What is consciousness?', tier: 'balanced', strategy: 'synthesis' })
+  body: JSON.stringify({ query: 'What is consciousness?', tier: 'free', strategy: 'synthesis' })
 });
 
 const reader = res.body!.getReader();

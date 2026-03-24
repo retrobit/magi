@@ -3,15 +3,21 @@ import type { RequestHandler } from './$types';
 import { generateText } from 'ai';
 import { getModel } from '$lib/magi/models';
 import { getStrategy, type ConsensusContext } from '$lib/magi/consensus';
-import { DEFAULT_MAGI_CONFIG, DEFAULT_CONSENSUS_PROVIDER, validateConfig } from '$lib/magi/config';
+import {
+	TIER_CONFIGS,
+	DEFAULT_MAGI_CONFIG,
+	FREE_MAGI_CONFIG,
+	validateConfig
+} from '$lib/magi/config';
 import type { MagiResponse } from '$lib/magi/types';
 import { magiRequestSchema } from '$lib/magi/validation';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { timingSafeEqual } from 'node:crypto';
 
-// Validate the hardcoded config once at module load
+// Validate hardcoded configs once at module load
 validateConfig(DEFAULT_MAGI_CONFIG);
+validateConfig(FREE_MAGI_CONFIG);
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
@@ -53,9 +59,22 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		query,
 		tier,
 		strategy: strategyName,
-		consensusProvider = DEFAULT_CONSENSUS_PROVIDER
+		consensusNode: requestedConsensusNode
 	} = parsed.data;
-	const config = DEFAULT_MAGI_CONFIG;
+
+	const config = TIER_CONFIGS[tier];
+
+	// Resolve consensus node — default to first node
+	const consensusNodeIndex = requestedConsensusNode
+		? config.findIndex((a) => a.node === requestedConsensusNode)
+		: 0;
+
+	if (consensusNodeIndex === -1) {
+		return json(
+			{ error: `Invalid consensusNode: "${requestedConsensusNode}" is not in the current config` },
+			{ status: 400 }
+		);
+	}
 
 	const abortController = new AbortController();
 	request.signal.addEventListener('abort', () => abortController.abort(), { once: true });
@@ -81,19 +100,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			}
 
 			try {
-				// Send node configuration so the client knows provider assignments
+				// Send node configuration so the client knows assignments
 				send('config', config);
 
 				// Phase 1: Dispatch to all three MAGI nodes in parallel
 				const results = await Promise.allSettled(
-					config.map(async ({ node, provider }) => {
-						const model = getModel(provider, tier);
+					config.map(async ({ node, gateway, provider, modelId }) => {
+						const model = getModel(gateway, modelId);
 						const result = await generateText({
 							model,
 							prompt: query,
 							abortSignal: abortController.signal
 						});
-						const response: MagiResponse = { node, provider, text: result.text };
+						const response: MagiResponse = { node, gateway, provider, text: result.text };
 						send('model-response', response);
 						return response;
 					})
@@ -106,6 +125,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					} else {
 						send('model-error', {
 							node: config[i].node,
+							gateway: config[i].gateway,
 							provider: config[i].provider,
 							error: result.reason instanceof Error ? result.reason.message : 'Unknown error'
 						});
@@ -131,8 +151,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					responses,
 					query,
 					getModel,
-					tier,
-					consensusProvider,
+					nodeAssignments: config,
+					consensusNodeIndex,
 					signal: abortController.signal
 				};
 

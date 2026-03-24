@@ -12,7 +12,8 @@
 	const tierLabels: Record<TierName, string> = {
 		frontier: 'Frontier',
 		balanced: 'Balanced',
-		budget: 'Budget'
+		budget: 'Budget',
+		free: 'Free'
 	};
 </script>
 

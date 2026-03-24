@@ -3,8 +3,12 @@ export {
 	MAGI_NODE_NAMES,
 	TIER_NAMES,
 	DEFAULT_TIER,
+	GATEWAY_NAMES,
+	ROUTER_GATEWAYS,
+	isRouter,
 	PROVIDER_NAMES,
 	type TierName,
+	type GatewayName,
 	type ProviderName,
 	type MagiNodeName,
 	type MagiNode,
@@ -12,14 +16,18 @@ export {
 } from './magi/types';
 export {
 	MODEL_REGISTRY,
-	getModelEntry,
+	getModelsForTier,
+	getModelsForGateway,
 	getModelsForProvider,
+	findModelEntry,
+	getAvailableGateways,
 	getAvailableProviders,
 	type ModelEntry
 } from './magi/registry';
 export {
 	DEFAULT_MAGI_CONFIG,
-	DEFAULT_CONSENSUS_PROVIDER,
+	FREE_MAGI_CONFIG,
+	TIER_CONFIGS,
 	validateConfig,
 	type NodeAssignment,
 	type MagiConfig
