@@ -1,34 +1,54 @@
 <script lang="ts">
-	import type { MagiNodeName, ProviderName } from '$lib/magi/types';
+	import type { MagiNodeName, GatewayName, ProviderName } from '$lib/magi/types';
+	import { isRouter } from '$lib/magi/types';
 
 	interface Props {
 		name: MagiNodeName;
+		gateway: GatewayName;
 		provider: ProviderName;
+		modelDisplayName: string;
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
 	}
 
-	let { name, provider, text, error, status }: Props = $props();
+	let { name, gateway, provider, modelDisplayName, text, error, status }: Props = $props();
 
-	const providerColors: Record<ProviderName, string> = {
+	const gatewayColors: Record<GatewayName, string> = {
 		anthropic: 'border-orange-500',
 		openai: 'border-green-500',
-		google: 'border-blue-500'
+		google: 'border-blue-500',
+		openrouter: 'border-violet-500'
+	};
+
+	const gatewayLabels: Record<GatewayName, string> = {
+		anthropic: 'Anthropic',
+		openai: 'OpenAI',
+		google: 'Google',
+		openrouter: 'OpenRouter'
 	};
 
 	const providerLabels: Record<ProviderName, string> = {
-		anthropic: 'Anthropic Claude',
-		openai: 'OpenAI GPT',
-		google: 'Google Gemini'
+		anthropic: 'Anthropic',
+		openai: 'OpenAI',
+		google: 'Google',
+		stepfun: 'StepFun',
+		nvidia: 'NVIDIA',
+		'arcee-ai': 'Arcee AI'
 	};
+
+	const label = $derived(
+		isRouter(gateway)
+			? `${gatewayLabels[gateway]} — ${providerLabels[provider]} ${modelDisplayName}`
+			: `${providerLabels[provider]} ${modelDisplayName}`
+	);
 </script>
 
-<div class="flex min-h-50 flex-col rounded-lg border-t-2 bg-gray-900 {providerColors[provider]}">
+<div class="flex min-h-50 flex-col rounded-lg border-t-2 bg-gray-900 {gatewayColors[gateway]}">
 	<div class="flex items-center justify-between border-b border-gray-700 px-4 py-3">
 		<div>
 			<h3 class="text-sm font-bold text-white">{name}</h3>
-			<p class="text-xs text-gray-400">{providerLabels[provider]}</p>
+			<p class="text-xs text-gray-400">{label}</p>
 		</div>
 		{#if status === 'error'}
 			<div class="h-2 w-2 rounded-full bg-red-500"></div>

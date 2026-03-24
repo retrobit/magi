@@ -6,13 +6,14 @@ export const synthesisStrategy: ConsensusStrategy = {
 	description: 'One model synthesizes the best answer from all three responses',
 
 	async *execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent> {
-		const { responses, query, getModel, tier, consensusProvider, signal } = ctx;
+		const { responses, query, getModel, nodeAssignments, consensusNodeIndex, signal } = ctx;
 
 		const formattedResponses = responses
 			.map((r) => `=== ${r.node} (${r.provider}) ===\n${r.text}`)
 			.join('\n\n');
 
-		const model = getModel(consensusProvider, tier);
+		const assignment = nodeAssignments[consensusNodeIndex];
+		const model = getModel(assignment.gateway, assignment.modelId);
 
 		const n = responses.length;
 		const countDesc =

@@ -4,27 +4,36 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
 	ANTHROPIC_API_KEY,
 	OPENAI_API_KEY,
-	GOOGLE_GENERATIVE_AI_API_KEY
+	GOOGLE_GENERATIVE_AI_API_KEY,
+	OPENROUTER_API_KEY
 } from '$env/static/private';
-import type { TierName, ProviderName } from './types';
-import { getModelEntry } from './registry';
+import type { GatewayName } from './types';
 
 let _anthropic: ReturnType<typeof createAnthropic>;
 let _openai: ReturnType<typeof createOpenAI>;
 let _google: ReturnType<typeof createGoogleGenerativeAI>;
+let _openrouter: ReturnType<typeof createOpenAI>;
 
-function getClient(provider: ProviderName) {
-	switch (provider) {
+function getClient(gateway: GatewayName) {
+	switch (gateway) {
 		case 'anthropic':
 			return (_anthropic ??= createAnthropic({ apiKey: ANTHROPIC_API_KEY }));
 		case 'openai':
 			return (_openai ??= createOpenAI({ apiKey: OPENAI_API_KEY }));
 		case 'google':
 			return (_google ??= createGoogleGenerativeAI({ apiKey: GOOGLE_GENERATIVE_AI_API_KEY }));
+		case 'openrouter':
+			return (_openrouter ??= createOpenAI({
+				apiKey: OPENROUTER_API_KEY,
+				baseURL: 'https://openrouter.ai/api/v1',
+				headers: {
+					'HTTP-Referer': 'https://github.com/retrobit/magi',
+					'X-Title': 'MAGI'
+				}
+			}));
 	}
 }
 
-export function getModel(provider: ProviderName, tier: TierName) {
-	const entry = getModelEntry(provider, tier);
-	return getClient(provider)(entry.id);
+export function getModel(gateway: GatewayName, modelId: string) {
+	return getClient(gateway)(modelId);
 }

@@ -31,7 +31,7 @@ describe('magiRequestSchema', () => {
 	it('rejects an invalid tier', () => {
 		const result = magiRequestSchema.safeParse({
 			query: 'hello',
-			tier: 'free',
+			tier: 'premium',
 			strategy: 'synthesis'
 		});
 		expect(result.success).toBe(false);
@@ -56,7 +56,7 @@ describe('magiRequestSchema', () => {
 	});
 
 	it('accepts all valid tiers', () => {
-		for (const tier of ['frontier', 'balanced', 'budget']) {
+		for (const tier of ['frontier', 'balanced', 'budget', 'free']) {
 			const result = magiRequestSchema.safeParse({
 				query: 'test',
 				tier,
@@ -66,22 +66,34 @@ describe('magiRequestSchema', () => {
 		}
 	});
 
-	it('accepts an optional consensusProvider', () => {
+	it('accepts an optional consensusNode', () => {
 		const result = magiRequestSchema.safeParse({
 			query: 'hello',
 			tier: 'balanced',
 			strategy: 'synthesis',
-			consensusProvider: 'openai'
+			consensusNode: 'MELCHIOR'
 		});
 		expect(result.success).toBe(true);
 	});
 
-	it('rejects an invalid consensusProvider', () => {
+	it('accepts all valid consensusNode values', () => {
+		for (const node of ['MELCHIOR', 'BALTHASAR', 'CASPAR']) {
+			const result = magiRequestSchema.safeParse({
+				query: 'test',
+				tier: 'balanced',
+				strategy: 'synthesis',
+				consensusNode: node
+			});
+			expect(result.success).toBe(true);
+		}
+	});
+
+	it('rejects an invalid consensusNode', () => {
 		const result = magiRequestSchema.safeParse({
 			query: 'hello',
 			tier: 'balanced',
 			strategy: 'synthesis',
-			consensusProvider: 'invalid'
+			consensusNode: 'INVALID'
 		});
 		expect(result.success).toBe(false);
 	});

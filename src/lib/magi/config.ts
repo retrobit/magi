@@ -1,36 +1,79 @@
-import type { MagiNodeName, ProviderName } from './types';
-import { MAGI_NODE_NAMES } from './types';
-
-export const DEFAULT_CONSENSUS_PROVIDER: ProviderName = 'anthropic';
+import type { MagiNodeName, GatewayName, ProviderName, TierName } from './types';
+import { MAGI_NODE_NAMES, isRouter } from './types';
 
 export interface NodeAssignment {
 	node: MagiNodeName;
+	gateway: GatewayName;
 	provider: ProviderName;
+	modelId: string;
 }
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MELCHIOR', provider: 'anthropic' },
-	{ node: 'BALTHASAR', provider: 'openai' },
-	{ node: 'CASPAR', provider: 'google' }
+	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
+	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
+	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 ];
+
+export const FREE_MAGI_CONFIG: MagiConfig = [
+	{ node: 'MELCHIOR', gateway: 'openrouter', provider: 'stepfun', modelId: 'stepfun/step-3.5-flash:free' },
+	{ node: 'BALTHASAR', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/nemotron-3-super-120b-a12b:free' },
+	{ node: 'CASPAR', gateway: 'openrouter', provider: 'arcee-ai', modelId: 'arcee-ai/trinity-large-preview:free' }
+];
+
+/** Maps each tier to its node configuration. */
+export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
+	frontier: [
+		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.2' },
+		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3.1-pro' }
+	],
+	balanced: DEFAULT_MAGI_CONFIG,
+	budget: [
+		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
+		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4.1-mini' },
+		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
+	],
+	free: FREE_MAGI_CONFIG
+};
 
 export function validateConfig(config: MagiConfig): void {
 	const nodes = config.map((a) => a.node);
 	const providers = config.map((a) => a.provider);
+	const modelIds = config.map((a) => a.modelId);
+	const gateways = config.map((a) => a.gateway);
 
+	// All three canonical nodes must be present exactly once
 	if (new Set(nodes).size !== nodes.length) {
 		throw new Error('Duplicate nodes in MAGI config: each node must appear exactly once');
 	}
-
 	for (const name of MAGI_NODE_NAMES) {
 		if (!nodes.includes(name)) {
 			throw new Error(`Missing node assignment for ${name}`);
 		}
 	}
 
+	// Providers must be unique across all nodes (the core diversity rule)
 	if (new Set(providers).size !== providers.length) {
 		throw new Error('Duplicate providers in MAGI config: each node must use a unique provider');
+	}
+
+	// Models must be unique across all nodes
+	if (new Set(modelIds).size !== modelIds.length) {
+		throw new Error('Duplicate models in MAGI config: each node must use a unique model');
+	}
+
+	// Gateways may repeat only if they are routers
+	const gatewayCount = new Map<GatewayName, number>();
+	for (const gw of gateways) {
+		gatewayCount.set(gw, (gatewayCount.get(gw) ?? 0) + 1);
+	}
+	for (const [gw, count] of gatewayCount) {
+		if (count > 1 && !isRouter(gw)) {
+			throw new Error(
+				`Direct gateway "${gw}" used by multiple nodes: only router gateways may be shared`
+			);
+		}
 	}
 }
