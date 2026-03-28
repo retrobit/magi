@@ -14,7 +14,10 @@ export const magiRequestSchema = z.object({
 	tier: z.enum(TIER_NAMES),
 	strategy: z.enum(STRATEGY_NAMES),
 	consensusNode: z.enum(MAGI_NODE_NAMES).optional(),
-	assignments: z.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema]).optional()
+	assignments: z
+		.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema])
+		.optional(),
+	temperaments: z.boolean().optional()
 });
 
 export type MagiRequest = z.infer<typeof magiRequestSchema>;

@@ -20,17 +20,34 @@ export const PROVIDER_NAMES = [
 ] as const;
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
+// Named after the three MAGI supercomputers from Neon Genesis Evangelion
 export const MAGI_NODE_NAMES = ['MELCHIOR', 'BALTHASAR', 'CASPAR'] as const;
 export type MagiNodeName = (typeof MAGI_NODE_NAMES)[number];
 
+export const TEMPERAMENT_NAMES = ['rationalist', 'caretaker', 'individualist'] as const;
+export type TemperamentName = (typeof TEMPERAMENT_NAMES)[number];
+
 export const NODE_LABELS: Record<MagiNodeName, string> = {
-	MELCHIOR: 'MELCHIOR \u2022 1',
-	BALTHASAR: 'BALTHASAR \u2022 2',
-	CASPAR: 'CASPAR \u2022 3'
+	MELCHIOR: 'MAGI \u2022 1',
+	BALTHASAR: 'MAGI \u2022 2',
+	CASPAR: 'MAGI \u2022 3'
+};
+
+export const TEMPERAMENT_LABELS: Record<TemperamentName, string> = {
+	rationalist: 'Rationalist',
+	caretaker: 'Caretaker',
+	individualist: 'Individualist'
+};
+
+export const NODE_TEMPERAMENTS: Record<MagiNodeName, TemperamentName> = {
+	MELCHIOR: 'rationalist',
+	BALTHASAR: 'caretaker',
+	CASPAR: 'individualist'
 };
 
 export interface MagiNode {
 	name: MagiNodeName;
+	temperament: TemperamentName;
 }
 
 export interface MagiResponse {
@@ -70,9 +87,8 @@ export const PROVIDER_LABELS: Record<ProviderName, string> = {
 	'arcee-ai': 'Arcee AI'
 };
 
-// Reserved for future per-node personality/system-prompt configuration
 export const MAGI_NODES: readonly MagiNode[] = [
-	{ name: 'MELCHIOR' },
-	{ name: 'BALTHASAR' },
-	{ name: 'CASPAR' }
+	{ name: 'MELCHIOR', temperament: 'rationalist' },
+	{ name: 'BALTHASAR', temperament: 'caretaker' },
+	{ name: 'CASPAR', temperament: 'individualist' }
 ];

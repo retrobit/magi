@@ -11,7 +11,9 @@ import {
 	type MagiConfig
 } from '$lib/magi/config';
 import type { MagiResponse } from '$lib/magi/types';
+import { NODE_TEMPERAMENTS } from '$lib/magi/types';
 import { magiRequestSchema } from '$lib/magi/validation';
+import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
@@ -62,7 +64,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		tier,
 		strategy: strategyName,
 		consensusNode: requestedConsensusNode,
-		assignments: clientAssignments
+		assignments: clientAssignments,
+		temperaments: useTemperaments
 	} = parsed.data;
 
 	// Use client assignments if provided, otherwise fall back to tier preset
@@ -140,8 +143,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const results = await Promise.allSettled(
 					config.map(async ({ node, gateway, provider, modelId }) => {
 						const model = getModel(gateway, modelId);
+						const systemPrompt = useTemperaments
+							? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
+							: undefined;
 						const result = streamText({
 							model,
+							...(systemPrompt && { system: systemPrompt }),
 							prompt: query,
 							abortSignal: abortController.signal
 						});

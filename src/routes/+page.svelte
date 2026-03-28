@@ -7,6 +7,8 @@
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
+		NODE_TEMPERAMENTS,
+		TEMPERAMENT_LABELS,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -16,7 +18,7 @@
 	import { findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
 	import { onDestroy } from 'svelte';
-	import { Triangle, LoaderCircle, CircleAlert, ArrowLeftRight, X } from 'lucide-svelte';
+	import { Triangle, LoaderCircle, CircleAlert, ArrowLeftRight, X, Brain } from 'lucide-svelte';
 
 	interface MagiModelError {
 		node: MagiNodeName;
@@ -27,6 +29,7 @@
 
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
+	let temperaments = $state(false);
 	let query = $state('');
 	let loading = $state(false);
 	let configuredNodes = $state<Set<number>>(new Set([0, 1, 2]));
@@ -187,7 +190,7 @@
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query, tier, strategy, consensusNode, assignments }),
+				body: JSON.stringify({ query, tier, strategy, consensusNode, assignments, temperaments }),
 				signal: abortController.signal
 			});
 
@@ -294,6 +297,23 @@
 			<h1 class="text-2xl font-bold tracking-wider">MAGI <span class="text-lg">🔺🔻🔺</span></h1>
 			<div class="flex items-center gap-4">
 				<div class="flex items-center gap-2">
+					<span class="text-xs text-gray-500">TEMPERAMENT</span>
+					<button
+						type="button"
+						onclick={() => (temperaments = !temperaments)}
+						disabled={loading}
+						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
+							? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
+							: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						title={temperaments
+							? 'Temperaments active — each node responds through its dispositional lens'
+							: 'Enable temperaments — give each MAGI node a distinct dispositional personality'}
+					>
+						<Brain size={12} />
+						{temperaments ? 'ON' : 'OFF'}
+					</button>
+				</div>
+				<div class="flex items-center gap-2">
 					<span class="text-xs text-gray-500">TIER</span>
 					<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
 				</div>
@@ -376,6 +396,7 @@
 					text={responseMap.get(assignment.node)?.text ?? modelStreams[assignment.node]}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
+					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
 					disabled={loading}
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}

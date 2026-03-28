@@ -1,10 +1,11 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName, ProviderName, TierName } from '$lib/magi/types';
+	import type { MagiNodeName, GatewayName, ProviderName, TierName, TemperamentName } from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
 		PROVIDER_LABELS,
 		NODE_COLORS,
 		NODE_LABELS,
+		TEMPERAMENT_LABELS,
 		isRouter
 	} from '$lib/magi/types';
 	import {
@@ -27,6 +28,7 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
+		temperament?: TemperamentName;
 		disabled?: boolean;
 		usedProviders?: ProviderName[];
 		onchange?: (gateway: GatewayName, provider: ProviderName, modelId: string) => void;
@@ -42,6 +44,7 @@
 		text,
 		error,
 		status,
+		temperament,
 		disabled = false,
 		usedProviders = [],
 		onchange
@@ -108,7 +111,14 @@
 <div class="flex min-h-0 flex-col rounded-lg border-t-2 bg-gray-900 {NODE_COLORS[name]} {status === 'pending' && !text ? 'animate-pulse' : ''}">
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
 		<div class="flex items-center justify-between">
-			<h3 class="text-sm font-bold text-white">{NODE_LABELS[name]}</h3>
+			<div class="flex items-center gap-2">
+				<h3 class="text-sm font-bold text-white">{NODE_LABELS[name]}</h3>
+				{#if temperament}
+					<span class="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30"
+						>{TEMPERAMENT_LABELS[temperament]}</span
+					>
+				{/if}
+			</div>
 			{#if status === 'error'}
 				<CircleAlert size={14} class="text-red-500" />
 			{:else if status === 'pending'}

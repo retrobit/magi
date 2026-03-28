@@ -7,6 +7,9 @@ export {
 	ROUTER_GATEWAYS,
 	isRouter,
 	PROVIDER_NAMES,
+	TEMPERAMENT_NAMES,
+	TEMPERAMENT_LABELS,
+	NODE_TEMPERAMENTS,
 	NODE_COLORS,
 	NODE_HEX_COLORS,
 	CONSENSUS_GRADIENT,
@@ -17,7 +20,8 @@ export {
 	type ProviderName,
 	type MagiNodeName,
 	type MagiNode,
-	type MagiResponse
+	type MagiResponse,
+	type TemperamentName
 } from './magi/types';
 export {
 	MODEL_REGISTRY,
@@ -49,3 +53,4 @@ export {
 	type ConsensusEvent,
 	type ConsensusContext
 } from './magi/consensus';
+export { TEMPERAMENT_SYSTEM_PROMPTS } from './magi/temperaments';
