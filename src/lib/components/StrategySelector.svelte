@@ -18,7 +18,7 @@
 	{#each STRATEGY_NAMES as strategy (strategy)}
 		<button
 			class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === strategy
-				? 'bg-emerald-600 text-white'
+				? 'bg-indigo-500 text-white'
 				: 'text-gray-400 hover:text-white'}"
 			{disabled}
 			onclick={() => onchange(strategy)}

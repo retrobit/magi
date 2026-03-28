@@ -33,8 +33,8 @@ graph TD
 
 ## ⚡ How It Works
 
-1. **Parallel dispatch** — Your query is sent to all three models simultaneously via the Vercel AI SDK's `generateText()`. Total latency is determined by the slowest model, not the sum of all three.
-2. **Independent responses** — Each model responds without knowledge of the others, ensuring genuinely independent perspectives.
+1. **Parallel dispatch** — Your query is sent to all three models simultaneously via the Vercel AI SDK's `streamText()`. Total latency is determined by the slowest model, not the sum of all three.
+2. **Independent responses** — Each model responds without knowledge of the others, ensuring genuinely independent perspectives. Model responses stream to the client in real time as they arrive.
 3. **Consensus synthesis** — Once all three responses are in, the consensus engine streams a unified answer via `streamText()` that identifies agreements, resolves disagreements, and flags remaining uncertainty.
 4. **Partial consensus** — If one or two models fail, the system proceeds with the available responses and warns the user that consensus is based on partial data.
 
@@ -127,7 +127,12 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
   "query": "Your question here",
   "tier": "free",
   "strategy": "synthesis",
-  "consensusNode": "MELCHIOR"
+  "consensusNode": "MELCHIOR",
+  "assignments": [
+    { "node": "MELCHIOR", "gateway": "openrouter", "provider": "stepfun", "modelId": "stepfun/step-3.5-flash:free" },
+    { "node": "BALTHASAR", "gateway": "openrouter", "provider": "nvidia", "modelId": "nvidia/nemotron-3-super-120b-a12b:free" },
+    { "node": "CASPAR", "gateway": "openrouter", "provider": "arcee-ai", "modelId": "arcee-ai/trinity-large-preview:free" }
+  ]
 }
 ```
 
@@ -137,6 +142,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `tier`              | string | Yes      | `frontier`, `balanced`, `budget`, `free`|
 | `strategy`          | string | Yes      | `synthesis`                             |
 | `consensusNode`     | string | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`) |
+| `assignments`       | array  | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
 
 **SSE events:**
 
