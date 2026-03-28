@@ -3,9 +3,10 @@
 	import StrategySelector from '$lib/components/StrategySelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
-	import { TIER_CONFIGS, type NodeAssignment } from '$lib/magi/config';
+	import { TIER_CONFIGS, type NodeAssignment, type MagiConfig } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
+		MAGI_NODE_NAMES,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -15,6 +16,7 @@
 	import { findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
 	import { onDestroy } from 'svelte';
+	import { Triangle, LoaderCircle, CircleAlert, ArrowLeftRight, X } from 'lucide-svelte';
 
 	interface MagiModelError {
 		node: MagiNodeName;
@@ -27,9 +29,32 @@
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
 	let query = $state('');
 	let loading = $state(false);
+	let configuredNodes = $state<Set<number>>(new Set([0, 1, 2]));
+	let consensusNode: MagiNodeName = $state('MELCHIOR');
 
-	let nodeConfig = $state<readonly NodeAssignment[]>(TIER_CONFIGS[DEFAULT_TIER]);
+	// Mutable node assignments — tier presets populate these, user can customize
+	let assignments = $state<[NodeAssignment, NodeAssignment, NodeAssignment]>([
+		...TIER_CONFIGS[DEFAULT_TIER]
+	] as [NodeAssignment, NodeAssignment, NodeAssignment]);
+
+	interface TierSnapshot {
+		responses: MagiResponse[];
+		modelStreams: Record<MagiNodeName, string>;
+		modelErrors: MagiModelError[];
+		consensusStream: string;
+		consensusFinal: string;
+		consensusWarning: string;
+		error: string;
+		streamDone: boolean;
+		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
+		configuredNodes: Set<number>;
+		consensusNode: MagiNodeName;
+	}
+
+	const tierCache = new Map<TierName, TierSnapshot>();
+
 	let responses = $state<MagiResponse[]>([]);
+	let modelStreams = $state<Record<MagiNodeName, string>>({ MELCHIOR: '', BALTHASAR: '', CASPAR: '' });
 	let modelErrors = $state<MagiModelError[]>([]);
 	let consensusStream = $state('');
 	let consensusFinal = $state('');
@@ -42,7 +67,11 @@
 
 	const responseMap = $derived(new Map(responses.map((r) => [r.node, r])));
 	const errorMap = $derived(new Map(modelErrors.map((e) => [e.node, e.error])));
-	const modelsResponded = $derived(responses.length + modelErrors.length > 0);
+	const allModelsResponded = $derived(responses.length + modelErrors.length >= 3);
+
+	const consensusAssignment = $derived(
+		assignments.find((a) => a.node === consensusNode) ?? assignments[0]
+	);
 
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
@@ -57,16 +86,96 @@
 		return entry?.displayName ?? assignment.modelId;
 	}
 
+	function saveTierSnapshot() {
+		tierCache.set(tier, {
+			responses,
+			modelStreams: { ...modelStreams },
+			modelErrors,
+			consensusStream,
+			consensusFinal,
+			consensusWarning,
+			error,
+			streamDone,
+			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
+			configuredNodes: new Set(configuredNodes),
+			consensusNode
+		});
+	}
+
+	function loadTierSnapshot(t: TierName) {
+		const cached = tierCache.get(t);
+		if (cached) {
+			responses = cached.responses;
+			modelStreams = { ...cached.modelStreams };
+			modelErrors = cached.modelErrors;
+			consensusStream = cached.consensusStream;
+			consensusFinal = cached.consensusFinal;
+			consensusWarning = cached.consensusWarning;
+			error = cached.error;
+			streamDone = cached.streamDone;
+			assignments = [...cached.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
+			configuredNodes = new Set(cached.configuredNodes);
+			consensusNode = cached.consensusNode;
+		} else {
+			responses = [];
+			modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
+			modelErrors = [];
+			consensusStream = '';
+			consensusFinal = '';
+			consensusWarning = '';
+			error = '';
+			streamDone = false;
+			assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+			configuredNodes = new Set([0, 1, 2]);
+			consensusNode = 'MELCHIOR';
+		}
+	}
+
+	function handleTierChange(newTier: TierName) {
+		if (newTier === tier || loading) return;
+		saveTierSnapshot();
+		tier = newTier;
+		loadTierSnapshot(newTier);
+	}
+
+	function getUsedProviders(excludeIndex: number): ProviderName[] {
+		return assignments
+			.filter((_, i) => i !== excludeIndex && configuredNodes.has(i))
+			.map((a) => a.provider);
+	}
+
+	function handleNodeChange(
+		nodeIndex: number,
+		gateway: GatewayName,
+		provider: ProviderName,
+		modelId: string
+	) {
+		configuredNodes.add(nodeIndex);
+		// Reassign to trigger Svelte 5 reactivity (Set mutation alone won't notify)
+		configuredNodes = new Set(configuredNodes);
+		const node = MAGI_NODE_NAMES[nodeIndex];
+		assignments[nodeIndex] = { node, gateway, provider, modelId };
+	}
+
+	const allConfigured = $derived(configuredNodes.size === 3);
+
+	function handleSwap(a: number, b: number) {
+		const { node: nodeA, ...restA } = assignments[a];
+		const { node: nodeB, ...restB } = assignments[b];
+		assignments[a] = { node: nodeA, ...restB };
+		assignments[b] = { node: nodeB, ...restA };
+	}
+
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!query.trim() || loading) return;
+		if (!query.trim() || loading || !allConfigured) return;
 
 		abortController?.abort();
 		abortController = new AbortController();
 
 		loading = true;
-		nodeConfig = TIER_CONFIGS[tier];
 		responses = [];
+		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
 		modelErrors = [];
 		consensusStream = '';
 		consensusFinal = '';
@@ -78,7 +187,7 @@
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query, tier, strategy }),
+				body: JSON.stringify({ query, tier, strategy, consensusNode, assignments }),
 				signal: abortController.signal
 			});
 
@@ -121,6 +230,7 @@
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				streamDone = true;
+				loading = false;
 				return;
 			}
 			error = err instanceof Error ? err.message : 'Network error';
@@ -133,8 +243,20 @@
 	function handleEvent(event: string, data: unknown) {
 		switch (event) {
 			case 'config':
-				nodeConfig = data as NodeAssignment[];
+				// Server confirms the config — update assignments to match
+				assignments = (data as NodeAssignment[]) as [
+					NodeAssignment,
+					NodeAssignment,
+					NodeAssignment
+				];
 				break;
+			case 'model-chunk': {
+				const { node, text } = data as { node: string; text: string };
+				if (node in modelStreams && typeof text === 'string') {
+					modelStreams[node as MagiNodeName] += text;
+				}
+				break;
+			}
 			case 'model-response':
 				responses = [...responses, data as MagiResponse];
 				break;
@@ -165,15 +287,15 @@
 	<title>MAGI</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-gray-950 text-white">
+<div class="flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
 	<!-- Header -->
-	<header class="border-b border-gray-800 px-6 py-4">
+	<header class="shrink-0 border-b border-gray-800 px-6 py-4">
 		<div class="mx-auto flex max-w-7xl items-center justify-between">
-			<h1 class="text-2xl font-bold tracking-wider">MAGI</h1>
+			<h1 class="text-2xl font-bold tracking-wider">MAGI <span class="text-lg">🔺🔻🔺</span></h1>
 			<div class="flex items-center gap-4">
 				<div class="flex items-center gap-2">
 					<span class="text-xs text-gray-500">TIER</span>
-					<TierSelector value={tier} onchange={(t) => (tier = t)} disabled={loading} />
+					<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
 				</div>
 				<div class="flex items-center gap-2">
 					<span class="text-xs text-gray-500">CONSENSUS</span>
@@ -184,9 +306,9 @@
 	</header>
 
 	<!-- Main content -->
-	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-6">
+	<main class="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 p-6">
 		<!-- Query input -->
-		<form onsubmit={handleSubmit} class="flex gap-3">
+		<form onsubmit={handleSubmit} class="flex shrink-0 gap-3">
 			<input
 				bind:value={query}
 				type="text"
@@ -194,44 +316,88 @@
 				disabled={loading}
 				class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
 			/>
-			<button
-				type="submit"
-				disabled={loading || !query.trim()}
-				class="rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600"
-			>
-				{loading ? 'Processing...' : 'Submit'}
-			</button>
+			{#if loading}
+				<button
+					type="button"
+					onclick={() => abortController?.abort()}
+					class="group flex w-40 items-center justify-center gap-2 rounded-lg bg-indigo-500 py-3 font-medium text-white transition-colors hover:bg-red-600"
+				>
+					<span class="flex items-center gap-2 group-hover:hidden">
+						<LoaderCircle size={16} class="animate-spin" /> Processing...
+					</span>
+					<span class="hidden items-center gap-2 group-hover:flex">
+						<X size={16} /> Abort
+					</span>
+				</button>
+			{:else}
+				<button
+					type="submit"
+					disabled={!query.trim() || !allConfigured}
+					class="flex w-40 items-center justify-center gap-2 rounded-lg bg-indigo-500 py-3 font-medium text-white transition-colors hover:bg-indigo-400 disabled:opacity-50 disabled:hover:bg-indigo-500"
+				>
+					<Triangle size={14} class="rotate-90 fill-current" /> Execute
+				</button>
+			{/if}
 		</form>
 
 		<!-- Global error -->
 		{#if error}
-			<div class="rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300">
+			<div
+				class="flex shrink-0 items-center gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
+			>
+				<CircleAlert size={16} class="shrink-0" />
 				{error}
 			</div>
 		{/if}
 
 		<!-- Three MAGI panels -->
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-			{#each nodeConfig as assignment (assignment.node)}
+		<div class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[1fr_auto_1fr_auto_1fr]">
+			{#each assignments as assignment, i (assignment.node)}
+				{#if i > 0}
+					<div class="hidden items-center md:flex">
+						<button
+							type="button"
+							onclick={() => handleSwap(i - 1, i)}
+							disabled={loading}
+							class="rounded p-1 text-gray-600 transition-colors hover:bg-gray-800 hover:text-white disabled:opacity-50"
+							title="Swap configurations"
+						>
+							<ArrowLeftRight size={16} />
+						</button>
+					</div>
+				{/if}
 				<MagiPanel
 					name={assignment.node}
-					gateway={assignment.gateway}
-					provider={assignment.provider}
+					{tier}
+					gateway={configuredNodes.has(i) ? assignment.gateway : ''}
+					provider={configuredNodes.has(i) ? assignment.provider : ''}
+					modelId={configuredNodes.has(i) ? assignment.modelId : ''}
 					modelDisplayName={getModelDisplayName(assignment)}
-					text={responseMap.get(assignment.node)?.text ?? ''}
+					text={responseMap.get(assignment.node)?.text ?? modelStreams[assignment.node]}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
+					disabled={loading}
+					usedProviders={getUsedProviders(i)}
+					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 				/>
 			{/each}
 		</div>
 
 		<!-- Consensus -->
-		<ConsensusView
-			text={consensusStream}
-			fullText={consensusFinal}
-			{loading}
-			{modelsResponded}
-			warning={consensusWarning}
-		/>
+		<div class="min-h-0 flex-1">
+			<ConsensusView
+				text={consensusStream}
+				fullText={consensusFinal}
+				{loading}
+				allModelsResponded={allModelsResponded}
+				warning={consensusWarning}
+				{consensusNode}
+				consensusGateway={consensusAssignment.gateway}
+				consensusProvider={consensusAssignment.provider}
+				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}
+				disabled={loading}
+				onconsensuschange={(node) => (consensusNode = node)}
+			/>
+		</div>
 	</main>
 </div>

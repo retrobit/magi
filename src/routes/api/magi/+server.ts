@@ -1,16 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateText } from 'ai';
+import { streamText } from 'ai';
 import { getModel } from '$lib/magi/models';
 import { getStrategy, type ConsensusContext } from '$lib/magi/consensus';
 import {
 	TIER_CONFIGS,
 	DEFAULT_MAGI_CONFIG,
 	FREE_MAGI_CONFIG,
-	validateConfig
+	validateConfig,
+	type MagiConfig
 } from '$lib/magi/config';
 import type { MagiResponse } from '$lib/magi/types';
 import { magiRequestSchema } from '$lib/magi/validation';
+import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { timingSafeEqual } from 'node:crypto';
@@ -59,10 +61,41 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		query,
 		tier,
 		strategy: strategyName,
-		consensusNode: requestedConsensusNode
+		consensusNode: requestedConsensusNode,
+		assignments: clientAssignments
 	} = parsed.data;
 
-	const config = TIER_CONFIGS[tier];
+	// Use client assignments if provided, otherwise fall back to tier preset
+	let config: MagiConfig;
+	if (clientAssignments) {
+		config = clientAssignments as MagiConfig;
+		try {
+			validateConfig(config);
+		} catch (err) {
+			return json(
+				{ error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}` },
+				{ status: 400 }
+			);
+		}
+		// Verify all models exist in the registry for the requested tier
+		for (const a of config) {
+			const entry = findModelEntry(a.gateway, a.modelId);
+			if (!entry) {
+				return json(
+					{ error: `Unknown model "${a.modelId}" for gateway "${a.gateway}"` },
+					{ status: 400 }
+				);
+			}
+			if (entry.tier !== tier) {
+				return json(
+					{ error: `Model "${a.modelId}" is not available in the "${tier}" tier` },
+					{ status: 400 }
+				);
+			}
+		}
+	} else {
+		config = TIER_CONFIGS[tier];
+	}
 
 	// Resolve consensus node — default to first node
 	const consensusNodeIndex = requestedConsensusNode
@@ -103,16 +136,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// Send node configuration so the client knows assignments
 				send('config', config);
 
-				// Phase 1: Dispatch to all three MAGI nodes in parallel
+				// Phase 1: Dispatch to all three MAGI nodes in parallel (streaming)
 				const results = await Promise.allSettled(
 					config.map(async ({ node, gateway, provider, modelId }) => {
 						const model = getModel(gateway, modelId);
-						const result = await generateText({
+						const result = streamText({
 							model,
 							prompt: query,
 							abortSignal: abortController.signal
 						});
-						const response: MagiResponse = { node, gateway, provider, text: result.text };
+						let fullText = '';
+						for await (const chunk of result.textStream) {
+							fullText += chunk;
+							send('model-chunk', { node, text: chunk });
+						}
+						const response: MagiResponse = { node, gateway, provider, text: fullText };
 						send('model-response', response);
 						return response;
 					})

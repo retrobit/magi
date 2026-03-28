@@ -20,7 +20,7 @@ describe('MAGI_NODE_NAMES', () => {
 
 describe('TIER_NAMES', () => {
 	it('defines four tiers', () => {
-		expect(TIER_NAMES).toEqual(['frontier', 'balanced', 'budget', 'free']);
+		expect(TIER_NAMES).toEqual(['free', 'budget', 'balanced', 'frontier']);
 	});
 
 	it('defaults to free tier', () => {
