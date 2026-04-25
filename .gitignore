@@ -1,16 +1,14 @@
-node_modules
-
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-
 # OS
 .DS_Store
-Thumbs.db
+
+# VS Code
+.vscode/
+
+# Claude Code
+.claude/settings.local.json
+
+# Logs
+*.log
 
 # Env
 .env
@@ -19,9 +17,20 @@ Thumbs.db
 !.env.*.example
 !.env.test
 
+# Package manager
+package-lock.json
+
+# Dependencies
+node_modules
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# VS Code
-.vscode/
+# Output
+/build
+/.svelte-kit
+.output
+.netlify
+.vercel
+.wrangler
