@@ -20,7 +20,9 @@ describe('MODEL_REGISTRY', () => {
 	});
 
 	it('has entries for openrouter free tier', () => {
-		const freeEntries = MODEL_REGISTRY.filter((e) => e.gateway === 'openrouter' && e.tier === 'free');
+		const freeEntries = MODEL_REGISTRY.filter(
+			(e) => e.gateway === 'openrouter' && e.tier === 'free'
+		);
 		expect(freeEntries).toHaveLength(3);
 	});
 
@@ -39,7 +41,9 @@ describe('MODEL_REGISTRY', () => {
 	});
 
 	it('openrouter entries have distinct providers', () => {
-		const orProviders = MODEL_REGISTRY.filter((e) => e.gateway === 'openrouter').map((e) => e.provider);
+		const orProviders = MODEL_REGISTRY.filter((e) => e.gateway === 'openrouter').map(
+			(e) => e.provider
+		);
 		expect(new Set(orProviders).size).toBe(orProviders.length);
 	});
 });
@@ -80,7 +84,7 @@ describe('getModelsForProvider', () => {
 	});
 
 	it('returns a single model for a router-hosted provider', () => {
-		const models = getModelsForProvider('stepfun');
+		const models = getModelsForProvider('qwen');
 		expect(models).toHaveLength(1);
 		expect(models[0].gateway).toBe('openrouter');
 	});
@@ -94,9 +98,9 @@ describe('findModelEntry', () => {
 	});
 
 	it('finds an openrouter model', () => {
-		const entry = findModelEntry('openrouter', 'stepfun/step-3.5-flash:free');
+		const entry = findModelEntry('openrouter', 'qwen/qwen3-coder:free');
 		expect(entry).toBeDefined();
-		expect(entry!.provider).toBe('stepfun');
+		expect(entry!.provider).toBe('qwen');
 	});
 
 	it('returns undefined for unknown model', () => {
@@ -121,8 +125,8 @@ describe('getAvailableProviders', () => {
 		expect(providers).toContain('anthropic');
 		expect(providers).toContain('openai');
 		expect(providers).toContain('google');
-		expect(providers).toContain('stepfun');
+		expect(providers).toContain('qwen');
 		expect(providers).toContain('nvidia');
-		expect(providers).toContain('arcee-ai');
+		expect(providers).toContain('meta-llama');
 	});
 });

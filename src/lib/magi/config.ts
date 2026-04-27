@@ -17,9 +17,19 @@ export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 ];
 
 export const FREE_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MELCHIOR', gateway: 'openrouter', provider: 'stepfun', modelId: 'stepfun/step-3.5-flash:free' },
-	{ node: 'BALTHASAR', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/nemotron-3-super-120b-a12b:free' },
-	{ node: 'CASPAR', gateway: 'openrouter', provider: 'arcee-ai', modelId: 'arcee-ai/trinity-large-preview:free' }
+	{ node: 'MELCHIOR', gateway: 'openrouter', provider: 'qwen', modelId: 'qwen/qwen3-coder:free' },
+	{
+		node: 'BALTHASAR',
+		gateway: 'openrouter',
+		provider: 'nvidia',
+		modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+	},
+	{
+		node: 'CASPAR',
+		gateway: 'openrouter',
+		provider: 'meta-llama',
+		modelId: 'meta-llama/llama-3.3-70b-instruct:free'
+	}
 ];
 
 /** Maps each tier to its node configuration. */

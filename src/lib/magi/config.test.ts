@@ -111,9 +111,24 @@ describe('validateConfig', () => {
 
 	it('allows router gateway shared across nodes with different providers', () => {
 		const config: MagiConfig = [
-			{ node: 'MELCHIOR', gateway: 'openrouter', provider: 'stepfun', modelId: 'stepfun/step-3.5-flash:free' },
-			{ node: 'BALTHASAR', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/nemotron-3-super-120b-a12b:free' },
-			{ node: 'CASPAR', gateway: 'openrouter', provider: 'arcee-ai', modelId: 'arcee-ai/trinity-large-preview:free' }
+			{
+				node: 'MELCHIOR',
+				gateway: 'openrouter',
+				provider: 'qwen',
+				modelId: 'qwen/qwen3-coder:free'
+			},
+			{
+				node: 'BALTHASAR',
+				gateway: 'openrouter',
+				provider: 'nvidia',
+				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+			},
+			{
+				node: 'CASPAR',
+				gateway: 'openrouter',
+				provider: 'meta-llama',
+				modelId: 'meta-llama/llama-3.3-70b-instruct:free'
+			}
 		];
 		expect(() => validateConfig(config)).not.toThrow();
 	});
@@ -139,8 +154,18 @@ describe('validateConfig', () => {
 	it('allows mixed config with router and direct gateways', () => {
 		const config: MagiConfig = [
 			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
-			{ node: 'BALTHASAR', gateway: 'openrouter', provider: 'stepfun', modelId: 'stepfun/step-3.5-flash:free' },
-			{ node: 'CASPAR', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/nemotron-3-super-120b-a12b:free' }
+			{
+				node: 'BALTHASAR',
+				gateway: 'openrouter',
+				provider: 'qwen',
+				modelId: 'qwen/qwen3-coder:free'
+			},
+			{
+				node: 'CASPAR',
+				gateway: 'openrouter',
+				provider: 'nvidia',
+				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+			}
 		];
 		expect(() => validateConfig(config)).not.toThrow();
 	});

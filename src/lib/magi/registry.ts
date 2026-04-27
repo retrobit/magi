@@ -32,21 +32,51 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		displayName: 'Claude Haiku 4.5'
 	},
 	// OpenAI (direct)
-	{ id: 'gpt-5.2', gateway: 'openai', provider: 'openai', tier: 'frontier', displayName: 'GPT-5.2' },
+	{
+		id: 'gpt-5.2',
+		gateway: 'openai',
+		provider: 'openai',
+		tier: 'frontier',
+		displayName: 'GPT-5.2'
+	},
 	{ id: 'gpt-4o', gateway: 'openai', provider: 'openai', tier: 'balanced', displayName: 'GPT-4o' },
-	{ id: 'gpt-4.1-mini', gateway: 'openai', provider: 'openai', tier: 'budget', displayName: 'GPT-4.1 Mini' },
+	{
+		id: 'gpt-4.1-mini',
+		gateway: 'openai',
+		provider: 'openai',
+		tier: 'budget',
+		displayName: 'GPT-4.1 Mini'
+	},
 	// Google (direct)
-	{ id: 'gemini-3.1-pro', gateway: 'google', provider: 'google', tier: 'frontier', displayName: 'Gemini 3.1 Pro' },
+	{
+		id: 'gemini-3.1-pro',
+		gateway: 'google',
+		provider: 'google',
+		tier: 'frontier',
+		displayName: 'Gemini 3.1 Pro'
+	},
 	// Intentionally the same model for balanced and budget — no cheaper Google tier available yet
-	{ id: 'gemini-3-flash', gateway: 'google', provider: 'google', tier: 'balanced', displayName: 'Gemini 3 Flash' },
-	{ id: 'gemini-3-flash', gateway: 'google', provider: 'google', tier: 'budget', displayName: 'Gemini 3 Flash' },
+	{
+		id: 'gemini-3-flash',
+		gateway: 'google',
+		provider: 'google',
+		tier: 'balanced',
+		displayName: 'Gemini 3 Flash'
+	},
+	{
+		id: 'gemini-3-flash',
+		gateway: 'google',
+		provider: 'google',
+		tier: 'budget',
+		displayName: 'Gemini 3 Flash'
+	},
 	// OpenRouter — diverse free models for multi-perspective consensus
 	{
-		id: 'stepfun/step-3.5-flash:free',
+		id: 'qwen/qwen3-coder:free',
 		gateway: 'openrouter',
-		provider: 'stepfun',
+		provider: 'qwen',
 		tier: 'free',
-		displayName: 'Step 3.5 Flash'
+		displayName: 'Qwen3 Coder'
 	},
 	{
 		id: 'nvidia/nemotron-3-super-120b-a12b:free',
@@ -56,11 +86,11 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		displayName: 'Nemotron 3 Super'
 	},
 	{
-		id: 'arcee-ai/trinity-large-preview:free',
+		id: 'meta-llama/llama-3.3-70b-instruct:free',
 		gateway: 'openrouter',
-		provider: 'arcee-ai',
+		provider: 'meta-llama',
 		tier: 'free',
-		displayName: 'Trinity Large'
+		displayName: 'Llama 3.3 70B'
 	}
 ];
 
@@ -84,7 +114,10 @@ export function getProvidersForGateway(gateway: GatewayName): ProviderName[] {
 	return [...new Set(MODEL_REGISTRY.filter((e) => e.gateway === gateway).map((e) => e.provider))];
 }
 
-export function getModelsForGatewayProvider(gateway: GatewayName, provider: ProviderName): ModelEntry[] {
+export function getModelsForGatewayProvider(
+	gateway: GatewayName,
+	provider: ProviderName
+): ModelEntry[] {
 	return MODEL_REGISTRY.filter((e) => e.gateway === gateway && e.provider === provider);
 }
 
@@ -101,9 +134,19 @@ export function getGatewaysForTier(tier: TierName): GatewayName[] {
 }
 
 export function getProvidersForGatewayTier(gateway: GatewayName, tier: TierName): ProviderName[] {
-	return [...new Set(MODEL_REGISTRY.filter((e) => e.gateway === gateway && e.tier === tier).map((e) => e.provider))];
+	return [
+		...new Set(
+			MODEL_REGISTRY.filter((e) => e.gateway === gateway && e.tier === tier).map((e) => e.provider)
+		)
+	];
 }
 
-export function getModelsForGatewayProviderTier(gateway: GatewayName, provider: ProviderName, tier: TierName): ModelEntry[] {
-	return MODEL_REGISTRY.filter((e) => e.gateway === gateway && e.provider === provider && e.tier === tier);
+export function getModelsForGatewayProviderTier(
+	gateway: GatewayName,
+	provider: ProviderName,
+	tier: TierName
+): ModelEntry[] {
+	return MODEL_REGISTRY.filter(
+		(e) => e.gateway === gateway && e.provider === provider && e.tier === tier
+	);
 }

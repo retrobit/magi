@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { MAGI_NODES, MAGI_NODE_NAMES, TIER_NAMES, GATEWAY_NAMES, PROVIDER_NAMES, ROUTER_GATEWAYS, isRouter, DEFAULT_TIER } from './types';
+import {
+	MAGI_NODES,
+	MAGI_NODE_NAMES,
+	TIER_NAMES,
+	GATEWAY_NAMES,
+	PROVIDER_NAMES,
+	ROUTER_GATEWAYS,
+	isRouter,
+	DEFAULT_TIER
+} from './types';
 
 describe('MAGI_NODES', () => {
 	it('defines exactly three nodes', () => {
@@ -39,9 +48,9 @@ describe('PROVIDER_NAMES', () => {
 		expect(PROVIDER_NAMES).toContain('anthropic');
 		expect(PROVIDER_NAMES).toContain('openai');
 		expect(PROVIDER_NAMES).toContain('google');
-		expect(PROVIDER_NAMES).toContain('stepfun');
+		expect(PROVIDER_NAMES).toContain('qwen');
 		expect(PROVIDER_NAMES).toContain('nvidia');
-		expect(PROVIDER_NAMES).toContain('arcee-ai');
+		expect(PROVIDER_NAMES).toContain('meta-llama');
 	});
 });
 
