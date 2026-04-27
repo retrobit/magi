@@ -1,10 +1,17 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName, ProviderName, TierName, TemperamentName } from '$lib/magi/types';
+	import type {
+		MagiNodeName,
+		GatewayName,
+		ProviderName,
+		TierName,
+		TemperamentName
+	} from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
 		PROVIDER_LABELS,
 		NODE_COLORS,
 		NODE_LABELS,
+		NODE_LABELS_GENERIC,
 		TEMPERAMENT_LABELS,
 		isRouter
 	} from '$lib/magi/types';
@@ -12,8 +19,7 @@
 		getGatewaysForTier,
 		getProvidersForGatewayTier,
 		getModelsForGatewayProviderTier,
-		getModelsForTier,
-		type ModelEntry
+		getModelsForTier
 	} from '$lib/magi/registry';
 	import Markdown from './Markdown.svelte';
 	import { Shuffle, CircleAlert, LoaderCircle, CircleCheck, CircleHelp } from 'lucide-svelte';
@@ -29,9 +35,11 @@
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
 		temperament?: TemperamentName;
+		genericLabels?: boolean;
 		disabled?: boolean;
 		usedProviders?: ProviderName[];
 		onchange?: (gateway: GatewayName, provider: ProviderName, modelId: string) => void;
+		onlabelclick?: () => void;
 	}
 
 	let {
@@ -45,10 +53,14 @@
 		error,
 		status,
 		temperament,
+		genericLabels = false,
 		disabled = false,
 		usedProviders = [],
-		onchange
+		onchange,
+		onlabelclick
 	}: Props = $props();
+
+	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
 	const tierGateways = $derived(getGatewaysForTier(tier));
@@ -108,13 +120,23 @@
 	}
 </script>
 
-<div class="flex min-h-0 flex-col rounded-lg border-t-2 bg-gray-900 {NODE_COLORS[name]} {status === 'pending' && !text ? 'animate-pulse' : ''}">
+<div
+	class="flex min-h-0 flex-col rounded-lg border-t-2 bg-gray-900 {NODE_COLORS[name]} {status ===
+		'pending' && !text
+		? 'animate-pulse'
+		: ''}"
+>
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
-				<h3 class="text-sm font-bold text-white">{NODE_LABELS[name]}</h3>
+				<button
+					type="button"
+					class="text-sm font-bold text-white transition-colors hover:text-gray-300"
+					onclick={() => onlabelclick?.()}>{displayLabel}</button
+				>
 				{#if temperament}
-					<span class="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30"
+					<span
+						class="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30"
 						>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
@@ -138,7 +160,7 @@
 				<div class="flex flex-1 flex-col gap-1.5">
 					<!-- Gateway selector -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
 						value={gateway}
 						onchange={handleGatewayChange}
 						{disabled}
@@ -154,7 +176,10 @@
 
 					<!-- Provider selector (always rendered for consistent height) -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 {!gateway || !showRouterProvider ? 'text-gray-600' : ''}"
+						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none {!gateway ||
+						!showRouterProvider
+							? 'text-gray-600'
+							: ''}"
 						value={showRouterProvider ? provider : ''}
 						onchange={handleProviderChange}
 						disabled={disabled || !showRouterProvider}
@@ -175,7 +200,7 @@
 
 					<!-- Model selector -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
 						value={modelId}
 						onchange={handleModelChange}
 						{disabled}
@@ -202,9 +227,13 @@
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
 	</div>
-	<div class="prose prose-sm max-w-none min-h-0 flex-1 overflow-y-auto p-4 prose-invert">
+	<div class="prose prose-sm min-h-0 max-w-none flex-1 overflow-y-auto p-4 prose-invert">
 		{#if status === 'error'}
-			<p class="text-red-400">{error}</p>
+			<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+				<CircleAlert size={24} class="text-red-500" />
+				<p class="text-sm font-medium text-red-400">Model unavailable</p>
+				<p class="text-xs text-gray-500">{error}</p>
+			</div>
 		{:else if status === 'pending' && text}
 			<Markdown source={text} />
 		{:else if status === 'pending'}

@@ -5,6 +5,7 @@
 		GATEWAY_LABELS,
 		PROVIDER_LABELS,
 		NODE_LABELS,
+		NODE_LABELS_GENERIC,
 		CONSENSUS_GRADIENT,
 		isRouter
 	} from '$lib/magi/types';
@@ -21,6 +22,7 @@
 		consensusGateway?: GatewayName;
 		consensusProvider?: ProviderName;
 		consensusModelDisplayName?: string;
+		genericLabels?: boolean;
 		disabled?: boolean;
 		onconsensuschange?: (node: MagiNodeName) => void;
 	}
@@ -35,9 +37,12 @@
 		consensusGateway,
 		consensusProvider,
 		consensusModelDisplayName,
+		genericLabels = false,
 		disabled = false,
 		onconsensuschange
 	}: Props = $props();
+
+	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
 	const gradientStyle = CONSENSUS_GRADIENT;
 
@@ -54,7 +59,13 @@
 	}
 </script>
 
-<div class="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-gray-900 {loading && allModelsResponded && !text ? 'animate-pulse' : ''}">
+<div
+	class="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-gray-900 {loading &&
+	allModelsResponded &&
+	!text
+		? 'animate-pulse'
+		: ''}"
+>
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
 	<div class="flex shrink-0 items-center justify-between border-b border-gray-700 px-4 py-3">
 		<div class="flex flex-col gap-1">
@@ -63,13 +74,13 @@
 				{#if onconsensuschange}
 					<span class="text-xs text-gray-500">Synthesized by</span>
 					<select
-						class="rounded bg-gray-800 py-0.5 pl-2 pr-6 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
 						value={consensusNode}
 						onchange={handleNodeChange}
 						{disabled}
 					>
 						{#each MAGI_NODE_NAMES as node (node)}
-							<option value={node}>{NODE_LABELS[node]}</option>
+							<option value={node}>{nodeLabels[node]}</option>
 						{/each}
 					</select>
 				{/if}
@@ -97,9 +108,12 @@
 			</div>
 		{/if}
 	</div>
-	<div class="prose prose-sm max-w-none min-h-0 flex-1 overflow-y-auto p-4 prose-invert">
+	<div class="prose prose-sm min-h-0 max-w-none flex-1 overflow-y-auto p-4 prose-invert">
 		{#if warning}
-			<p class="flex items-center gap-1.5 text-sm text-amber-400"><AlertTriangle size={14} /> {warning}</p>
+			<p class="flex items-center gap-1.5 text-sm text-amber-400">
+				<AlertTriangle size={14} />
+				{warning}
+			</p>
 		{/if}
 		{#if loading && !allModelsResponded}
 			<p class="text-gray-500">Waiting for MAGI responses...</p>

@@ -3,12 +3,11 @@
 	import StrategySelector from '$lib/components/StrategySelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
-	import { TIER_CONFIGS, type NodeAssignment, type MagiConfig } from '$lib/magi/config';
+	import { TIER_CONFIGS, type NodeAssignment } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
 		NODE_TEMPERAMENTS,
-		TEMPERAMENT_LABELS,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -30,6 +29,7 @@
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
 	let temperaments = $state(false);
+	let genericLabels = $state(false);
 	let query = $state('');
 	let loading = $state(false);
 	let configuredNodes = $state<Set<number>>(new Set([0, 1, 2]));
@@ -52,12 +52,17 @@
 		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
 		configuredNodes: Set<number>;
 		consensusNode: MagiNodeName;
+		temperaments: boolean;
 	}
 
 	const tierCache = new Map<TierName, TierSnapshot>();
 
 	let responses = $state<MagiResponse[]>([]);
-	let modelStreams = $state<Record<MagiNodeName, string>>({ MELCHIOR: '', BALTHASAR: '', CASPAR: '' });
+	let modelStreams = $state<Record<MagiNodeName, string>>({
+		MELCHIOR: '',
+		BALTHASAR: '',
+		CASPAR: ''
+	});
 	let modelErrors = $state<MagiModelError[]>([]);
 	let consensusStream = $state('');
 	let consensusFinal = $state('');
@@ -101,7 +106,8 @@
 			streamDone,
 			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
 			configuredNodes: new Set(configuredNodes),
-			consensusNode
+			consensusNode,
+			temperaments
 		});
 	}
 
@@ -119,6 +125,7 @@
 			assignments = [...cached.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
 			configuredNodes = new Set(cached.configuredNodes);
 			consensusNode = cached.consensusNode;
+			temperaments = cached.temperaments;
 		} else {
 			responses = [];
 			modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
@@ -131,6 +138,7 @@
 			assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
 			configuredNodes = new Set([0, 1, 2]);
 			consensusNode = 'MELCHIOR';
+			temperaments = false;
 		}
 	}
 
@@ -247,11 +255,7 @@
 		switch (event) {
 			case 'config':
 				// Server confirms the config — update assignments to match
-				assignments = (data as NodeAssignment[]) as [
-					NodeAssignment,
-					NodeAssignment,
-					NodeAssignment
-				];
+				assignments = data as NodeAssignment[] as [NodeAssignment, NodeAssignment, NodeAssignment];
 				break;
 			case 'model-chunk': {
 				const { node, text } = data as { node: string; text: string };
@@ -371,7 +375,9 @@
 		{/if}
 
 		<!-- Three MAGI panels -->
-		<div class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[1fr_auto_1fr_auto_1fr]">
+		<div
+			class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[1fr_auto_1fr_auto_1fr]"
+		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
 					<div class="hidden items-center md:flex">
@@ -397,9 +403,11 @@
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
+					{genericLabels}
 					disabled={loading}
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
+					onlabelclick={() => (genericLabels = !genericLabels)}
 				/>
 			{/each}
 		</div>
@@ -410,12 +418,13 @@
 				text={consensusStream}
 				fullText={consensusFinal}
 				{loading}
-				allModelsResponded={allModelsResponded}
+				{allModelsResponded}
 				warning={consensusWarning}
 				{consensusNode}
 				consensusGateway={consensusAssignment.gateway}
 				consensusProvider={consensusAssignment.provider}
 				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}
+				{genericLabels}
 				disabled={loading}
 				onconsensuschange={(node) => (consensusNode = node)}
 			/>

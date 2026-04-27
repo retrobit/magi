@@ -76,7 +76,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			validateConfig(config);
 		} catch (err) {
 			return json(
-				{ error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}` },
+				{
+					error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}`
+				},
 				{ status: 400 }
 			);
 		}
@@ -168,11 +170,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					if (result.status === 'fulfilled') {
 						responses.push(result.value);
 					} else {
+						const reason = result.reason;
+						const message =
+							reason instanceof Error
+								? reason.message
+								: typeof reason === 'string'
+									? reason
+									: 'Unknown error';
+						console.error(`[MAGI] ${config[i].node} failed:`, message);
 						send('model-error', {
 							node: config[i].node,
 							gateway: config[i].gateway,
 							provider: config[i].provider,
-							error: result.reason instanceof Error ? result.reason.message : 'Unknown error'
+							error: message
 						});
 					}
 				}

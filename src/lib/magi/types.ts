@@ -14,9 +14,9 @@ export const PROVIDER_NAMES = [
 	'anthropic',
 	'openai',
 	'google',
-	'stepfun',
+	'qwen',
 	'nvidia',
-	'arcee-ai'
+	'meta-llama'
 ] as const;
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
@@ -28,6 +28,12 @@ export const TEMPERAMENT_NAMES = ['rationalist', 'caretaker', 'individualist'] a
 export type TemperamentName = (typeof TEMPERAMENT_NAMES)[number];
 
 export const NODE_LABELS: Record<MagiNodeName, string> = {
+	MELCHIOR: 'MELCHIOR \u2022 1',
+	BALTHASAR: 'BALTHASAR \u2022 2',
+	CASPAR: 'CASPAR \u2022 3'
+};
+
+export const NODE_LABELS_GENERIC: Record<MagiNodeName, string> = {
 	MELCHIOR: 'MAGI \u2022 1',
 	BALTHASAR: 'MAGI \u2022 2',
 	CASPAR: 'MAGI \u2022 3'
@@ -82,9 +88,9 @@ export const PROVIDER_LABELS: Record<ProviderName, string> = {
 	anthropic: 'Anthropic',
 	openai: 'OpenAI',
 	google: 'Google',
-	stepfun: 'StepFun',
+	qwen: 'Qwen',
 	nvidia: 'NVIDIA',
-	'arcee-ai': 'Arcee AI'
+	'meta-llama': 'Meta'
 };
 
 export const MAGI_NODES: readonly MagiNode[] = [

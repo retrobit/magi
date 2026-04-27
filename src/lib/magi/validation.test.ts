@@ -97,4 +97,46 @@ describe('magiRequestSchema', () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it('accepts temperaments as true', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			temperaments: true
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts temperaments as false', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			temperaments: false
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts request without temperaments (defaults to undefined)', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.temperaments).toBeUndefined();
+		}
+	});
+
+	it('rejects non-boolean temperaments', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			temperaments: 'yes'
+		});
+		expect(result.success).toBe(false);
+	});
 });

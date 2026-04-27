@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TIER_NAMES, type TierName } from '$lib/magi/types';
+	import type { TierName } from '$lib/magi/types';
 
 	interface Props {
 		value: TierName;
