@@ -38,6 +38,22 @@ graph TD
 3. **Consensus synthesis** — Once all three responses are in, the consensus engine streams a unified answer via `streamText()` that identifies agreements, resolves disagreements, and flags remaining uncertainty.
 4. **Partial consensus** — If one or two models fail, the system proceeds with the available responses and warns the user that consensus is based on partial data.
 
+## 🎭 Temperaments
+
+Each MAGI node has an optional **temperament** — a dispositional lens that shapes how it approaches a query. When enabled, each node receives a system prompt that steers its reasoning style:
+
+| Node      | Temperament      | Guiding question                 |
+| --------- | ---------------- | -------------------------------- |
+| MELCHIOR  | 🧊 Rationalist   | "What do the facts say?"         |
+| BALTHASAR | 🛡️ Caretaker     | "Who does this affect, and how?" |
+| CASPAR    | 🔥 Individualist | "What feels true?"               |
+
+- **Rationalist** — Cold logic, empirical reasoning, data above all else.
+- **Caretaker** — Empathy-first, weighs human cost, safety, and wellbeing.
+- **Individualist** — Bold conviction, authenticity, the perspective no one else would give.
+
+Temperaments are **off by default** and can be toggled via the 🧠 button in the UI header or the `temperaments: true` flag in the API request body. When disabled, all three nodes respond without any system prompt, giving raw model output.
+
 ## 🎚️ Model Tiers
 
 Users can select a tier to control quality vs. cost:
@@ -48,9 +64,9 @@ Users can select a tier to control quality vs. cost:
 | **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 3 Flash |
 | **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 3 Flash |
 
-| Tier     | OpenRouter            | OpenRouter               | OpenRouter            |
-| -------- | --------------------- | ------------------------ | --------------------- |
-| **Free** | Step 3.5 Flash (StepFun) | Nemotron 3 Super (NVIDIA) | Trinity Large (Arcee AI) |
+| Tier     | OpenRouter         | OpenRouter                | OpenRouter           |
+| -------- | ------------------ | ------------------------- | -------------------- |
+| **Free** | Qwen3 Coder (Qwen) | Nemotron 3 Super (NVIDIA) | Llama 3.3 70B (Meta) |
 
 > The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai) using diverse free models. Set `OPENROUTER_API_KEY` to enable it.
 
@@ -87,13 +103,13 @@ cp .env.local.example .env.local
 
 ### Environment Variables
 
-| Variable                       | Required | Description                                                                                  |
-| ------------------------------ | -------- | -------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`            | Yes      | Anthropic API key for Claude models                                                          |
-| `OPENAI_API_KEY`               | Yes      | OpenAI API key for GPT models                                                                |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Yes      | Google AI Studio key for Gemini models                                                       |
-| `OPENROUTER_API_KEY`           | Free tier| OpenRouter API key for free-tier models ([get one here](https://openrouter.ai/keys))         |
-| `MAGI_API_KEY`                 | No       | Set to require Bearer token auth on `/api/magi`. Leave unset when using only the built-in UI |
+| Variable                       | Required   | Description                                                                                  |
+| ------------------------------ | ---------- | -------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`            | Paid tiers | Anthropic API key for Claude models                                                          |
+| `OPENAI_API_KEY`               | Paid tiers | OpenAI API key for GPT models                                                                |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Paid tiers | Google AI Studio key for Gemini models                                                       |
+| `OPENROUTER_API_KEY`           | Free tier  | OpenRouter API key for free-tier models ([get one here](https://openrouter.ai/keys))         |
+| `MAGI_API_KEY`                 | No         | Set to require Bearer token auth on `/api/magi`. Leave unset when using only the built-in UI |
 
 ### Development
 
@@ -106,6 +122,8 @@ bun run test         # Run unit tests
 bun run lint         # Check formatting + linting
 bun run format       # Auto-format with Prettier
 ```
+
+For manual UI testing, see [TESTING.md](TESTING.md).
 
 ## 🔌 API
 
@@ -124,45 +142,62 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 
 ```json
 {
-  "query": "Your question here",
-  "tier": "free",
-  "strategy": "synthesis",
-  "consensusNode": "MELCHIOR",
-  "assignments": [
-    { "node": "MELCHIOR", "gateway": "openrouter", "provider": "stepfun", "modelId": "stepfun/step-3.5-flash:free" },
-    { "node": "BALTHASAR", "gateway": "openrouter", "provider": "nvidia", "modelId": "nvidia/nemotron-3-super-120b-a12b:free" },
-    { "node": "CASPAR", "gateway": "openrouter", "provider": "arcee-ai", "modelId": "arcee-ai/trinity-large-preview:free" }
-  ]
+	"query": "Your question here",
+	"tier": "free",
+	"strategy": "synthesis",
+	"consensusNode": "MELCHIOR",
+	"assignments": [
+		{
+			"node": "MELCHIOR",
+			"gateway": "openrouter",
+			"provider": "qwen",
+			"modelId": "qwen/qwen3-coder:free"
+		},
+		{
+			"node": "BALTHASAR",
+			"gateway": "openrouter",
+			"provider": "nvidia",
+			"modelId": "nvidia/nemotron-3-super-120b-a12b:free"
+		},
+		{
+			"node": "CASPAR",
+			"gateway": "openrouter",
+			"provider": "meta-llama",
+			"modelId": "meta-llama/llama-3.3-70b-instruct:free"
+		}
+	]
 }
 ```
 
-| Field               | Type   | Required | Values                                  |
-| ------------------- | ------ | -------- | --------------------------------------- |
-| `query`             | string | Yes      | 1–10,000 characters                     |
-| `tier`              | string | Yes      | `frontier`, `balanced`, `budget`, `free`|
-| `strategy`          | string | Yes      | `synthesis`                             |
-| `consensusNode`     | string | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`) |
-| `assignments`       | array  | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
+| Field           | Type    | Required | Values                                                                                                                          |
+| --------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `query`         | string  | Yes      | 1–10,000 characters                                                                                                             |
+| `tier`          | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
+| `strategy`      | string  | Yes      | `synthesis`                                                                                                                     |
+| `consensusNode` | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
+| `assignments`   | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
+| `temperaments`  | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
 
 **SSE events:**
 
-| Event                | Payload                                          | Description                          |
-| -------------------- | ------------------------------------------------ | ------------------------------------ |
-| `config`             | `NodeAssignment[]`                               | Node-to-model assignment mapping      |
-| `model-response`     | `{ node, gateway, provider, text }`              | Individual model response             |
-| `model-error`        | `{ node, gateway, provider, error }`             | Individual model failure              |
-| `partial-consensus`  | `{ responded, total }`                           | Warning: not all models responded     |
-| `consensus-chunk`    | `{ text }`                                       | Streaming consensus text delta        |
-| `consensus-complete` | `{ text }`                                       | Full consensus text                   |
-| `error`              | `{ message }`                                    | Fatal error                           |
+| Event                | Payload                              | Description                        |
+| -------------------- | ------------------------------------ | ---------------------------------- |
+| `config`             | `NodeAssignment[]`                   | Node-to-model assignment mapping   |
+| `model-chunk`        | `{ node, text }`                     | Streaming text delta from a node   |
+| `model-response`     | `{ node, gateway, provider, text }`  | Individual model complete response |
+| `model-error`        | `{ node, gateway, provider, error }` | Individual model failure           |
+| `partial-consensus`  | `{ responded, total }`               | Warning: not all models responded  |
+| `consensus-chunk`    | `{ text }`                           | Streaming consensus text delta     |
+| `consensus-complete` | `{ text }`                           | Full consensus text                |
+| `error`              | `{ message }`                        | Fatal error                        |
 
 **Rate limiting:** 10 requests per minute per IP.
 
 **Error responses:**
 
-| Status | Meaning                   |
-| ------ | ------------------------- |
-| `400`  | Invalid JSON or request   |
+| Status | Meaning                    |
+| ------ | -------------------------- |
+| `400`  | Invalid JSON or request    |
 | `401`  | Invalid or missing API key |
 | `415`  | Wrong Content-Type         |
 | `429`  | Rate limit exceeded        |
@@ -171,9 +206,9 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 
 ```ts
 const res = await fetch('/api/magi', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query: 'What is consciousness?', tier: 'free', strategy: 'synthesis' })
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ query: 'What is consciousness?', tier: 'free', strategy: 'synthesis' })
 });
 
 const reader = res.body!.getReader();
@@ -181,20 +216,20 @@ const decoder = new TextDecoder();
 let buffer = '';
 
 while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
+	const { done, value } = await reader.read();
+	if (done) break;
 
-  buffer += decoder.decode(value, { stream: true });
-  const parts = buffer.split('\n\n');
-  buffer = parts.pop() ?? '';
+	buffer += decoder.decode(value, { stream: true });
+	const parts = buffer.split('\n\n');
+	buffer = parts.pop() ?? '';
 
-  for (const part of parts) {
-    const event = part.match(/^event: (.+)$/m)?.[1];
-    const data = part.match(/^data: (.+)$/m)?.[1];
-    if (event && data) {
-      console.log(event, JSON.parse(data));
-    }
-  }
+	for (const part of parts) {
+		const event = part.match(/^event: (.+)$/m)?.[1];
+		const data = part.match(/^data: (.+)$/m)?.[1];
+		if (event && data) {
+			console.log(event, JSON.parse(data));
+		}
+	}
 }
 ```
 
@@ -212,10 +247,11 @@ src/
 │   ├── server/
 │   │   └── rate-limit.ts           # Per-IP sliding window rate limiter
 │   ├── magi/
-│   │   ├── types.ts                # Core types (nodes, tiers, providers)
+│   │   ├── types.ts                # Core types (nodes, tiers, providers, temperaments)
 │   │   ├── config.ts               # Node-to-provider assignment + validation
 │   │   ├── models.ts               # AI SDK client factory
 │   │   ├── registry.ts             # Model ID registry (provider × tier)
+│   │   ├── temperaments.ts         # Temperament system prompts
 │   │   ├── validation.ts           # Zod request schema
 │   │   └── consensus/
 │   │       ├── types.ts            # ConsensusStrategy interface
@@ -223,6 +259,7 @@ src/
 │   │       └── index.ts            # Strategy registry
 │   └── components/
 │       ├── MagiPanel.svelte        # Individual model response panel
+│       ├── Markdown.svelte         # Sanitized markdown renderer
 │       ├── TierSelector.svelte     # Tier toggle
 │       ├── StrategySelector.svelte # Consensus strategy toggle
 │       └── ConsensusView.svelte    # Consensus display with copy
@@ -264,6 +301,10 @@ bun run build
 Make sure your production environment has all required environment variables set.
 
 > **Note:** The in-memory rate limiter resets on deploy/restart. For production at scale, consider replacing it with a Redis-backed solution.
+
+## 🗺️ Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned features and improvements.
 
 ## 📄 License
 
