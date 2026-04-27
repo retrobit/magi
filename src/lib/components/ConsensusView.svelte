@@ -9,8 +9,13 @@
 		CONSENSUS_GRADIENT,
 		isRouter
 	} from '$lib/magi/types';
+	import { STRATEGY_NAMES, type StrategyName } from '$lib/magi/consensus';
 	import Markdown from './Markdown.svelte';
 	import { Copy, LoaderCircle, CircleCheck, AlertTriangle } from 'lucide-svelte';
+
+	const strategyLabels: Record<StrategyName, string> = {
+		synthesis: 'Synthesis'
+	};
 
 	interface Props {
 		text: string;
@@ -18,12 +23,14 @@
 		loading: boolean;
 		allModelsResponded: boolean;
 		warning?: string;
+		strategy: StrategyName;
 		consensusNode: MagiNodeName;
 		consensusGateway?: GatewayName;
 		consensusProvider?: ProviderName;
 		consensusModelDisplayName?: string;
 		genericLabels?: boolean;
 		disabled?: boolean;
+		onstrategychange?: (strategy: StrategyName) => void;
 		onconsensuschange?: (node: MagiNodeName) => void;
 	}
 
@@ -33,12 +40,14 @@
 		loading,
 		allModelsResponded,
 		warning = '',
+		strategy,
 		consensusNode,
 		consensusGateway,
 		consensusProvider,
 		consensusModelDisplayName,
 		genericLabels = false,
 		disabled = false,
+		onstrategychange,
 		onconsensuschange
 	}: Props = $props();
 
@@ -52,6 +61,11 @@
 			? `${GATEWAY_LABELS[consensusGateway]} — ${PROVIDER_LABELS[consensusProvider]} ${consensusModelDisplayName}`
 			: `${PROVIDER_LABELS[consensusProvider]} ${consensusModelDisplayName}`;
 	});
+
+	function handleStrategyChange(e: Event) {
+		const s = (e.target as HTMLSelectElement).value as StrategyName;
+		onstrategychange?.(s);
+	}
 
 	function handleNodeChange(e: Event) {
 		const node = (e.target as HTMLSelectElement).value as MagiNodeName;
@@ -71,8 +85,22 @@
 		<div class="flex flex-col gap-1">
 			<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
 			<div class="flex items-center gap-2">
+				{#if onstrategychange}
+					<span class="text-xs text-gray-500">Strategy</span>
+					<select
+						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+						value={strategy}
+						onchange={handleStrategyChange}
+						{disabled}
+					>
+						{#each STRATEGY_NAMES as s (s)}
+							<option value={s}>{strategyLabels[s]}</option>
+						{/each}
+					</select>
+					<span class="text-xs text-gray-700">·</span>
+				{/if}
 				{#if onconsensuschange}
-					<span class="text-xs text-gray-500">Synthesized by</span>
+					<span class="text-xs text-gray-500">Node</span>
 					<select
 						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
 						value={consensusNode}

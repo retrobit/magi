@@ -1,6 +1,5 @@
 <script lang="ts">
 	import TierSelector from '$lib/components/TierSelector.svelte';
-	import StrategySelector from '$lib/components/StrategySelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
 	import { TIER_CONFIGS, type NodeAssignment } from '$lib/magi/config';
@@ -296,38 +295,40 @@
 
 <div class="flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
 	<!-- Header -->
-	<header class="shrink-0 border-b border-gray-800 px-6 py-4">
-		<div class="mx-auto flex max-w-7xl items-center justify-between">
-			<h1 class="text-2xl font-bold tracking-wider">MAGI <span class="text-lg">🔺🔻🔺</span></h1>
-			<div class="flex items-center gap-4">
-				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500">TEMPERAMENT</span>
-					<button
-						type="button"
-						onclick={() => (temperaments = !temperaments)}
-						disabled={loading}
-						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
-							? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
-							: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-						title={temperaments
-							? 'Temperaments active — each node responds through its dispositional lens'
-							: 'Enable temperaments — give each MAGI node a distinct dispositional personality'}
-					>
-						<Brain size={12} />
-						{temperaments ? 'ON' : 'OFF'}
-					</button>
-				</div>
-				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500">TIER</span>
-					<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
-				</div>
-				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500">CONSENSUS</span>
-					<StrategySelector value={strategy} onchange={(s) => (strategy = s)} disabled={loading} />
-				</div>
-			</div>
+	<header class="shrink-0 border-b border-gray-800">
+		<div class="mx-auto max-w-7xl px-6 py-4">
+			<h1 class="text-center text-2xl font-bold tracking-wider">
+				MAGI <span class="text-lg">🔺🔻🔺</span>
+			</h1>
 		</div>
 	</header>
+
+	<!-- Control strip -->
+	<div class="shrink-0 border-b border-gray-800 bg-gray-950/80">
+		<div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
+			<div class="flex items-center gap-2">
+				<span class="text-xs text-gray-500">TEMPERAMENT</span>
+				<button
+					type="button"
+					onclick={() => (temperaments = !temperaments)}
+					disabled={loading}
+					class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
+						? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
+						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+					title={temperaments
+						? 'Temperaments active — each node responds through its dispositional lens'
+						: 'Enable temperaments — give each MAGI node a distinct dispositional personality'}
+				>
+					<Brain size={12} />
+					{temperaments ? 'ON' : 'OFF'}
+				</button>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="text-xs text-gray-500">TIER</span>
+				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
+			</div>
+		</div>
+	</div>
 
 	<!-- Main content -->
 	<main class="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 p-6">
@@ -420,12 +421,14 @@
 				{loading}
 				{allModelsResponded}
 				warning={consensusWarning}
+				{strategy}
 				{consensusNode}
 				consensusGateway={consensusAssignment.gateway}
 				consensusProvider={consensusAssignment.provider}
 				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}
 				{genericLabels}
 				disabled={loading}
+				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
 			/>
 		</div>
