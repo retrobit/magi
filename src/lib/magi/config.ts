@@ -1,10 +1,10 @@
-import type { MagiNodeName, GatewayName, ProviderName, TierName } from './types';
+import type { MagiNodeName, GatewayName, TierName } from './types';
 import { MAGI_NODE_NAMES, isRouter } from './types';
 
 export interface NodeAssignment {
 	node: MagiNodeName;
 	gateway: GatewayName;
-	provider: ProviderName;
+	provider: string;
 	modelId: string;
 }
 

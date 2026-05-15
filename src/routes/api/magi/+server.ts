@@ -11,12 +11,14 @@ import {
 	type MagiConfig
 } from '$lib/magi/config';
 import type { MagiResponse } from '$lib/magi/types';
-import { NODE_TEMPERAMENTS } from '$lib/magi/types';
+import { MAGI_NODE_NAMES, NODE_TEMPERAMENTS } from '$lib/magi/types';
 import { magiRequestSchema } from '$lib/magi/validation';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
+import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
+import { getOpenRouterFreeModels, pickDiverseDefaults } from '$lib/server/openrouter';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
@@ -120,20 +122,38 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				{ status: 400 }
 			);
 		}
-		// Verify all models exist in the registry for the requested tier
+		// Validate models against static registry (direct APIs only; OpenRouter is checked at dispatch)
 		for (const a of config) {
-			const entry = findModelEntry(a.gateway, a.modelId, tier);
-			if (!entry) {
-				const exists = findModelEntry(a.gateway, a.modelId);
-				return json(
-					{
-						error: exists
-							? `Model "${a.modelId}" is not available in the "${tier}" tier`
-							: `Unknown model "${a.modelId}" for gateway "${a.gateway}"`
-					},
-					{ status: 400 }
-				);
+			if (a.gateway === 'openrouter') {
+				// Validated by pre-flight health check before dispatch
+			} else {
+				const entry = findModelEntry(a.gateway, a.modelId, tier);
+				if (!entry) {
+					const exists = findModelEntry(a.gateway, a.modelId);
+					return json(
+						{
+							error: exists
+								? `Model "${a.modelId}" is not available in the "${tier}" tier`
+								: `Unknown model "${a.modelId}" for gateway "${a.gateway}"`
+						},
+						{ status: 400 }
+					);
+				}
 			}
+		}
+	} else if (tier === 'free') {
+		// Resolve free tier dynamically from OpenRouter
+		const orModels = await getOpenRouterFreeModels();
+		if (orModels.length >= 3) {
+			const defaults = pickDiverseDefaults(orModels, 3);
+			config = defaults.map((m, i) => ({
+				node: MAGI_NODE_NAMES[i],
+				gateway: m.gateway,
+				provider: m.provider,
+				modelId: m.id
+			})) as unknown as MagiConfig;
+		} else {
+			config = FREE_MAGI_CONFIG;
 		}
 	} else {
 		config = TIER_CONFIGS[tier];
@@ -178,10 +198,67 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// Send node configuration so the client knows assignments
 				send('config', config);
 
-				// Phase 1: Dispatch to all three MAGI nodes in parallel (streaming)
-				log(`dispatching to nodes: ${config.map((c) => `${c.node}/${c.modelId}`).join(', ')}`);
+				// Pre-flight health check — catch unhealthy models before burning tokens
+				const orModels = config.some((a) => a.gateway === 'openrouter')
+					? await getOpenRouterFreeModels()
+					: [];
+				const nodeHealth = config.map(({ node, gateway, provider, modelId }) => {
+					if (!isModelHealthy(modelId)) {
+						const entry = getHealthStatus(modelId);
+						return {
+							node,
+							gateway,
+							provider,
+							modelId,
+							healthy: false,
+							reason: entry?.lastError ?? 'Model previously failed'
+						};
+					}
+					if (
+						gateway === 'openrouter' &&
+						orModels.length > 0 &&
+						!orModels.some((m) => m.id === modelId)
+					) {
+						return {
+							node,
+							gateway,
+							provider,
+							modelId,
+							healthy: false,
+							reason: 'Model no longer available on OpenRouter'
+						};
+					}
+					return { node, gateway, provider, modelId, healthy: true, reason: '' };
+				});
+
+				// Emit model-error immediately for unhealthy nodes (no API call)
+				for (const h of nodeHealth) {
+					if (!h.healthy) {
+						log(`${h.node} unhealthy: ${h.reason}`, 'error');
+						send('model-error', {
+							node: h.node,
+							gateway: h.gateway,
+							provider: h.provider,
+							error: h.reason
+						});
+					}
+				}
+
+				const healthyNodes = nodeHealth.filter((h) => h.healthy);
+
+				if (healthyNodes.length === 0) {
+					log('all models unhealthy — aborting', 'error');
+					send('error', { message: 'All three models are unavailable' });
+					close();
+					return;
+				}
+
+				// Phase 1: Dispatch only to healthy MAGI nodes in parallel (streaming)
+				log(
+					`dispatching to nodes: ${healthyNodes.map((c) => `${c.node}/${c.modelId}`).join(', ')}`
+				);
 				const results = await Promise.allSettled(
-					config.map(async ({ node, gateway, provider, modelId }) => {
+					healthyNodes.map(async ({ node, gateway, provider, modelId }) => {
 						try {
 							const model = getModel(gateway, modelId);
 							const systemPrompt = useTemperaments
@@ -192,7 +269,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								model,
 								...(systemPrompt && { system: systemPrompt }),
 								prompt: query,
-	
+
 								abortSignal: abortController.signal
 							});
 							let fullText = '';
@@ -207,6 +284,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						} catch (err) {
 							const message = extractErrorMessage(err);
 							log(`${node} failed: ${message}`, 'error');
+							markUnhealthy(modelId, message);
 							send('model-error', { node, gateway, provider, error: message });
 							throw err;
 						}
@@ -217,20 +295,25 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					.filter((r): r is PromiseFulfilledResult<MagiResponse> => r.status === 'fulfilled')
 					.map((r) => r.value);
 
-				log(`phase 1 complete: ${responses.length}/${config.length} models responded`);
+				const totalNodes = config.length;
+				const totalResponded = responses.length + nodeHealth.filter((h) => !h.healthy).length;
+
+				log(
+					`phase 1 complete: ${responses.length} responded, ${nodeHealth.filter((h) => !h.healthy).length} skipped (unhealthy)`
+				);
 
 				if (responses.length === 0) {
-					log('all models failed — aborting', 'error');
-					send('error', { message: 'All three models failed to respond' });
+					log('all dispatched models failed — aborting', 'error');
+					send('error', { message: 'All models failed to respond' });
 					close();
 					return;
 				}
 
-				if (responses.length < config.length) {
-					log(`partial consensus: ${responses.length}/${config.length}`);
+				if (responses.length < totalNodes) {
+					log(`partial consensus: ${responses.length}/${totalNodes}`);
 					send('partial-consensus', {
 						responded: responses.length,
-						total: config.length
+						total: totalNodes
 					});
 				}
 

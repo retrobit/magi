@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName, ProviderName } from '$lib/magi/types';
+	import type { MagiNodeName, GatewayName } from '$lib/magi/types';
 	import {
 		MAGI_NODE_NAMES,
 		GATEWAY_LABELS,
-		PROVIDER_LABELS,
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
 		CONSENSUS_GRADIENT,
+		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
 	import { STRATEGY_NAMES, type StrategyName } from '$lib/magi/consensus';
@@ -26,7 +26,7 @@
 		strategy: StrategyName;
 		consensusNode: MagiNodeName;
 		consensusGateway?: GatewayName;
-		consensusProvider?: ProviderName;
+		consensusProvider?: string;
 		consensusModelDisplayName?: string;
 		genericLabels?: boolean;
 		disabled?: boolean;
@@ -58,8 +58,8 @@
 	const synthesisLabel = $derived.by(() => {
 		if (!consensusGateway || !consensusProvider || !consensusModelDisplayName) return null;
 		return isRouter(consensusGateway)
-			? `${GATEWAY_LABELS[consensusGateway]} — ${PROVIDER_LABELS[consensusProvider]} ${consensusModelDisplayName}`
-			: `${PROVIDER_LABELS[consensusProvider]} ${consensusModelDisplayName}`;
+			? `${GATEWAY_LABELS[consensusGateway]} — ${getProviderLabel(consensusProvider)} ${consensusModelDisplayName}`
+			: `${getProviderLabel(consensusProvider)} ${consensusModelDisplayName}`;
 	});
 
 	function handleStrategyChange(e: Event) {
@@ -74,10 +74,9 @@
 </script>
 
 <div
-	class="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-gray-900 {loading &&
-	allModelsResponded &&
-	!text
-		? 'animate-pulse'
+	class="flex h-full min-h-48 flex-col overflow-hidden rounded-lg bg-gray-900/90 {loading &&
+	allModelsResponded
+		? 'pulse-consensus'
 		: ''}"
 >
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
@@ -88,7 +87,7 @@
 				{#if onstrategychange}
 					<span class="text-xs text-gray-500">Strategy</span>
 					<select
-						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={strategy}
 						onchange={handleStrategyChange}
 						{disabled}
@@ -102,7 +101,7 @@
 				{#if onconsensuschange}
 					<span class="text-xs text-gray-500">Node</span>
 					<select
-						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+						class="rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={consensusNode}
 						onchange={handleNodeChange}
 						{disabled}
@@ -154,3 +153,25 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	@keyframes pulse-consensus {
+		0%,
+		100% {
+			box-shadow: inset 0 0 0 0 transparent;
+			opacity: 0.7;
+		}
+		50% {
+			box-shadow:
+				inset 15px 0 15px -10px #f97316,
+				inset 0 0 15px -10px #3b82f6,
+				inset -15px 0 15px -10px #34d399,
+				inset 0 -10px 15px -10px #3b82f6;
+			opacity: 1;
+		}
+	}
+
+	.pulse-consensus {
+		animation: pulse-consensus 2s ease-in-out infinite;
+	}
+</style>

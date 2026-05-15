@@ -10,14 +10,7 @@ export function isRouter(gateway: GatewayName): boolean {
 	return (ROUTER_GATEWAYS as readonly string[]).includes(gateway);
 }
 
-export const PROVIDER_NAMES = [
-	'anthropic',
-	'openai',
-	'google',
-	'qwen',
-	'nvidia',
-	'meta-llama'
-] as const;
+export const PROVIDER_NAMES = ['anthropic', 'openai', 'google'] as const;
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
 // Named after the three MAGI supercomputers from Neon Genesis Evangelion
@@ -59,8 +52,15 @@ export interface MagiNode {
 export interface MagiResponse {
 	node: MagiNodeName;
 	gateway: GatewayName;
-	provider: ProviderName;
+	provider: string;
 	text: string;
+}
+
+export interface AvailableModel {
+	id: string;
+	gateway: GatewayName;
+	provider: string;
+	displayName: string;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {
@@ -84,14 +84,26 @@ export const GATEWAY_LABELS: Record<GatewayName, string> = {
 	openrouter: 'OpenRouter'
 };
 
-export const PROVIDER_LABELS: Record<ProviderName, string> = {
+const KNOWN_PROVIDER_LABELS: Record<string, string> = {
 	anthropic: 'Anthropic',
 	openai: 'OpenAI',
 	google: 'Google',
 	qwen: 'Qwen',
 	nvidia: 'NVIDIA',
-	'meta-llama': 'Meta'
+	'meta-llama': 'Meta',
+	deepseek: 'DeepSeek',
+	mistralai: 'Mistral'
 };
+
+export function getProviderLabel(provider: string): string {
+	return (
+		KNOWN_PROVIDER_LABELS[provider] ??
+		provider
+			.split('-')
+			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+			.join(' ')
+	);
+}
 
 export const MAGI_NODES: readonly MagiNode[] = [
 	{ name: 'MELCHIOR', temperament: 'rationalist' },

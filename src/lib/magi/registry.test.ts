@@ -19,11 +19,9 @@ describe('MODEL_REGISTRY', () => {
 		}
 	});
 
-	it('has entries for openrouter free tier', () => {
-		const freeEntries = MODEL_REGISTRY.filter(
-			(e) => e.gateway === 'openrouter' && e.tier === 'free'
-		);
-		expect(freeEntries).toHaveLength(3);
+	it('has no static OpenRouter entries (free tier is dynamic)', () => {
+		const orEntries = MODEL_REGISTRY.filter((e) => e.gateway === 'openrouter');
+		expect(orEntries).toHaveLength(0);
 	});
 
 	it('every entry has a provider field', () => {
@@ -34,17 +32,8 @@ describe('MODEL_REGISTRY', () => {
 
 	it('direct gateway entries have matching provider', () => {
 		for (const entry of MODEL_REGISTRY) {
-			if (entry.gateway !== 'openrouter') {
-				expect(entry.provider).toBe(entry.gateway);
-			}
+			expect(entry.provider).toBe(entry.gateway);
 		}
-	});
-
-	it('openrouter entries have distinct providers', () => {
-		const orProviders = MODEL_REGISTRY.filter((e) => e.gateway === 'openrouter').map(
-			(e) => e.provider
-		);
-		expect(new Set(orProviders).size).toBe(orProviders.length);
 	});
 });
 
@@ -55,10 +44,9 @@ describe('getModelsForTier', () => {
 		expect(models.every((m) => m.tier === 'balanced')).toBe(true);
 	});
 
-	it('returns 3 free-tier models', () => {
+	it('returns no static models for free tier', () => {
 		const models = getModelsForTier('free');
-		expect(models).toHaveLength(3);
-		expect(models.every((m) => m.gateway === 'openrouter')).toBe(true);
+		expect(models).toHaveLength(0);
 	});
 });
 
@@ -68,12 +56,6 @@ describe('getModelsForGateway', () => {
 		expect(models).toHaveLength(3);
 		expect(models.every((m) => m.gateway === 'anthropic')).toBe(true);
 	});
-
-	it('returns all free-tier models for openrouter', () => {
-		const models = getModelsForGateway('openrouter');
-		expect(models).toHaveLength(3);
-		expect(models.every((m) => m.gateway === 'openrouter')).toBe(true);
-	});
 });
 
 describe('getModelsForProvider', () => {
@@ -81,12 +63,6 @@ describe('getModelsForProvider', () => {
 		const models = getModelsForProvider('anthropic');
 		expect(models).toHaveLength(3);
 		expect(models.every((m) => m.provider === 'anthropic')).toBe(true);
-	});
-
-	it('returns a single model for a router-hosted provider', () => {
-		const models = getModelsForProvider('qwen');
-		expect(models).toHaveLength(1);
-		expect(models[0].gateway).toBe('openrouter');
 	});
 });
 
@@ -97,36 +73,26 @@ describe('findModelEntry', () => {
 		expect(entry!.displayName).toBe('Claude Opus 4.6');
 	});
 
-	it('finds an openrouter model', () => {
-		const entry = findModelEntry('openrouter', 'qwen/qwen3-coder:free');
-		expect(entry).toBeDefined();
-		expect(entry!.provider).toBe('qwen');
-	});
-
 	it('returns undefined for unknown model', () => {
 		expect(findModelEntry('anthropic', 'nonexistent')).toBeUndefined();
 	});
 });
 
 describe('getAvailableGateways', () => {
-	it('returns all four gateways', () => {
+	it('returns direct gateways only (OpenRouter models are dynamic)', () => {
 		const gateways = getAvailableGateways();
-		expect(gateways).toHaveLength(4);
+		expect(gateways).toHaveLength(3);
 		expect(gateways).toContain('anthropic');
 		expect(gateways).toContain('openai');
 		expect(gateways).toContain('google');
-		expect(gateways).toContain('openrouter');
 	});
 });
 
 describe('getAvailableProviders', () => {
-	it('returns all providers from the registry', () => {
+	it('returns direct providers', () => {
 		const providers = getAvailableProviders();
 		expect(providers).toContain('anthropic');
 		expect(providers).toContain('openai');
 		expect(providers).toContain('google');
-		expect(providers).toContain('qwen');
-		expect(providers).toContain('nvidia');
-		expect(providers).toContain('meta-llama');
 	});
 });

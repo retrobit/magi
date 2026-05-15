@@ -15,13 +15,14 @@ export {
 	NODE_HEX_COLORS,
 	CONSENSUS_GRADIENT,
 	GATEWAY_LABELS,
-	PROVIDER_LABELS,
+	getProviderLabel,
 	type TierName,
 	type GatewayName,
 	type ProviderName,
 	type MagiNodeName,
 	type MagiNode,
 	type MagiResponse,
+	type AvailableModel,
 	type TemperamentName
 } from './magi/types';
 export {
@@ -29,8 +30,6 @@ export {
 	getModelsForTier,
 	getModelsForGateway,
 	getModelsForProvider,
-	getProvidersForGateway,
-	getModelsForGatewayProvider,
 	findModelEntry,
 	getAvailableGateways,
 	getAvailableProviders,

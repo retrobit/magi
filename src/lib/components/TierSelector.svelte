@@ -26,7 +26,7 @@
 		{#each freeTiers as tier (tier)}
 			<button
 				class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === tier
-					? 'bg-indigo-500 text-white'
+					? 'bg-gray-600 text-white'
 					: 'text-gray-400 hover:text-white'}"
 				{disabled}
 				onclick={() => onchange(tier)}
@@ -44,7 +44,7 @@
 		{#each paidTiers as tier (tier)}
 			<button
 				class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === tier
-					? 'bg-indigo-500 text-white'
+					? 'bg-gray-600 text-white'
 					: 'text-gray-400 hover:text-white'}"
 				{disabled}
 				onclick={() => onchange(tier)}

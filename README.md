@@ -58,17 +58,17 @@ Temperaments are **off by default** and can be toggled via the 🧠 button in th
 
 Users can select a tier to control quality vs. cost:
 
-| Tier         | Anthropic         | OpenAI       | Google              |
-| ------------ | ----------------- | ------------ | ------------------- |
-| **Frontier** | Claude Opus 4.6   | GPT-5.2      | Gemini 2.5 Pro      |
-| **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 2.5 Flash    |
+| Tier         | Anthropic         | OpenAI       | Google                |
+| ------------ | ----------------- | ------------ | --------------------- |
+| **Frontier** | Claude Opus 4.6   | GPT-5.2      | Gemini 2.5 Pro        |
+| **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 2.5 Flash      |
 | **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 2.5 Flash Lite |
 
-| Tier     | OpenRouter         | OpenRouter                | OpenRouter           |
-| -------- | ------------------ | ------------------------- | -------------------- |
-| **Free** | Qwen3 Coder (Qwen) | Nemotron 3 Super (NVIDIA) | Llama 3.3 70B (Meta) |
+| Tier     | Source                                                                |
+| -------- | --------------------------------------------------------------------- |
+| **Free** | Dynamic — fetched from [OpenRouter](https://openrouter.ai) at runtime |
 
-> The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai) using diverse free models. Set `OPENROUTER_API_KEY` to enable it.
+> The **Free** tier routes all three nodes through OpenRouter. Available models are fetched dynamically from the OpenRouter API, so the list always reflects what's currently live. Three models from different providers are auto-selected as defaults. Set `OPENROUTER_API_KEY` to enable it.
 
 ## 🧠 Consensus Strategies
 
@@ -126,6 +126,31 @@ bun run format       # Auto-format with Prettier
 For manual UI testing, see [TESTING.md](TESTING.md).
 
 ## 🔌 API
+
+### `GET /api/magi/models`
+
+Returns available models for a given tier. Paid tiers return from the static registry; the free tier fetches dynamically from OpenRouter.
+
+**Query parameters:**
+
+| Param  | Required | Values                                   |
+| ------ | -------- | ---------------------------------------- |
+| `tier` | Yes      | `frontier`, `balanced`, `budget`, `free` |
+
+**Response:**
+
+```json
+{
+	"models": [
+		{
+			"id": "qwen/qwen3-coder:free",
+			"gateway": "openrouter",
+			"provider": "qwen",
+			"displayName": "Qwen3 Coder"
+		}
+	]
+}
+```
 
 ### `POST /api/magi`
 
@@ -240,24 +265,39 @@ src/
 ├── routes/
 │   ├── +page.svelte                # Main UI
 │   ├── +layout.svelte              # Root layout
+│   ├── layout.css                  # Global styles (Tailwind)
 │   └── api/magi/
-│       └── +server.ts              # SSE orchestration endpoint
+│       ├── +server.ts              # SSE orchestration endpoint
+│       └── models/
+│           └── +server.ts          # Model discovery endpoint
 ├── lib/
 │   ├── index.ts                    # Barrel exports
+│   ├── assets/
+│   │   └── favicon.svg             # App icon
 │   ├── server/
-│   │   └── rate-limit.ts           # Per-IP sliding window rate limiter
+│   │   ├── rate-limit.ts           # Per-IP sliding window rate limiter
+│   │   ├── health.ts               # Model health tracking
+│   │   ├── health.test.ts
+│   │   └── openrouter.ts           # Dynamic model discovery from OpenRouter API
 │   ├── magi/
 │   │   ├── types.ts                # Core types (nodes, tiers, providers, temperaments)
+│   │   ├── types.test.ts
 │   │   ├── config.ts               # Node-to-provider assignment + validation
+│   │   ├── config.test.ts
 │   │   ├── models.ts               # AI SDK client factory
 │   │   ├── registry.ts             # Model ID registry (provider × tier)
+│   │   ├── registry.test.ts
 │   │   ├── temperaments.ts         # Temperament system prompts
+│   │   ├── temperaments.test.ts
 │   │   ├── validation.ts           # Zod request schema
+│   │   ├── validation.test.ts
 │   │   └── consensus/
 │   │       ├── types.ts            # ConsensusStrategy interface
 │   │       ├── synthesis.ts        # Synthesis strategy
+│   │       ├── consensus.test.ts
 │   │       └── index.ts            # Strategy registry
 │   └── components/
+│       ├── MagiBackground.svelte   # Animated background
 │       ├── MagiPanel.svelte        # Individual model response panel
 │       ├── Markdown.svelte         # Sanitized markdown renderer
 │       ├── TierSelector.svelte     # Tier toggle

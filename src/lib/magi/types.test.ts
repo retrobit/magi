@@ -44,13 +44,11 @@ describe('GATEWAY_NAMES', () => {
 });
 
 describe('PROVIDER_NAMES', () => {
-	it('includes direct providers and router-hosted providers', () => {
+	it('includes direct API providers (OpenRouter providers are dynamic)', () => {
 		expect(PROVIDER_NAMES).toContain('anthropic');
 		expect(PROVIDER_NAMES).toContain('openai');
 		expect(PROVIDER_NAMES).toContain('google');
-		expect(PROVIDER_NAMES).toContain('qwen');
-		expect(PROVIDER_NAMES).toContain('nvidia');
-		expect(PROVIDER_NAMES).toContain('meta-llama');
+		expect(PROVIDER_NAMES).toHaveLength(3);
 	});
 });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MagiBackground from '$lib/components/MagiBackground.svelte';
 	import TierSelector from '$lib/components/TierSelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
@@ -10,20 +11,38 @@
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
-		type ProviderName,
+		type AvailableModel,
 		type MagiResponse
 	} from '$lib/magi/types';
-	import { findModelEntry } from '$lib/magi/registry';
+	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Triangle, LoaderCircle, CircleAlert, ArrowLeftRight, X, Brain } from 'lucide-svelte';
 
 	interface MagiModelError {
 		node: MagiNodeName;
 		gateway: GatewayName;
-		provider: ProviderName;
+		provider: string;
 		error: string;
 	}
+
+	const RANDOM_PROMPTS = [
+		'What is consciousness?',
+		'Is mathematics discovered or invented?',
+		'What will be the most important technology in 2050?',
+		'Is free will an illusion?',
+		'Should AI systems have rights?',
+		'What is the hardest problem in science right now?',
+		'Explain quantum entanglement like I\'m ten years old',
+		'What would a perfect education system look like?',
+		'Are humans fundamentally good or fundamentally selfish?',
+		'What is the most underrated invention in history?',
+		'If you could send one message to every human on Earth, what would it be?',
+		'What is the strongest argument against your own existence?',
+		'Why do we dream?',
+		'What would first contact with an alien civilization actually look like?',
+		'Is there a limit to what science can explain?'
+	];
 
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
@@ -33,11 +52,14 @@
 	let loading = $state(false);
 	let configuredNodes = $state<Set<number>>(new Set([0, 1, 2]));
 	let consensusNode: MagiNodeName = $state('MELCHIOR');
+	let availableModels = $state<AvailableModel[]>([]);
+	let modelsLoading = $state(true);
 
-	// Mutable node assignments — tier presets populate these, user can customize
-	let assignments = $state<[NodeAssignment, NodeAssignment, NodeAssignment]>([
-		...TIER_CONFIGS[DEFAULT_TIER]
-	] as [NodeAssignment, NodeAssignment, NodeAssignment]);
+	let assignments = $state<[NodeAssignment, NodeAssignment, NodeAssignment]>(
+		// Placeholder — will be replaced once models are fetched for free tier,
+		// or immediately populated from TIER_CONFIGS for paid tiers
+		[...TIER_CONFIGS.balanced] as [NodeAssignment, NodeAssignment, NodeAssignment]
+	);
 
 	interface TierSnapshot {
 		responses: MagiResponse[];
@@ -51,7 +73,6 @@
 		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
 		configuredNodes: Set<number>;
 		consensusNode: MagiNodeName;
-		temperaments: boolean;
 	}
 
 	const tierCache = new Map<TierName, TierSnapshot>();
@@ -89,9 +110,70 @@
 	}
 
 	function getModelDisplayName(assignment: NodeAssignment): string {
+		// Check static registry first, then dynamic models
 		const entry = findModelEntry(assignment.gateway, assignment.modelId);
-		return entry?.displayName ?? assignment.modelId;
+		if (entry) return entry.displayName;
+		const dynamic = availableModels.find((m) => m.id === assignment.modelId);
+		return dynamic?.displayName ?? assignment.modelId;
 	}
+
+	function getStaticModels(t: TierName): AvailableModel[] {
+		return getModelsForTier(t).map((m) => ({
+			id: m.id,
+			gateway: m.gateway,
+			provider: m.provider,
+			displayName: m.displayName
+		}));
+	}
+
+	function pickDiverseDefaults(models: AvailableModel[]): NodeAssignment[] {
+		const picked: AvailableModel[] = [];
+		const usedProviders = new Set<string>();
+		for (const m of models) {
+			if (usedProviders.has(m.provider)) continue;
+			picked.push(m);
+			usedProviders.add(m.provider);
+			if (picked.length >= 3) break;
+		}
+		return picked.map((m, i) => ({
+			node: MAGI_NODE_NAMES[i],
+			gateway: m.gateway,
+			provider: m.provider,
+			modelId: m.id
+		}));
+	}
+
+	async function fetchModels(t: TierName) {
+		modelsLoading = true;
+		try {
+			if (t === 'free') {
+				const res = await fetch(`/api/magi/models?tier=${t}`);
+				const data = (await res.json()) as { models: AvailableModel[] };
+				availableModels = data.models;
+			} else {
+				availableModels = getStaticModels(t);
+			}
+
+			// Set default assignments if no snapshot exists for this tier
+			if (!tierCache.has(t) && availableModels.length >= 3) {
+				if (t === 'free') {
+					const defaults = pickDiverseDefaults(availableModels);
+					assignments = defaults as [NodeAssignment, NodeAssignment, NodeAssignment];
+				} else {
+					assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+				}
+				configuredNodes = new Set([0, 1, 2]);
+				consensusNode = 'MELCHIOR';
+			}
+		} catch {
+			if (t !== 'free') {
+				availableModels = getStaticModels(t);
+			}
+		}
+		modelsLoading = false;
+	}
+
+	onMount(() => fetchModels(tier));
 
 	function saveTierSnapshot() {
 		tierCache.set(tier, {
@@ -105,8 +187,7 @@
 			streamDone,
 			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
 			configuredNodes: new Set(configuredNodes),
-			consensusNode,
-			temperaments
+			consensusNode
 		});
 	}
 
@@ -124,7 +205,6 @@
 			assignments = [...cached.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
 			configuredNodes = new Set(cached.configuredNodes);
 			consensusNode = cached.consensusNode;
-			temperaments = cached.temperaments;
 		} else {
 			responses = [];
 			modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
@@ -134,10 +214,8 @@
 			consensusWarning = '';
 			error = '';
 			streamDone = false;
-			assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
 			configuredNodes = new Set([0, 1, 2]);
 			consensusNode = 'MELCHIOR';
-			temperaments = false;
 		}
 	}
 
@@ -146,9 +224,10 @@
 		saveTierSnapshot();
 		tier = newTier;
 		loadTierSnapshot(newTier);
+		fetchModels(newTier);
 	}
 
-	function getUsedProviders(excludeIndex: number): ProviderName[] {
+	function getUsedProviders(excludeIndex: number): string[] {
 		return assignments
 			.filter((_, i) => i !== excludeIndex && configuredNodes.has(i))
 			.map((a) => a.provider);
@@ -157,11 +236,10 @@
 	function handleNodeChange(
 		nodeIndex: number,
 		gateway: GatewayName,
-		provider: ProviderName,
+		provider: string,
 		modelId: string
 	) {
 		configuredNodes.add(nodeIndex);
-		// Reassign to trigger Svelte 5 reactivity (Set mutation alone won't notify)
 		configuredNodes = new Set(configuredNodes);
 		const node = MAGI_NODE_NAMES[nodeIndex];
 		assignments[nodeIndex] = { node, gateway, provider, modelId };
@@ -178,7 +256,11 @@
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!query.trim() || loading || !allConfigured) return;
+		if (loading || !allConfigured) return;
+
+		if (!query.trim()) {
+			query = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
+		}
 
 		abortController?.abort();
 		abortController = new AbortController();
@@ -253,7 +335,6 @@
 	function handleEvent(event: string, data: unknown) {
 		switch (event) {
 			case 'config':
-				// Server confirms the config — update assignments to match
 				assignments = data as NodeAssignment[] as [NodeAssignment, NodeAssignment, NodeAssignment];
 				break;
 			case 'model-chunk': {
@@ -293,7 +374,9 @@
 	<title>MAGI</title>
 </svelte:head>
 
-<div class="flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
+<div class="magi-bg flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
+	<MagiBackground />
+
 	<!-- Header -->
 	<header class="shrink-0 border-b border-gray-800">
 		<div class="mx-auto max-w-7xl px-6 py-4">
@@ -313,7 +396,7 @@
 					onclick={() => (temperaments = !temperaments)}
 					disabled={loading}
 					class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
-						? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
+						? 'bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
 					title={temperaments
 						? 'Temperaments active — each node responds through its dispositional lens'
@@ -339,13 +422,13 @@
 				type="text"
 				placeholder="Ask the MAGI system..."
 				disabled={loading}
-				class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white placeholder-gray-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+				class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 			/>
 			{#if loading}
 				<button
 					type="button"
 					onclick={() => abortController?.abort()}
-					class="group flex w-40 items-center justify-center gap-2 rounded-lg bg-indigo-500 py-3 font-medium text-white transition-colors hover:bg-red-600"
+					class="group flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600"
 				>
 					<span class="flex items-center gap-2 group-hover:hidden">
 						<LoaderCircle size={16} class="animate-spin" /> Processing...
@@ -357,8 +440,8 @@
 			{:else}
 				<button
 					type="submit"
-					disabled={!query.trim() || !allConfigured}
-					class="flex w-40 items-center justify-center gap-2 rounded-lg bg-indigo-500 py-3 font-medium text-white transition-colors hover:bg-indigo-400 disabled:opacity-50 disabled:hover:bg-indigo-500"
+					disabled={!allConfigured || modelsLoading}
+					class="flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600"
 				>
 					<Triangle size={14} class="rotate-90 fill-current" /> Execute
 				</button>
@@ -377,7 +460,7 @@
 
 		<!-- Three MAGI panels -->
 		<div
-			class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[1fr_auto_1fr_auto_1fr]"
+			class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]"
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
@@ -395,7 +478,7 @@
 				{/if}
 				<MagiPanel
 					name={assignment.node}
-					{tier}
+					models={availableModels}
 					gateway={configuredNodes.has(i) ? assignment.gateway : ''}
 					provider={configuredNodes.has(i) ? assignment.provider : ''}
 					modelId={configuredNodes.has(i) ? assignment.modelId : ''}
