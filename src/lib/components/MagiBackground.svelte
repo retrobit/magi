@@ -17,16 +17,16 @@
 
 	.aurora-orange {
 		background: #f97316;
-		top: -10%;
-		left: 25%;
-		animation: drift-orange 20s ease-in-out infinite;
+		bottom: -5%;
+		left: -10%;
+		animation: drift-blue 24s ease-in-out infinite;
 	}
 
 	.aurora-blue {
 		background: #3b82f6;
-		bottom: -5%;
-		left: -10%;
-		animation: drift-blue 24s ease-in-out infinite;
+		top: -10%;
+		left: 25%;
+		animation: drift-orange 20s ease-in-out infinite;
 	}
 
 	.aurora-emerald {
