@@ -27,6 +27,15 @@ Planned features, improvements, and known items for the MAGI project.
 - **Custom model entry** — Let users paste an arbitrary OpenRouter model ID rather than picking from the static registry. Covers the power-user case without full dynamic registry complexity.
 - **Per-node model persistence** — Remember user's custom node assignments across sessions via localStorage.
 
+## Clients
+
+Build order matters here — each step forces the right abstraction for the next.
+
+1. **CLI with TUI** _(build first)_ — Separate repo, consumes the MAGI API over HTTP/SSE. Split-pane streaming, interactive tier/temperament selection, piped input for scripting. npm-publishable (`npx magi`). **Why first:** works everywhere, easiest to demo/distribute, and proves the API is a complete client interface before investing in native.
+2. **Native macOS app** _(build later)_ — Swift/SwiftUI, calls provider APIs directly (Anthropic, OpenAI, Google, OpenRouter) with consensus logic ported to Swift. No embedded server, no webview — a true native single binary. **Why later:** requires maintaining core logic in two languages (TS + Swift). Only worth it once the consensus engine and feature set stabilize.
+
+**Architecture note:** Don't extract a `@magi/core` shared package yet. Build the CLI as a plain API consumer first. Once both clients exist and the real shared surface is clear, then extract — premature abstraction is worse than duplication.
+
 ## API
 
 - **OpenAPI spec** — Machine-readable API description (JSON/YAML) for the existing `POST /api/magi` endpoint, enabling auto-generated clients, Swagger UI testing, and Postman import.

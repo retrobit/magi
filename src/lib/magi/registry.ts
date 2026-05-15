@@ -49,26 +49,25 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 	},
 	// Google (direct)
 	{
-		id: 'gemini-3.1-pro',
+		id: 'gemini-2.5-pro',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'frontier',
-		displayName: 'Gemini 3.1 Pro'
+		displayName: 'Gemini 2.5 Pro'
 	},
-	// Intentionally the same model for balanced and budget — no cheaper Google tier available yet
 	{
-		id: 'gemini-3-flash',
+		id: 'gemini-2.5-flash',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'balanced',
-		displayName: 'Gemini 3 Flash'
+		displayName: 'Gemini 2.5 Flash'
 	},
 	{
-		id: 'gemini-3-flash',
+		id: 'gemini-2.5-flash-lite',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'budget',
-		displayName: 'Gemini 3 Flash'
+		displayName: 'Gemini 2.5 Flash Lite'
 	},
 	// OpenRouter — diverse free models for multi-perspective consensus
 	{
@@ -106,8 +105,14 @@ export function getModelsForProvider(provider: ProviderName): ModelEntry[] {
 	return MODEL_REGISTRY.filter((e) => e.provider === provider);
 }
 
-export function findModelEntry(gateway: GatewayName, modelId: string): ModelEntry | undefined {
-	return MODEL_REGISTRY.find((e) => e.gateway === gateway && e.id === modelId);
+export function findModelEntry(
+	gateway: GatewayName,
+	modelId: string,
+	tier?: TierName
+): ModelEntry | undefined {
+	return MODEL_REGISTRY.find(
+		(e) => e.gateway === gateway && e.id === modelId && (!tier || e.tier === tier)
+	);
 }
 
 export function getProvidersForGateway(gateway: GatewayName): ProviderName[] {

@@ -38,5 +38,7 @@ function getClient(gateway: GatewayName) {
 }
 
 export function getModel(gateway: GatewayName, modelId: string) {
-	return getClient(gateway)(modelId);
+	const client = getClient(gateway);
+	if (gateway === 'openrouter') return client.chat(modelId);
+	return client(modelId);
 }

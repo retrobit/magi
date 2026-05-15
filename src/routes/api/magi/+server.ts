@@ -23,6 +23,42 @@ import { timingSafeEqual } from 'node:crypto';
 validateConfig(DEFAULT_MAGI_CONFIG);
 validateConfig(FREE_MAGI_CONFIG);
 
+function extractErrorMessage(err: unknown): string {
+	// AI SDK wraps upstream errors — dig into responseBody for the real message
+	const apiErr = err as { responseBody?: string; message?: string };
+	if (apiErr.responseBody) {
+		try {
+			const body = JSON.parse(apiErr.responseBody);
+			const raw = body?.error?.metadata?.raw;
+			if (raw) {
+				try {
+					return JSON.parse(raw).error ?? raw;
+				} catch {
+					return raw;
+				}
+			}
+			if (body?.error?.message) return body.error.message;
+		} catch {
+			// fall through
+		}
+	}
+	// RetryError — dig into the last error
+	const retryErr = err as { lastError?: unknown };
+	if (retryErr.lastError) return extractErrorMessage(retryErr.lastError);
+	if (err instanceof Error) return err.message;
+	return 'Unknown error';
+}
+
+function log(message: string, level: 'info' | 'error' = 'info') {
+	const ts = new Date().toISOString().slice(11, 23);
+	const prefix = `[MAGI ${ts}]`;
+	if (level === 'error') {
+		console.error(prefix, message);
+	} else {
+		console.log(prefix, message);
+	}
+}
+
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
 	if (env.MAGI_API_KEY) {
@@ -68,6 +104,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		temperaments: useTemperaments
 	} = parsed.data;
 
+	log(`request: tier=${tier} strategy=${strategyName} temperaments=${useTemperaments ?? false}`);
+
 	// Use client assignments if provided, otherwise fall back to tier preset
 	let config: MagiConfig;
 	if (clientAssignments) {
@@ -84,16 +122,15 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 		// Verify all models exist in the registry for the requested tier
 		for (const a of config) {
-			const entry = findModelEntry(a.gateway, a.modelId);
+			const entry = findModelEntry(a.gateway, a.modelId, tier);
 			if (!entry) {
+				const exists = findModelEntry(a.gateway, a.modelId);
 				return json(
-					{ error: `Unknown model "${a.modelId}" for gateway "${a.gateway}"` },
-					{ status: 400 }
-				);
-			}
-			if (entry.tier !== tier) {
-				return json(
-					{ error: `Model "${a.modelId}" is not available in the "${tier}" tier` },
+					{
+						error: exists
+							? `Model "${a.modelId}" is not available in the "${tier}" tier`
+							: `Unknown model "${a.modelId}" for gateway "${a.gateway}"`
+					},
 					{ status: 400 }
 				);
 			}
@@ -142,58 +179,55 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				send('config', config);
 
 				// Phase 1: Dispatch to all three MAGI nodes in parallel (streaming)
+				log(`dispatching to nodes: ${config.map((c) => `${c.node}/${c.modelId}`).join(', ')}`);
 				const results = await Promise.allSettled(
 					config.map(async ({ node, gateway, provider, modelId }) => {
-						const model = getModel(gateway, modelId);
-						const systemPrompt = useTemperaments
-							? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
-							: undefined;
-						const result = streamText({
-							model,
-							...(systemPrompt && { system: systemPrompt }),
-							prompt: query,
-							abortSignal: abortController.signal
-						});
-						let fullText = '';
-						for await (const chunk of result.textStream) {
-							fullText += chunk;
-							send('model-chunk', { node, text: chunk });
+						try {
+							const model = getModel(gateway, modelId);
+							const systemPrompt = useTemperaments
+								? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
+								: undefined;
+							log(`${node} starting (${modelId})`);
+							const result = streamText({
+								model,
+								...(systemPrompt && { system: systemPrompt }),
+								prompt: query,
+	
+								abortSignal: abortController.signal
+							});
+							let fullText = '';
+							for await (const chunk of result.textStream) {
+								fullText += chunk;
+								send('model-chunk', { node, text: chunk });
+							}
+							log(`${node} complete (${fullText.length} chars)`);
+							const response: MagiResponse = { node, gateway, provider, text: fullText };
+							send('model-response', response);
+							return response;
+						} catch (err) {
+							const message = extractErrorMessage(err);
+							log(`${node} failed: ${message}`, 'error');
+							send('model-error', { node, gateway, provider, error: message });
+							throw err;
 						}
-						const response: MagiResponse = { node, gateway, provider, text: fullText };
-						send('model-response', response);
-						return response;
 					})
 				);
 
-				const responses: MagiResponse[] = [];
-				for (const [i, result] of results.entries()) {
-					if (result.status === 'fulfilled') {
-						responses.push(result.value);
-					} else {
-						const reason = result.reason;
-						const message =
-							reason instanceof Error
-								? reason.message
-								: typeof reason === 'string'
-									? reason
-									: 'Unknown error';
-						console.error(`[MAGI] ${config[i].node} failed:`, message);
-						send('model-error', {
-							node: config[i].node,
-							gateway: config[i].gateway,
-							provider: config[i].provider,
-							error: message
-						});
-					}
-				}
+				const responses: MagiResponse[] = results
+					.filter((r): r is PromiseFulfilledResult<MagiResponse> => r.status === 'fulfilled')
+					.map((r) => r.value);
+
+				log(`phase 1 complete: ${responses.length}/${config.length} models responded`);
 
 				if (responses.length === 0) {
+					log('all models failed — aborting', 'error');
 					send('error', { message: 'All three models failed to respond' });
 					close();
 					return;
 				}
 
 				if (responses.length < config.length) {
+					log(`partial consensus: ${responses.length}/${config.length}`);
 					send('partial-consensus', {
 						responded: responses.length,
 						total: config.length
@@ -201,6 +235,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				}
 
 				// Phase 2: Stream consensus synthesis
+				log(`consensus starting (${strategyName} via ${config[consensusNodeIndex].node})`);
 				const consensusStrategy = getStrategy(strategyName);
 				const ctx: ConsensusContext = {
 					responses,

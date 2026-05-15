@@ -58,11 +58,11 @@ Temperaments are **off by default** and can be toggled via the 🧠 button in th
 
 Users can select a tier to control quality vs. cost:
 
-| Tier         | Anthropic         | OpenAI       | Google         |
-| ------------ | ----------------- | ------------ | -------------- |
-| **Frontier** | Claude Opus 4.6   | GPT-5.2      | Gemini 3.1 Pro |
-| **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 3 Flash |
-| **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 3 Flash |
+| Tier         | Anthropic         | OpenAI       | Google              |
+| ------------ | ----------------- | ------------ | ------------------- |
+| **Frontier** | Claude Opus 4.6   | GPT-5.2      | Gemini 2.5 Pro      |
+| **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 2.5 Flash    |
+| **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 2.5 Flash Lite |
 
 | Tier     | OpenRouter         | OpenRouter                | OpenRouter           |
 | -------- | ------------------ | ------------------------- | -------------------- |
