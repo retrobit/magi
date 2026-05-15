@@ -33,7 +33,7 @@
 		'Is free will an illusion?',
 		'Should AI systems have rights?',
 		'What is the hardest problem in science right now?',
-		'Explain quantum entanglement like I\'m ten years old',
+		"Explain quantum entanglement like I'm ten years old",
 		'What would a perfect education system look like?',
 		'Are humans fundamentally good or fundamentally selfish?',
 		'What is the most underrated invention in history?',

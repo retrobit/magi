@@ -115,7 +115,7 @@
 </script>
 
 <div
-	class="flex min-h-48 flex-col rounded-lg border-t-2 bg-gray-900/90 {NODE_COLORS[name]} {status ===
+	class="flex min-h-48 flex-col rounded-lg border-t-2 bg-gray-900/70 {NODE_COLORS[name]} {status ===
 	'pending'
 		? 'pulse-glow'
 		: ''}"

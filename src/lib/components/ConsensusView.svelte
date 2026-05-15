@@ -74,7 +74,7 @@
 </script>
 
 <div
-	class="flex h-full min-h-48 flex-col overflow-hidden rounded-lg bg-gray-900/90 {loading &&
+	class="flex h-full min-h-48 flex-col overflow-hidden rounded-lg bg-gray-900/70 {loading &&
 	allModelsResponded
 		? 'pulse-consensus'
 		: ''}"
