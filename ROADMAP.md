@@ -2,10 +2,22 @@
 
 Planned features, improvements, and known items for the MAGI project.
 
+## Developer Experience / Code Quality
+
+- **Svelte 5 reactivity** — Replace `Map` and `Set` usage in `+page.svelte` (`tierCache`, `configuredNodes`) with `SvelteMap` and `SvelteSet` for idiomatic Svelte 5 fine-grained reactivity.
+- **Unused imports** — Clean up `ModelEntry` in `MagiPanel.svelte` and `TIER_NAMES` in `TierSelector.svelte`.
+- **`{@html}` ESLint suppression** — Add an inline disable comment for the intentional `{@html}` in `Markdown.svelte` (content is sanitized via DOMPurify).
+
 ## Consensus Strategies
 
 - **Structured Voting** — Each model scores the other two responses; majority wins.
 - **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
+
+## Infrastructure
+
+- **CI pipeline** — Automated test, lint, and type-check on pull requests.
+- **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
+- **Observability** — Structured logging and per-model latency metrics.
 
 ## Temperaments
 
@@ -22,9 +34,6 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Model Management
 
-- **Model health checks (hybrid registry)** — Keep the static curated registry for tier presets (that's the opinionated product), but add a runtime health check that probes models on startup or first use, marks dead ones, and falls back to alternates. This avoids dead-model surprises (like the StepFun/Arcee situation) without losing curation.
-- **Full dynamic registry (optional, longer-term)** — Fetch available models from provider APIs at runtime instead of maintaining a static registry. **Caveats:** requires automatic tier classification (providers don't expose this consistently), filtering out irrelevant models (hundreds on OpenRouter), and handling API differences across providers (OpenRouter has a models endpoint; Anthropic/OpenAI/Google do not). Risk of turning MAGI into a generic model browser rather than an opinionated consensus tool.
-- **Custom model entry** — Let users paste an arbitrary OpenRouter model ID rather than picking from the static registry. Covers the power-user case without full dynamic registry complexity.
 - **Per-node model persistence** — Remember user's custom node assignments across sessions via localStorage.
 
 ## Clients
@@ -56,15 +65,3 @@ Support more model routers beyond OpenRouter. The dynamic model discovery patter
 
 - **OpenAPI spec** — Machine-readable API description (JSON/YAML) for the existing `POST /api/magi` endpoint, enabling auto-generated clients, Swagger UI testing, and Postman import.
 - **Webhook/callback mode** — Alternative to SSE for environments that don't support streaming.
-
-## Infrastructure
-
-- **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
-- **Observability** — Structured logging and per-model latency metrics.
-- **CI pipeline** — Automated test, lint, and type-check on pull requests.
-
-## Developer Experience / Code Quality
-
-- **Svelte 5 reactivity** — Replace `Map` and `Set` usage in `+page.svelte` (`tierCache`, `configuredNodes`) with `SvelteMap` and `SvelteSet` for idiomatic Svelte 5 fine-grained reactivity.
-- **Unused imports** — Clean up `ModelEntry` in `MagiPanel.svelte` and `TIER_NAMES` in `TierSelector.svelte`.
-- **`{@html}` ESLint suppression** — Add an inline disable comment for the intentional `{@html}` in `Markdown.svelte` (content is sanitized via DOMPurify).
