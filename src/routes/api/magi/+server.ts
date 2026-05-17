@@ -14,6 +14,11 @@ import {
 import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
 import { NODE_TEMPERAMENTS } from '$lib/magi/types';
 import { magiRequestSchema, type HistoryTurn } from '$lib/magi/validation';
+import {
+	encodeStreamEvent,
+	type StreamEventName,
+	type StreamEventPayloads
+} from '$lib/magi/stream-events';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
@@ -196,10 +201,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			const encoder = new TextEncoder();
 			let closed = false;
 
-			function send(event: string, data: unknown) {
+			function send<E extends StreamEventName>(event: E, data: StreamEventPayloads[E]) {
 				if (closed) return;
 				try {
-					controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+					controller.enqueue(encoder.encode(encodeStreamEvent(event, data)));
 				} catch {
 					closed = true;
 				}

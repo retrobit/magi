@@ -18,6 +18,7 @@
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
+	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
 		loadPrefs,
 		savePrefs,
@@ -598,54 +599,46 @@
 		finalizeTurn();
 	}
 
-	function handleEvent(event: string, data: unknown) {
-		switch (event) {
-			case 'config':
-				assignments = data as NodeAssignment[] as [NodeAssignment, NodeAssignment, NodeAssignment];
-				break;
-			case 'model-chunk': {
-				const { node, text } = data as { node: string; text: string };
-				if (node in modelStreams && typeof text === 'string') {
-					modelStreams[node as MagiNodeName] += text;
-				}
-				break;
-			}
-			case 'model-response':
-				responses = [...responses, data as MagiResponse];
-				break;
-			case 'model-error':
-				modelErrors = [...modelErrors, data as MagiModelError];
-				break;
-			case 'consensus-chunk':
-				consensusStream += (data as { text: string }).text;
-				break;
-			case 'consensus-complete':
-				consensusFinal = (data as { text: string }).text;
-				break;
-			case 'partial-consensus': {
-				const d = data as { responded: number; total: number };
-				consensusWarning = `Only ${d.responded} of ${d.total} models responded — consensus is based on partial data.`;
-				break;
-			}
-			case 'model-usage': {
-				const u = data as { node: string; inputTokens: number; outputTokens: number };
-				if (u.node in modelStreams) {
-					liveNodeUsage[u.node as MagiNodeName] = {
-						inputTokens: u.inputTokens,
-						outputTokens: u.outputTokens
-					};
-				}
-				break;
-			}
-			case 'consensus-usage': {
-				const u = data as { inputTokens: number; outputTokens: number };
-				liveConsensusUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
-				break;
-			}
-			case 'error':
-				error = (data as { message: string }).message;
-				break;
+	// One handler per SSE event. The map is keyed by `StreamEventName`, so the
+	// set of events stays in lockstep with the server's payload contract.
+	const streamEventHandlers: {
+		[E in StreamEventName]: (data: StreamEventPayloads[E]) => void;
+	} = {
+		config: (data) => {
+			assignments = [...data] as [NodeAssignment, NodeAssignment, NodeAssignment];
+		},
+		'model-chunk': ({ node, text }) => {
+			if (node in modelStreams) modelStreams[node] += text;
+		},
+		'model-response': (data) => {
+			responses = [...responses, data];
+		},
+		'model-error': (data) => {
+			modelErrors = [...modelErrors, data];
+		},
+		'consensus-chunk': ({ text }) => {
+			consensusStream += text;
+		},
+		'consensus-complete': ({ text }) => {
+			consensusFinal = text;
+		},
+		'partial-consensus': ({ responded, total }) => {
+			consensusWarning = `Only ${responded} of ${total} models responded — consensus is based on partial data.`;
+		},
+		'model-usage': ({ node, inputTokens, outputTokens }) => {
+			if (node in modelStreams) liveNodeUsage[node] = { inputTokens, outputTokens };
+		},
+		'consensus-usage': ({ inputTokens, outputTokens }) => {
+			liveConsensusUsage = { inputTokens, outputTokens };
+		},
+		error: ({ message }) => {
+			error = message;
 		}
+	};
+
+	function handleEvent(event: string, data: unknown) {
+		const handler = streamEventHandlers[event as StreamEventName];
+		if (handler) handler(data as never);
 	}
 
 	onDestroy(() => abortController?.abort());
