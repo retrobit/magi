@@ -139,7 +139,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center gap-1 font-mono text-[10px] text-gray-500">
+					<span class="flex items-center gap-1 font-mono text-[9px] text-gray-500">
 						{#if showTokens}
 							<span title="Tokens this conversation">
 								<TokenCount input={totalInput} output={totalOutput} estimated={liveEstimated} />

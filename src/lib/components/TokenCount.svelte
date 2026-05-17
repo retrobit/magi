@@ -18,9 +18,9 @@
 	const text = $derived.by(() => {
 		const mark = estimated ? '~' : '';
 		const inPart = input > 0 ? `↑${formatTokenCount(input)} ` : '';
-		const outPart = `↓${mark}${formatTokenCount(output)}`;
-		const totalPart = total && input > 0 ? ` · ${mark}${formatTokenCount(input + output)}` : '';
-		return inPart + outPart + totalPart;
+		const outPart = `↓${formatTokenCount(output)}`;
+		const totalPart = total && input > 0 ? ` · ${formatTokenCount(input + output)}` : '';
+		return mark + inPart + outPart + totalPart;
 	});
 </script>
 
