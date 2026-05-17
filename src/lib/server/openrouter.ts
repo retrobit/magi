@@ -46,19 +46,7 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 	}
 }
 
-export function pickDiverseDefaults(models: AvailableModel[], count: number): AvailableModel[] {
-	const picked: AvailableModel[] = [];
-	const usedProviders = new Set<string>();
-
-	for (const m of models) {
-		if (usedProviders.has(m.provider)) continue;
-		picked.push(m);
-		usedProviders.add(m.provider);
-		if (picked.length >= count) break;
-	}
-
-	return picked;
-}
+export { pickDiverseModels } from '$lib/magi/types';
 
 export const _testing = {
 	clearCache: () => {

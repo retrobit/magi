@@ -17,7 +17,10 @@ export const magiRequestSchema = z.object({
 	assignments: z
 		.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema])
 		.optional(),
-	temperaments: z.boolean().optional()
+	temperaments: z.boolean().optional(),
+	consensusTemperament: z.boolean().optional(),
+	temperamentAwareness: z.boolean().optional(),
+	genericLabels: z.boolean().optional()
 });
 
 export type MagiRequest = z.infer<typeof magiRequestSchema>;

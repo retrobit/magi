@@ -18,7 +18,7 @@ import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
-import { getOpenRouterFreeModels, pickDiverseDefaults } from '$lib/server/openrouter';
+import { getOpenRouterFreeModels, pickDiverseModels } from '$lib/server/openrouter';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
@@ -103,7 +103,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		strategy: strategyName,
 		consensusNode: requestedConsensusNode,
 		assignments: clientAssignments,
-		temperaments: useTemperaments
+		temperaments: useTemperaments,
+		consensusTemperament: useConsensusTemperament,
+		temperamentAwareness: useAwareness,
+		genericLabels: useGenericLabels
 	} = parsed.data;
 
 	log(`request: tier=${tier} strategy=${strategyName} temperaments=${useTemperaments ?? false}`);
@@ -145,7 +148,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		// Resolve free tier dynamically from OpenRouter
 		const orModels = await getOpenRouterFreeModels();
 		if (orModels.length >= 3) {
-			const defaults = pickDiverseDefaults(orModels, 3);
+			const defaults = pickDiverseModels(orModels, 3);
 			config = defaults.map((m, i) => ({
 				node: MAGI_NODE_NAMES[i],
 				gateway: m.gateway,
@@ -303,7 +306,6 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					.map((r) => r.value);
 
 				const totalNodes = config.length;
-				const totalResponded = responses.length + nodeHealth.filter((h) => !h.healthy).length;
 
 				log(
 					`phase 1 complete: ${responses.length} responded, ${nodeHealth.filter((h) => !h.healthy).length} skipped (unhealthy)`
@@ -333,6 +335,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					getModel,
 					nodeAssignments: config,
 					consensusNodeIndex,
+					consensusTemperament: useConsensusTemperament ?? false,
+					temperaments: useAwareness ?? false,
+					genericLabels: useGenericLabels ?? true,
 					signal: abortController.signal
 				};
 

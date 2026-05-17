@@ -11,7 +11,23 @@
 		isRouter
 	} from '$lib/magi/types';
 	import Markdown from './Markdown.svelte';
-	import { Shuffle, CircleAlert, LoaderCircle, CircleCheck, CircleHelp, Copy } from 'lucide-svelte';
+	import {
+		Shuffle,
+		CircleAlert,
+		LoaderCircle,
+		CircleCheck,
+		CircleHelp,
+		Copy,
+		Check,
+		X
+	} from 'lucide-svelte';
+
+	let copied = $state(false);
+	function copyText() {
+		navigator.clipboard.writeText(text).catch(() => {});
+		copied = true;
+		setTimeout(() => (copied = false), 1500);
+	}
 
 	interface Props {
 		name: MagiNodeName;
@@ -115,10 +131,9 @@
 </script>
 
 <div
-	class="flex min-h-48 flex-col rounded-lg border-t-2 bg-gray-900/70 {NODE_COLORS[name]} {status ===
-	'pending'
-		? 'pulse-glow'
-		: ''}"
+	class="magi-panel flex min-h-72 flex-col rounded-lg border-t-2 bg-gray-900/70 {NODE_COLORS[
+		name
+	]} {status === 'pending' ? 'pulse-glow' : ''}"
 	style:--node-color={NODE_HEX_COLORS[name]}
 >
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
@@ -140,14 +155,18 @@
 				{#if status === 'success' && text}
 					<button
 						class="text-gray-400 transition-colors hover:text-white"
-						onclick={() => navigator.clipboard.writeText(text).catch(() => {})}
+						onclick={copyText}
 						title="Copy response"
 					>
-						<Copy size={14} />
+						{#if copied}
+							<Check size={14} class="text-green-400" />
+						{:else}
+							<Copy size={14} />
+						{/if}
 					</button>
 				{/if}
 				{#if status === 'error'}
-					<CircleAlert size={14} class="text-red-500" />
+					<X size={14} class="text-red-500" />
 				{:else if status === 'pending'}
 					<LoaderCircle size={14} class="animate-spin text-yellow-400" />
 				{:else if status === 'success'}
@@ -166,7 +185,7 @@
 				<div class="flex flex-1 flex-col gap-1.5">
 					<!-- Gateway / Provider selector -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={gateway}
 						onchange={handleGatewayChange}
 						{disabled}
@@ -182,7 +201,7 @@
 
 					<!-- Provider selector (always rendered for consistent height) -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
+						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
 						!showRouterProvider
 							? 'text-gray-600'
 							: ''}"
@@ -206,7 +225,7 @@
 
 					<!-- Model selector -->
 					<select
-						class="w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={modelId}
 						onchange={handleModelChange}
 						{disabled}
@@ -223,7 +242,7 @@
 					type="button"
 					onclick={handleRandomize}
 					{disabled}
-					class="flex items-center justify-center rounded bg-gray-800 px-2 text-gray-500 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+					class="magi-randomize flex items-center justify-center rounded bg-gray-800 px-2 text-gray-500 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
 					title="Randomize selection"
 				>
 					<Shuffle size={14} />

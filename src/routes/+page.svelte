@@ -8,6 +8,7 @@
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
 		NODE_TEMPERAMENTS,
+		pickDiverseModels,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -17,7 +18,18 @@
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
 	import { onMount, onDestroy } from 'svelte';
-	import { Triangle, LoaderCircle, CircleAlert, ArrowLeftRight, X, Brain } from 'lucide-svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import {
+		Triangle,
+		LoaderCircle,
+		CircleAlert,
+		ArrowLeftRight,
+		X,
+		Brain,
+		Copy,
+		Check,
+		Settings
+	} from 'lucide-svelte';
 
 	interface MagiModelError {
 		node: MagiNodeName;
@@ -47,13 +59,25 @@
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
 	let temperaments = $state(false);
-	let genericLabels = $state(false);
+	let genericLabels = $state(true);
 	let query = $state('');
 	let loading = $state(false);
-	let configuredNodes = $state<Set<number>>(new Set([0, 1, 2]));
+	let configuredNodes = new SvelteSet([0, 1, 2]);
 	let consensusNode: MagiNodeName = $state('MELCHIOR');
 	let availableModels = $state<AvailableModel[]>([]);
 	let modelsLoading = $state(true);
+	let copiedQuery = $state(false);
+	let settingsOpen = $state(false);
+	let consensusTemperament = $state(false);
+	let temperamentAwareness = $state(false);
+	let bgVariant = $state<'columns' | 'orbs'>('columns');
+	let theme = $state<'dark' | 'light'>('dark');
+
+	function copyQuery() {
+		navigator.clipboard.writeText(query).catch(() => {});
+		copiedQuery = true;
+		setTimeout(() => (copiedQuery = false), 1500);
+	}
 
 	let assignments = $state<[NodeAssignment, NodeAssignment, NodeAssignment]>(
 		// Placeholder — will be replaced once models are fetched for free tier,
@@ -75,6 +99,7 @@
 		consensusNode: MagiNodeName;
 	}
 
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive cache, never triggers UI updates
 	const tierCache = new Map<TierName, TierSnapshot>();
 
 	let responses = $state<MagiResponse[]>([]);
@@ -126,16 +151,8 @@
 		}));
 	}
 
-	function pickDiverseDefaults(models: AvailableModel[]): NodeAssignment[] {
-		const picked: AvailableModel[] = [];
-		const usedProviders = new Set<string>();
-		for (const m of models) {
-			if (usedProviders.has(m.provider)) continue;
-			picked.push(m);
-			usedProviders.add(m.provider);
-			if (picked.length >= 3) break;
-		}
-		return picked.map((m, i) => ({
+	function assignDiverseDefaults(models: AvailableModel[]): NodeAssignment[] {
+		return pickDiverseModels(models, 3).map((m, i) => ({
 			node: MAGI_NODE_NAMES[i],
 			gateway: m.gateway,
 			provider: m.provider,
@@ -157,12 +174,15 @@
 			// Set default assignments if no snapshot exists for this tier
 			if (!tierCache.has(t) && availableModels.length >= 3) {
 				if (t === 'free') {
-					const defaults = pickDiverseDefaults(availableModels);
+					const defaults = assignDiverseDefaults(availableModels);
 					assignments = defaults as [NodeAssignment, NodeAssignment, NodeAssignment];
 				} else {
 					assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
 				}
-				configuredNodes = new Set([0, 1, 2]);
+				configuredNodes.clear();
+				configuredNodes.add(0);
+				configuredNodes.add(1);
+				configuredNodes.add(2);
 				consensusNode = 'MELCHIOR';
 			}
 		} catch {
@@ -203,7 +223,8 @@
 			error = cached.error;
 			streamDone = cached.streamDone;
 			assignments = [...cached.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
-			configuredNodes = new Set(cached.configuredNodes);
+			configuredNodes.clear();
+			for (const v of cached.configuredNodes) configuredNodes.add(v);
 			consensusNode = cached.consensusNode;
 		} else {
 			responses = [];
@@ -214,7 +235,10 @@
 			consensusWarning = '';
 			error = '';
 			streamDone = false;
-			configuredNodes = new Set([0, 1, 2]);
+			configuredNodes.clear();
+			configuredNodes.add(0);
+			configuredNodes.add(1);
+			configuredNodes.add(2);
 			consensusNode = 'MELCHIOR';
 		}
 	}
@@ -240,7 +264,6 @@
 		modelId: string
 	) {
 		configuredNodes.add(nodeIndex);
-		configuredNodes = new Set(configuredNodes);
 		const node = MAGI_NODE_NAMES[nodeIndex];
 		assignments[nodeIndex] = { node, gateway, provider, modelId };
 	}
@@ -279,7 +302,17 @@
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query, tier, strategy, consensusNode, assignments, temperaments }),
+				body: JSON.stringify({
+					query,
+					tier,
+					strategy,
+					consensusNode,
+					assignments,
+					temperaments,
+					consensusTemperament,
+					temperamentAwareness,
+					genericLabels
+				}),
 				signal: abortController.signal
 			});
 
@@ -314,7 +347,7 @@
 						try {
 							handleEvent(event, JSON.parse(data));
 						} catch {
-							console.warn('[MAGI] Failed to parse SSE data for event:', event);
+							// Malformed SSE data — skip silently
 						}
 					}
 				}
@@ -374,21 +407,40 @@
 	<title>MAGI</title>
 </svelte:head>
 
-<div class="magi-bg flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
-	<MagiBackground />
+<div
+	class="magi-bg flex h-screen flex-col overflow-y-auto bg-gray-950 text-white md:overflow-hidden {theme ===
+	'light'
+		? 'light'
+		: ''}"
+>
+	<MagiBackground variant={bgVariant} />
 
 	<!-- Header -->
-	<header class="shrink-0 border-b border-gray-800">
-		<div class="mx-auto max-w-7xl px-6 py-4">
+	<header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
+		<div class="relative mx-auto max-w-7xl px-6 py-4">
 			<h1 class="text-center text-2xl font-bold tracking-wider">
 				MAGI <span class="text-lg">🔺🔻🔺</span>
 			</h1>
+			<button
+				type="button"
+				class="absolute top-1/2 right-6 -translate-y-1/2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
+				onclick={() => (settingsOpen = !settingsOpen)}
+				title="Settings"
+			>
+				<Settings size={16} />
+			</button>
 		</div>
 	</header>
 
 	<!-- Control strip -->
-	<div class="shrink-0 border-b border-gray-800 bg-gray-950/80">
-		<div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
+	<div class="magi-controls relative z-10 shrink-0 border-b border-gray-800 bg-gray-950/80">
+		<div
+			class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-6 py-2 sm:flex-row sm:justify-between"
+		>
+			<div class="flex items-center gap-2">
+				<span class="text-xs text-gray-500">TIER</span>
+				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
+			</div>
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-gray-500">TEMPERAMENT</span>
 				<button
@@ -396,8 +448,8 @@
 					onclick={() => (temperaments = !temperaments)}
 					disabled={loading}
 					class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
-						? 'bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+						: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
 					title={temperaments
 						? 'Temperaments active — each node responds through its dispositional lens'
 						: 'Enable temperaments — give each MAGI node a distinct dispositional personality'}
@@ -406,29 +458,41 @@
 					{temperaments ? 'ON' : 'OFF'}
 				</button>
 			</div>
-			<div class="flex items-center gap-2">
-				<span class="text-xs text-gray-500">TIER</span>
-				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
-			</div>
 		</div>
 	</div>
 
 	<!-- Main content -->
-	<main class="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 p-6">
+	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-6 md:min-h-0">
 		<!-- Query input -->
 		<form onsubmit={handleSubmit} class="flex shrink-0 gap-3">
-			<input
-				bind:value={query}
-				type="text"
-				placeholder="Ask the MAGI system..."
-				disabled={loading}
-				class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
-			/>
+			<div class="relative flex-1">
+				<input
+					bind:value={query}
+					type="text"
+					placeholder="Ask the MAGI system... or click Execute for a random prompt"
+					disabled={loading}
+					class="magi-input w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+				/>
+				{#if query.trim()}
+					<button
+						type="button"
+						class="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 transition-colors hover:text-white"
+						onclick={copyQuery}
+						title="Copy prompt"
+					>
+						{#if copiedQuery}
+							<Check size={14} class="text-green-400" />
+						{:else}
+							<Copy size={14} />
+						{/if}
+					</button>
+				{/if}
+			</div>
 			{#if loading}
 				<button
 					type="button"
 					onclick={() => abortController?.abort()}
-					class="group flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600"
+					class="magi-btn group flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600"
 				>
 					<span class="flex items-center gap-2 group-hover:hidden">
 						<LoaderCircle size={16} class="animate-spin" /> Processing...
@@ -441,7 +505,7 @@
 				<button
 					type="submit"
 					disabled={!allConfigured || modelsLoading}
-					class="flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600"
+					class="magi-btn flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600"
 				>
 					<Triangle size={14} class="rotate-90 fill-current" /> Execute
 				</button>
@@ -460,7 +524,7 @@
 
 		<!-- Three MAGI panels -->
 		<div
-			class="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]"
+			class="grid flex-2 grid-cols-1 gap-2 md:min-h-0 md:flex-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:overflow-hidden"
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
@@ -497,7 +561,7 @@
 		</div>
 
 		<!-- Consensus -->
-		<div class="min-h-0 flex-1">
+		<div class="flex-1 md:min-h-0">
 			<ConsensusView
 				text={consensusStream}
 				fullText={consensusFinal}
@@ -509,11 +573,67 @@
 				consensusGateway={consensusAssignment.gateway}
 				consensusProvider={consensusAssignment.provider}
 				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}
+				{consensusTemperament}
+				{temperamentAwareness}
 				{genericLabels}
 				disabled={loading}
 				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
+				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
+				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}
 			/>
 		</div>
 	</main>
 </div>
+
+{#if settingsOpen}
+	<button
+		class="fixed inset-0 z-40 cursor-default"
+		onclick={() => (settingsOpen = false)}
+		aria-label="Close settings"
+	></button>
+	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-6">
+		<div
+			class="pointer-events-auto ml-auto w-48 rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
+		>
+			<span class="text-xs font-medium text-gray-400">Theme</span>
+			<div class="mt-2 flex flex-col gap-1">
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (theme = 'dark')}
+				>
+					Dark
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'light'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (theme = 'light')}
+				>
+					Light
+				</button>
+			</div>
+			<span class="mt-3 text-xs font-medium text-gray-400">Background</span>
+			<div class="mt-2 flex flex-col gap-1">
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (bgVariant = 'columns')}
+				>
+					Columns
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (bgVariant = 'orbs')}
+				>
+					Orbs
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

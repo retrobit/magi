@@ -12,6 +12,9 @@ export interface ConsensusContext {
 	getModel: (gateway: GatewayName, modelId: string) => LanguageModel;
 	nodeAssignments: readonly NodeAssignment[];
 	consensusNodeIndex: number;
+	consensusTemperament?: boolean;
+	temperaments?: boolean;
+	genericLabels?: boolean;
 	signal?: AbortSignal;
 }
 

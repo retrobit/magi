@@ -64,15 +64,15 @@ export interface AvailableModel {
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {
-	MELCHIOR: 'border-orange-500',
-	BALTHASAR: 'border-blue-500',
-	CASPAR: 'border-emerald-400'
+	MELCHIOR: 'border-red-500',
+	BALTHASAR: 'border-emerald-400',
+	CASPAR: 'border-blue-500'
 };
 
 export const NODE_HEX_COLORS: Record<MagiNodeName, string> = {
-	MELCHIOR: '#f97316',
-	BALTHASAR: '#3b82f6',
-	CASPAR: '#34d399'
+	MELCHIOR: '#ef4444',
+	BALTHASAR: '#34d399',
+	CASPAR: '#3b82f6'
 };
 
 export const CONSENSUS_GRADIENT = `background: linear-gradient(to right, ${MAGI_NODE_NAMES.map((n) => NODE_HEX_COLORS[n]).join(', ')})`;
@@ -103,6 +103,18 @@ export function getProviderLabel(provider: string): string {
 			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 			.join(' ')
 	);
+}
+
+export function pickDiverseModels(models: AvailableModel[], count: number): AvailableModel[] {
+	const picked: AvailableModel[] = [];
+	const usedProviders = new Set<string>();
+	for (const m of models) {
+		if (usedProviders.has(m.provider)) continue;
+		picked.push(m);
+		usedProviders.add(m.provider);
+		if (picked.length >= count) break;
+	}
+	return picked;
 }
 
 export const MAGI_NODES: readonly MagiNode[] = [

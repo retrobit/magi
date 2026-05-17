@@ -11,3 +11,118 @@
 	position: relative;
 	z-index: 1;
 }
+
+/* ── Light mode overrides ── */
+.light {
+	--magi-page-bg: #f9fafb;
+	--magi-panel-bg: rgba(255, 255, 255, 0.9);
+	--magi-surface-bg: #f3f4f6;
+	--magi-border: #e5e7eb;
+	--magi-text: #111827;
+	--magi-text-muted: #6b7280;
+	--magi-text-faint: #9ca3af;
+}
+
+.light.magi-bg {
+	background-color: var(--magi-page-bg);
+	color: var(--magi-text);
+}
+
+/* Header stays dark */
+.light .magi-header {
+	background-color: #030712;
+	border-color: #1f2937;
+	color: white;
+}
+
+.light .magi-controls {
+	background-color: #030712;
+	border-color: #1f2937;
+	color: white;
+}
+
+.light .magi-controls span {
+	color: #9ca3af;
+}
+
+/* Temperament/tier buttons inherit white text from dark controls strip */
+.light .magi-controls button {
+	color: white;
+}
+
+.light .magi-panel {
+	background-color: var(--magi-panel-bg);
+}
+
+.light .magi-panel .border-b {
+	border-color: var(--magi-border);
+}
+
+.light .magi-panel .border-t {
+	border-color: var(--magi-border);
+}
+
+.light .magi-panel button,
+.light .magi-panel .text-sm {
+	color: var(--magi-text);
+}
+
+.light .magi-input {
+	background-color: white;
+	border-color: #d1d5db;
+	color: var(--magi-text);
+}
+
+.light .magi-input::placeholder {
+	color: var(--magi-text-faint);
+}
+
+.light .magi-select {
+	background-color: var(--magi-surface-bg);
+	color: var(--magi-text);
+}
+
+.light .magi-btn {
+	background-color: #4b5563;
+}
+
+.light .magi-btn:hover {
+	background-color: #374151;
+}
+
+/* Tier selector — stays on dark control strip, no override needed */
+
+/* Temperament toggle — stays on dark control strip, no override needed */
+
+/* Randomize / shuffle button */
+.light .magi-panel .magi-randomize {
+	background-color: var(--magi-surface-bg);
+	color: var(--magi-text-muted);
+}
+
+.light .magi-panel .magi-randomize:hover {
+	background-color: #e5e7eb;
+	color: var(--magi-text);
+}
+
+/* Consensus selects */
+.light .magi-panel select {
+	background-color: var(--magi-surface-bg);
+	color: var(--magi-text);
+}
+
+/* Settings dropdown in light mode */
+.light ~ .magi-settings-dropdown {
+	background-color: white;
+	border-color: var(--magi-border);
+}
+
+.light .prose {
+	--tw-prose-body: #374151;
+	--tw-prose-headings: #111827;
+	--tw-prose-links: #111827;
+	--tw-prose-bold: #111827;
+	--tw-prose-code: #111827;
+	--tw-prose-pre-bg: #f3f4f6;
+	--tw-prose-pre-code: #374151;
+}

@@ -35,4 +35,5 @@
 	});
 </script>
 
+<!-- eslint-disable svelte/no-at-html-tags -- sanitized via DOMPurify -->
 {@html html}
