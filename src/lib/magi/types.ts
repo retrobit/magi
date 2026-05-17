@@ -61,6 +61,32 @@ export interface AvailableModel {
 	gateway: GatewayName;
 	provider: string;
 	displayName: string;
+	/** Context window in tokens, when known — drives context-budget warnings. */
+	contextLength?: number;
+}
+
+/** Compact token display: 7100 → "7.1k", 200000 → "200k", 1000000 → "1M". */
+export function formatTokenCount(n: number): string {
+	if (n >= 1_000_000) return `${Math.round(n / 100_000) / 10}M`;
+	if (n >= 1000) return `${Math.round(n / 100) / 10}k`;
+	return String(n);
+}
+
+/** Token usage for a single model call. */
+export interface TurnUsage {
+	inputTokens: number;
+	outputTokens: number;
+}
+
+/** One completed conversation turn — the unit of multi-turn history. */
+export interface ConversationTurn {
+	query: string;
+	nodeResponses: Partial<Record<MagiNodeName, string>>;
+	nodeErrors: Partial<Record<MagiNodeName, string>>;
+	consensus: string;
+	consensusNode: MagiNodeName;
+	nodeUsage: Partial<Record<MagiNodeName, TurnUsage>>;
+	consensusUsage?: TurnUsage;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {

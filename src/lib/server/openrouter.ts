@@ -3,6 +3,7 @@ import type { AvailableModel, GatewayName } from '$lib/magi/types';
 interface OpenRouterApiModel {
 	id: string;
 	name: string;
+	context_length?: number;
 	pricing?: { prompt?: string; completion?: string };
 }
 
@@ -35,7 +36,8 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 				id: m.id,
 				gateway: 'openrouter' as GatewayName,
 				provider: extractProvider(m.id),
-				displayName: cleanDisplayName(m.name)
+				displayName: cleanDisplayName(m.name),
+				contextLength: m.context_length
 			}))
 			.sort((a, b) => a.provider.localeCompare(b.provider));
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		variant?: 'columns' | 'orbs';
+		variant?: 'columns' | 'orbs' | 'off';
 	}
 
 	let { variant = 'columns' }: Props = $props();
@@ -11,7 +11,7 @@
 		<div class="aurora-col aurora-red"></div>
 		<div class="aurora-col aurora-green"></div>
 		<div class="aurora-col aurora-blue"></div>
-	{:else}
+	{:else if variant === 'orbs'}
 		<div class="aurora-blob aurora-red"></div>
 		<div class="aurora-blob aurora-green"></div>
 		<div class="aurora-blob aurora-blue"></div>

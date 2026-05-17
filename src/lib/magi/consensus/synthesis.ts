@@ -1,4 +1,4 @@
-import { streamText } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 import type { ConsensusStrategy, ConsensusContext, ConsensusEvent } from './types';
 import {
 	NODE_TEMPERAMENTS,
@@ -17,6 +17,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 		const {
 			responses,
 			query,
+			history = [],
 			getModel,
 			nodeAssignments,
 			consensusNodeIndex,
@@ -61,6 +62,24 @@ export const synthesisStrategy: ConsensusStrategy = {
 When perspectives diverge, surface WHY they diverge — which dispositional lens drives the disagreement. For example: "The Rationalist and Individualist agree on X, but the Caretaker flags Y as a human cost."`
 			: '';
 
+		const synthesisPrompt = `Original query: ${query}
+
+The ${n === 3 ? 'three' : n} MAGI responses:
+
+${formattedResponses}
+
+Provide the synthesized consensus response.`;
+
+		// Replay prior consensus turns so follow-ups ("expand on that") stay coherent.
+		// Past turns carry only the bare question + consensus; the current turn carries
+		// the full synthesis prompt with this round's fresh node responses.
+		const messages: ModelMessage[] = [];
+		for (const turn of history) {
+			messages.push({ role: 'user', content: turn.query });
+			messages.push({ role: 'assistant', content: turn.consensus });
+		}
+		messages.push({ role: 'user', content: synthesisPrompt });
+
 		const result = streamText({
 			model,
 			system: `${consensusLens}You are the MAGI consensus system. ${countDesc} to the same query. Your job is to synthesize the best possible answer by:
@@ -71,13 +90,7 @@ When perspectives diverge, surface WHY they diverge — which dispositional lens
 4. Flagging any remaining uncertainty honestly.
 
 Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${temperamentContext}`,
-			prompt: `Original query: ${query}
-
-The ${n === 3 ? 'three' : n} MAGI responses:
-
-${formattedResponses}
-
-Provide the synthesized consensus response.`,
+			messages,
 			abortSignal: signal
 		});
 
@@ -86,6 +99,12 @@ Provide the synthesized consensus response.`,
 			fullText += chunk;
 			yield { type: 'text-delta', text: chunk };
 		}
+		const usage = await result.usage;
 		yield { type: 'complete', fullText };
+		yield {
+			type: 'usage',
+			inputTokens: usage.inputTokens ?? 0,
+			outputTokens: usage.outputTokens ?? 0
+		};
 	}
 };

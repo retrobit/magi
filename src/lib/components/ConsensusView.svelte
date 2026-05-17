@@ -8,6 +8,7 @@
 		NODE_TEMPERAMENTS,
 		TEMPERAMENT_LABELS,
 		CONSENSUS_GRADIENT,
+		formatTokenCount,
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
@@ -32,6 +33,11 @@
 		loading: boolean;
 		allModelsResponded: boolean;
 		warning?: string;
+		transcript?: { query: string; consensus: string; tokens: number }[];
+		liveQuery?: string;
+		liveTokens?: number;
+		contextUsed?: number;
+		contextWindow?: number;
 		strategy: StrategyName;
 		consensusNode: MagiNodeName;
 		consensusGateway?: GatewayName;
@@ -53,6 +59,11 @@
 		loading,
 		allModelsResponded,
 		warning = '',
+		transcript = [],
+		liveQuery = '',
+		liveTokens = 0,
+		contextUsed = 0,
+		contextWindow,
 		strategy,
 		consensusNode,
 		consensusGateway,
@@ -69,6 +80,11 @@
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
+
+	const contextRatio = $derived(contextWindow ? contextUsed / contextWindow : 0);
+	const contextClass = $derived(
+		contextRatio >= 0.9 ? 'text-red-400' : contextRatio >= 0.75 ? 'text-amber-400' : 'text-gray-500'
+	);
 
 	const gradientStyle = CONSENSUS_GRADIENT;
 
@@ -91,7 +107,7 @@
 </script>
 
 <div
-	class="magi-panel flex h-full min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 {loading &&
+	class="magi-panel flex h-full max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {loading &&
 	allModelsResponded
 		? 'pulse-consensus'
 		: ''}"
@@ -103,8 +119,15 @@
 				<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
 				{#if consensusTemperament}
 					<span
-						class="rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
+					>
+				{/if}
+				{#if contextWindow && contextUsed > 0}
+					<span
+						class="text-[10px] {contextClass}"
+						title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
+						>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
 					>
 				{/if}
 			</div>
@@ -173,8 +196,8 @@
 					{#if onconsensustemperamentchange}
 						<button
 							type="button"
-							class="flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
-								? 'bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
+								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'}"
 							onclick={() => onconsensustemperamentchange(!consensusTemperament)}
 							{disabled}
@@ -189,8 +212,8 @@
 					{#if onawarenesschange}
 						<button
 							type="button"
-							class="flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
-								? 'bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
+								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'}"
 							onclick={() => onawarenesschange(!temperamentAwareness)}
 							{disabled}
@@ -206,21 +229,58 @@
 			{/if}
 		</div>
 	</div>
-	<div class="prose prose-sm min-h-0 max-w-none flex-1 overflow-y-auto p-4 prose-invert">
-		{#if warning}
-			<p class="flex items-center gap-1.5 text-sm text-amber-400">
-				<AlertTriangle size={14} />
-				{warning}
-			</p>
-		{/if}
-		{#if loading && !allModelsResponded}
-			<p class="text-gray-500">Waiting for MAGI responses...</p>
-		{:else if loading && !text}
-			<p class="animate-pulse text-gray-500">Synthesizing consensus...</p>
-		{:else if text}
-			<Markdown source={text} />
+	<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+		{#if transcript.length === 0 && !liveQuery}
+			<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond.</p>
 		{:else}
-			<p class="text-gray-600">Consensus will appear after all three MAGI respond.</p>
+			{#each transcript as turn, i (i)}
+				<div
+					class="flex flex-col gap-1.5 {i > 0
+						? 'magi-turn-divider border-t border-gray-800 pt-3'
+						: ''}"
+				>
+					<p class="text-xs font-medium text-gray-500">{turn.query}</p>
+					{#if turn.consensus}
+						<div class="prose prose-sm max-w-none prose-invert">
+							<Markdown source={turn.consensus} />
+						</div>
+					{:else}
+						<p class="text-sm text-gray-600">No consensus</p>
+					{/if}
+					{#if turn.tokens > 0}
+						<p class="text-[10px] text-gray-600">{turn.tokens.toLocaleString()} tokens</p>
+					{/if}
+				</div>
+			{/each}
+			{#if liveQuery}
+				<div
+					class="flex flex-col gap-1.5 {transcript.length > 0
+						? 'magi-turn-divider border-t border-gray-800 pt-3'
+						: ''}"
+				>
+					<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
+					{#if warning}
+						<p class="flex items-center gap-1.5 text-sm text-amber-400">
+							<AlertTriangle size={14} />
+							{warning}
+						</p>
+					{/if}
+					{#if loading && !allModelsResponded}
+						<p class="text-sm text-gray-500">Waiting for MAGI responses...</p>
+					{:else if loading && !text}
+						<p class="animate-pulse text-sm text-gray-500">Synthesizing consensus...</p>
+					{:else if text}
+						<div class="prose prose-sm max-w-none prose-invert">
+							<Markdown source={text} />
+						</div>
+					{:else}
+						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond.</p>
+					{/if}
+					{#if liveTokens > 0}
+						<p class="text-[10px] text-gray-600">{liveTokens.toLocaleString()} tokens</p>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>

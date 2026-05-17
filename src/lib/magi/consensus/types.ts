@@ -4,11 +4,19 @@ import type { NodeAssignment } from '../config';
 
 export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
-	| { type: 'complete'; fullText: string };
+	| { type: 'complete'; fullText: string }
+	| { type: 'usage'; inputTokens: number; outputTokens: number };
+
+// A prior consensus turn — the consensus node's own thread across the conversation.
+export interface ConsensusHistoryTurn {
+	query: string;
+	consensus: string;
+}
 
 export interface ConsensusContext {
 	responses: MagiResponse[];
 	query: string;
+	history?: ConsensusHistoryTurn[];
 	getModel: (gateway: GatewayName, modelId: string) => LanguageModel;
 	nodeAssignments: readonly NodeAssignment[];
 	consensusNodeIndex: number;

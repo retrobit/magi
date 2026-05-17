@@ -2,11 +2,11 @@
 	import type { MagiNodeName, GatewayName, TemperamentName, AvailableModel } from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
-		NODE_COLORS,
 		NODE_HEX_COLORS,
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
 		TEMPERAMENT_LABELS,
+		formatTokenCount,
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
@@ -39,6 +39,11 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
+		transcript?: { query: string; response: string; error: string; tokens: number }[];
+		liveQuery?: string;
+		liveTokens?: number;
+		contextUsed?: number;
+		contextWindow?: number;
 		temperament?: TemperamentName;
 		genericLabels?: boolean;
 		disabled?: boolean;
@@ -57,6 +62,11 @@
 		text,
 		error,
 		status,
+		transcript = [],
+		liveQuery = '',
+		liveTokens = 0,
+		contextUsed = 0,
+		contextWindow,
 		temperament,
 		genericLabels = false,
 		disabled = false,
@@ -66,6 +76,11 @@
 	}: Props = $props();
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
+
+	const contextRatio = $derived(contextWindow ? contextUsed / contextWindow : 0);
+	const contextClass = $derived(
+		contextRatio >= 0.9 ? 'text-red-400' : contextRatio >= 0.75 ? 'text-amber-400' : 'text-gray-500'
+	);
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
 
@@ -131,11 +146,13 @@
 </script>
 
 <div
-	class="magi-panel flex min-h-72 flex-col rounded-lg border-t-2 bg-gray-900/70 {NODE_COLORS[
-		name
-	]} {status === 'pending' ? 'pulse-glow' : ''}"
+	class="magi-panel flex max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {status ===
+	'pending'
+		? 'pulse-glow'
+		: ''}"
 	style:--node-color={NODE_HEX_COLORS[name]}
 >
+	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
@@ -146,12 +163,19 @@
 				>
 				{#if temperament}
 					<span
-						class="rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
 						>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
+				{#if contextWindow && contextUsed > 0}
+					<span
+						class="text-[10px] {contextClass}"
+						title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
+						>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
+					>
+				{/if}
 				{#if status === 'success' && text}
 					<button
 						class="text-gray-400 transition-colors hover:text-white"
@@ -252,25 +276,60 @@
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
 	</div>
-	<div class="prose prose-sm min-h-0 max-w-none flex-1 overflow-y-auto p-4 prose-invert">
-		{#if status === 'error'}
-			<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
-				<CircleAlert size={24} class="text-red-500" />
-				<p class="text-sm font-medium text-red-400">Model unavailable</p>
-				<p class="text-xs text-gray-500">{error}</p>
-			</div>
-		{:else if status === 'pending' && text}
-			<Markdown source={text} />
-		{:else if status === 'pending'}
-			<p class="text-gray-500">Thinking...</p>
-		{:else if status === 'unknown'}
-			<p class="text-orange-400">No response received</p>
-		{:else if text}
-			<Markdown source={text} />
-		{:else if status === 'success'}
-			<p class="text-gray-500">Empty response</p>
+	<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+		{#if transcript.length === 0 && !liveQuery}
+			<p class="text-sm text-gray-600">Awaiting query...</p>
 		{:else}
-			<p class="text-gray-600">Awaiting query...</p>
+			{#each transcript as turn, i (i)}
+				<div
+					class="flex flex-col gap-1.5 {i > 0
+						? 'magi-turn-divider border-t border-gray-800 pt-3'
+						: ''}"
+				>
+					<p class="text-xs font-medium text-gray-500">{turn.query}</p>
+					{#if turn.error}
+						<p class="text-sm text-red-400">⚠ {turn.error}</p>
+					{:else if turn.response}
+						<div class="prose prose-sm max-w-none prose-invert">
+							<Markdown source={turn.response} />
+						</div>
+					{:else}
+						<p class="text-sm text-gray-600">No response</p>
+					{/if}
+					{#if turn.tokens > 0}
+						<p class="text-[10px] text-gray-600">{turn.tokens.toLocaleString()} tokens</p>
+					{/if}
+				</div>
+			{/each}
+			{#if liveQuery}
+				<div
+					class="flex flex-col gap-1.5 {transcript.length > 0
+						? 'magi-turn-divider border-t border-gray-800 pt-3'
+						: ''}"
+				>
+					<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
+					{#if status === 'error'}
+						<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+							<CircleAlert size={24} class="text-red-500" />
+							<p class="text-sm font-medium text-red-400">Model unavailable</p>
+							<p class="text-xs text-gray-500">{error}</p>
+						</div>
+					{:else if text}
+						<div class="prose prose-sm max-w-none prose-invert">
+							<Markdown source={text} />
+						</div>
+					{:else if status === 'unknown'}
+						<p class="text-sm text-orange-400">No response received</p>
+					{:else if status === 'success'}
+						<p class="text-sm text-gray-500">Empty response</p>
+					{:else}
+						<p class="text-sm text-gray-500">Thinking...</p>
+					{/if}
+					{#if liveTokens > 0}
+						<p class="text-[10px] text-gray-600">{liveTokens.toLocaleString()} tokens</p>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>

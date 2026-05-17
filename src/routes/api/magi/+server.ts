@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { streamText } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 import { getModel } from '$lib/magi/models';
 import { getStrategy, type ConsensusContext } from '$lib/magi/consensus';
 import {
@@ -10,9 +10,9 @@ import {
 	validateConfig,
 	type MagiConfig
 } from '$lib/magi/config';
-import type { MagiResponse } from '$lib/magi/types';
+import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
 import { MAGI_NODE_NAMES, NODE_TEMPERAMENTS } from '$lib/magi/types';
-import { magiRequestSchema } from '$lib/magi/validation';
+import { magiRequestSchema, type HistoryTurn } from '$lib/magi/validation';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
@@ -49,6 +49,25 @@ function extractErrorMessage(err: unknown): string {
 	if (retryErr.lastError) return extractErrorMessage(retryErr.lastError);
 	if (err instanceof Error) return err.message;
 	return 'Unknown error';
+}
+
+// Replay a node's own past turns as an alternating user/assistant message list.
+// "Own thread only" — a node never sees the other nodes or the consensus. Turns
+// the node didn't answer (errored) are skipped so the alternation stays valid.
+function buildNodeMessages(
+	node: MagiNodeName,
+	history: HistoryTurn[],
+	currentQuery: string
+): ModelMessage[] {
+	const messages: ModelMessage[] = [];
+	for (const turn of history) {
+		const own = turn.nodeResponses.find((r) => r.node === node);
+		if (!own) continue;
+		messages.push({ role: 'user', content: turn.query });
+		messages.push({ role: 'assistant', content: own.text });
+	}
+	messages.push({ role: 'user', content: currentQuery });
+	return messages;
 }
 
 function log(message: string, level: 'info' | 'error' = 'info') {
@@ -106,7 +125,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		temperaments: useTemperaments,
 		consensusTemperament: useConsensusTemperament,
 		temperamentAwareness: useAwareness,
-		genericLabels: useGenericLabels
+		genericLabels: useGenericLabels,
+		history = []
 	} = parsed.data;
 
 	log(`request: tier=${tier} strategy=${strategyName} temperaments=${useTemperaments ?? false}`);
@@ -268,18 +288,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
 								: undefined;
 							// OpenRouter models may not support the system role —
-							// prepend temperament to the user prompt instead
+							// prepend temperament to the first user message instead
 							const useSystem = temperamentPrompt && gateway !== 'openrouter';
-							const effectivePrompt =
-								temperamentPrompt && gateway === 'openrouter'
-									? `${temperamentPrompt}\n\n---\n\n${query}`
-									: query;
-							log(`${node} starting (${modelId})`);
+							const messages = buildNodeMessages(node, history, query);
+							if (temperamentPrompt && gateway === 'openrouter') {
+								const first = messages[0];
+								messages[0] = {
+									role: 'user',
+									content: `${temperamentPrompt}\n\n---\n\n${first.content as string}`
+								};
+							}
+							log(`${node} starting (${modelId}, ${history.length} prior turns)`);
 							const result = streamText({
 								model,
 								...(useSystem && { system: temperamentPrompt }),
-								prompt: effectivePrompt,
-
+								messages,
 								abortSignal: abortController.signal
 							});
 							let fullText = '';
@@ -287,11 +310,24 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								fullText += chunk;
 								send('model-chunk', { node, text: chunk });
 							}
-							log(`${node} complete (${fullText.length} chars)`);
+							const usage = await result.usage;
+							log(
+								`${node} complete (${fullText.length} chars, ${usage.totalTokens ?? '?'} tokens)`
+							);
 							const response: MagiResponse = { node, gateway, provider, text: fullText };
 							send('model-response', response);
+							send('model-usage', {
+								node,
+								inputTokens: usage.inputTokens ?? 0,
+								outputTokens: usage.outputTokens ?? 0
+							});
 							return response;
 						} catch (err) {
+							// A client abort tears down every in-flight node at once — that
+							// is not a model failure, so don't poison health or emit an error.
+							if (abortController.signal.aborted) {
+								throw err;
+							}
 							const message = extractErrorMessage(err);
 							log(`${node} failed: ${message}`, 'error');
 							markUnhealthy(modelId, message);
@@ -332,6 +368,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const ctx: ConsensusContext = {
 					responses,
 					query,
+					history: history.map((t) => ({ query: t.query, consensus: t.consensus })),
 					getModel,
 					nodeAssignments: config,
 					consensusNodeIndex,
@@ -348,6 +385,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							break;
 						case 'complete':
 							send('consensus-complete', { text: event.fullText });
+							break;
+						case 'usage':
+							send('consensus-usage', {
+								inputTokens: event.inputTokens,
+								outputTokens: event.outputTokens
+							});
 							break;
 					}
 				}

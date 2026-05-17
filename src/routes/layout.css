@@ -12,12 +12,27 @@
 	z-index: 1;
 }
 
+/* ── Panel & control definition (both themes) ── */
+.magi-panel {
+	border: 1px solid #1f2937;
+}
+
+/* Randomize button — match the auto-bordered <select> controls */
+.magi-randomize {
+	border: 1px solid #6b7280;
+}
+
+/* "New conversation" button */
+.magi-newconv-btn {
+	border: 1px solid #4b5563;
+}
+
 /* ── Light mode overrides ── */
 .light {
-	--magi-page-bg: #f9fafb;
+	--magi-page-bg: #e8eaef;
 	--magi-panel-bg: rgba(255, 255, 255, 0.9);
 	--magi-surface-bg: #f3f4f6;
-	--magi-border: #e5e7eb;
+	--magi-border: #d1d5db;
 	--magi-text: #111827;
 	--magi-text-muted: #6b7280;
 	--magi-text-faint: #9ca3af;
@@ -52,6 +67,8 @@
 
 .light .magi-panel {
 	background-color: var(--magi-panel-bg);
+	border-color: var(--magi-border);
+	box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
 }
 
 .light .magi-panel .border-b {
@@ -62,9 +79,68 @@
 	border-color: var(--magi-border);
 }
 
-.light .magi-panel button,
-.light .magi-panel .text-sm {
+/* Conversation turn separators */
+.light .magi-turn-divider {
+	border-color: var(--magi-border);
+}
+
+/* Temperament badges & consensus toggles — readable on the light panel */
+.light .magi-temperament-badge {
+	color: #374151;
+}
+
+.light .magi-temperament-toggle {
+	background-color: var(--magi-surface-bg);
+	color: var(--magi-text-muted);
+}
+
+.light .magi-temperament-toggle:hover {
+	background-color: #e5e7eb;
 	color: var(--magi-text);
+}
+
+.light .magi-temperament-toggle-on {
+	background-color: #d1d5db;
+	color: var(--magi-text);
+}
+
+/* "New conversation" button — light surface so it isn't dark-on-dark */
+.light .magi-newconv-btn {
+	background-color: var(--magi-surface-bg);
+	border-color: #9ca3af;
+}
+
+.light .magi-newconv-btn:hover {
+	background-color: #e5e7eb;
+}
+
+.light .magi-panel button,
+.light .magi-panel h3 {
+	color: var(--magi-text);
+}
+
+/* Status colors — the dark-tuned -400/-500 shades wash out on a light panel,
+   so remap them to darker shades that stay legible in both themes. */
+.light .text-red-400,
+.light .text-red-500 {
+	color: #dc2626;
+}
+
+.light .text-orange-400,
+.light .text-orange-500 {
+	color: #ea580c;
+}
+
+.light .text-amber-400 {
+	color: #b45309;
+}
+
+.light .text-yellow-400 {
+	color: #a16207;
+}
+
+.light .text-green-400 {
+	color: #16a34a;
 }
 
 .light .magi-input {
@@ -98,6 +174,7 @@
 .light .magi-panel .magi-randomize {
 	background-color: var(--magi-surface-bg);
 	color: var(--magi-text-muted);
+	border-color: #9ca3af;
 }
 
 .light .magi-panel .magi-randomize:hover {

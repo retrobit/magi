@@ -6,30 +6,36 @@ export interface ModelEntry {
 	provider: ProviderName;
 	tier: TierName;
 	displayName: string;
+	/** Approximate context window in tokens — drives context-budget warnings.
+	 *  Estimates; verify against provider docs alongside model-freshness checks. */
+	contextLength: number;
 }
 
 export const MODEL_REGISTRY: readonly ModelEntry[] = [
 	// Anthropic (direct)
 	{
-		id: 'claude-opus-4-6',
+		id: 'claude-opus-4-7',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'frontier',
-		displayName: 'Claude Opus 4.6'
+		displayName: 'Claude Opus 4.7',
+		contextLength: 200_000
 	},
 	{
 		id: 'claude-sonnet-4-6',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'balanced',
-		displayName: 'Claude Sonnet 4.6'
+		displayName: 'Claude Sonnet 4.6',
+		contextLength: 200_000
 	},
 	{
 		id: 'claude-haiku-4-5',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'budget',
-		displayName: 'Claude Haiku 4.5'
+		displayName: 'Claude Haiku 4.5',
+		contextLength: 200_000
 	},
 	// OpenAI (direct)
 	{
@@ -37,15 +43,24 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'frontier',
-		displayName: 'GPT-5.2'
+		displayName: 'GPT-5.2',
+		contextLength: 400_000
 	},
-	{ id: 'gpt-4o', gateway: 'openai', provider: 'openai', tier: 'balanced', displayName: 'GPT-4o' },
+	{
+		id: 'gpt-4o',
+		gateway: 'openai',
+		provider: 'openai',
+		tier: 'balanced',
+		displayName: 'GPT-4o',
+		contextLength: 128_000
+	},
 	{
 		id: 'gpt-4.1-mini',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'budget',
-		displayName: 'GPT-4.1 Mini'
+		displayName: 'GPT-4.1 Mini',
+		contextLength: 1_000_000
 	},
 	// Google (direct)
 	{
@@ -53,21 +68,24 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		gateway: 'google',
 		provider: 'google',
 		tier: 'frontier',
-		displayName: 'Gemini 2.5 Pro'
+		displayName: 'Gemini 2.5 Pro',
+		contextLength: 1_000_000
 	},
 	{
 		id: 'gemini-2.5-flash',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'balanced',
-		displayName: 'Gemini 2.5 Flash'
+		displayName: 'Gemini 2.5 Flash',
+		contextLength: 1_000_000
 	},
 	{
 		id: 'gemini-2.5-flash-lite',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'budget',
-		displayName: 'Gemini 2.5 Flash Lite'
+		displayName: 'Gemini 2.5 Flash Lite',
+		contextLength: 1_000_000
 	}
 ];
 

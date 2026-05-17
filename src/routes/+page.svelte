@@ -13,22 +13,33 @@
 		type MagiNodeName,
 		type GatewayName,
 		type AvailableModel,
-		type MagiResponse
+		type MagiResponse,
+		type ConversationTurn,
+		type TurnUsage
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
+	import {
+		loadPrefs,
+		savePrefs,
+		loadConversations,
+		saveConversations,
+		type PersistedSnapshot
+	} from '$lib/magi/persistence';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		Triangle,
 		LoaderCircle,
 		CircleAlert,
+		AlertTriangle,
 		ArrowLeftRight,
 		X,
 		Brain,
 		Copy,
 		Check,
-		Settings
+		Settings,
+		MessageSquarePlus
 	} from 'lucide-svelte';
 
 	interface MagiModelError {
@@ -56,6 +67,10 @@
 		'Is there a limit to what science can explain?'
 	];
 
+	// A node/consensus warns once its latest prompt crosses this share of the
+	// model's context window.
+	const CONTEXT_WARN_RATIO = 0.75;
+
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
 	let temperaments = $state(false);
@@ -70,8 +85,15 @@
 	let settingsOpen = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
-	let bgVariant = $state<'columns' | 'orbs'>('orbs');
+	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
+
+	// Multi-turn conversation — completed turns for the active tier, plus the
+	// in-flight turn's query and streaming token usage.
+	let conversation = $state<ConversationTurn[]>([]);
+	let activeTurnQuery = $state('');
+	let liveNodeUsage = $state<Partial<Record<MagiNodeName, TurnUsage>>>({});
+	let liveConsensusUsage = $state<TurnUsage | undefined>(undefined);
 
 	function copyQuery() {
 		navigator.clipboard.writeText(query).catch(() => {});
@@ -97,10 +119,17 @@
 		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
 		configuredNodes: Set<number>;
 		consensusNode: MagiNodeName;
+		conversation: ConversationTurn[];
 	}
 
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive cache, never triggers UI updates
 	const tierCache = new Map<TierName, TierSnapshot>();
+
+	// Per-tier config hydrated from localStorage on mount. `prefsHydrated` gates
+	// the persistence effect so it can't overwrite storage before the load runs.
+	let persistedSnapshots: Partial<Record<TierName, PersistedSnapshot>> = {};
+	let conversationsByTier: Partial<Record<TierName, ConversationTurn[]>> = {};
+	let prefsHydrated = false;
 
 	let responses = $state<MagiResponse[]>([]);
 	let modelStreams = $state<Record<MagiNodeName, string>>({
@@ -126,6 +155,91 @@
 		assignments.find((a) => a.node === consensusNode) ?? assignments[0]
 	);
 
+	// Cumulative token usage across every turn of the conversation.
+	const conversationUsage = $derived.by(() => {
+		let input = 0;
+		let output = 0;
+		for (const turn of conversation) {
+			for (const node of MAGI_NODE_NAMES) {
+				const u = turn.nodeUsage[node];
+				if (u) {
+					input += u.inputTokens;
+					output += u.outputTokens;
+				}
+			}
+			if (turn.consensusUsage) {
+				input += turn.consensusUsage.inputTokens;
+				output += turn.consensusUsage.outputTokens;
+			}
+		}
+		return { input, output, total: input + output };
+	});
+
+	function modelContextWindow(modelId: string): number | undefined {
+		return availableModels.find((m) => m.id === modelId)?.contextLength;
+	}
+
+	// The most recent prompt size for a node — live turn if streaming, else the
+	// last completed turn. Tracks how full that model's context is running.
+	function latestNodeInput(node: MagiNodeName): number {
+		const live = liveNodeUsage[node];
+		if (live) return live.inputTokens;
+		for (let i = conversation.length - 1; i >= 0; i--) {
+			const u = conversation[i].nodeUsage[node];
+			if (u) return u.inputTokens;
+		}
+		return 0;
+	}
+
+	function latestConsensusInput(): number {
+		if (liveConsensusUsage) return liveConsensusUsage.inputTokens;
+		for (let i = conversation.length - 1; i >= 0; i--) {
+			const u = conversation[i].consensusUsage;
+			if (u) return u.inputTokens;
+		}
+		return 0;
+	}
+
+	// Nodes / consensus whose latest prompt is nearing their model's window.
+	const contextWarnings = $derived.by(() => {
+		const names: string[] = [];
+		for (const a of assignments) {
+			const win = modelContextWindow(a.modelId);
+			if (win && latestNodeInput(a.node) / win >= CONTEXT_WARN_RATIO) names.push(a.node);
+		}
+		const cWin = modelContextWindow(consensusAssignment.modelId);
+		if (cWin && latestConsensusInput() / cWin >= CONTEXT_WARN_RATIO) names.push('consensus');
+		return names;
+	});
+
+	// Per-node transcript — one entry per completed turn, for that node only.
+	function nodeTranscript(node: MagiNodeName) {
+		return conversation.map((turn) => {
+			const u = turn.nodeUsage[node];
+			return {
+				query: turn.query,
+				response: turn.nodeResponses[node] ?? '',
+				error: turn.nodeErrors[node] ?? '',
+				tokens: u ? u.inputTokens + u.outputTokens : 0
+			};
+		});
+	}
+
+	function liveNodeTokens(node: MagiNodeName): number {
+		const u = liveNodeUsage[node];
+		return u ? u.inputTokens + u.outputTokens : 0;
+	}
+
+	const consensusTranscript = $derived(
+		conversation.map((turn) => ({
+			query: turn.query,
+			consensus: turn.consensus,
+			tokens: turn.consensusUsage
+				? turn.consensusUsage.inputTokens + turn.consensusUsage.outputTokens
+				: 0
+		}))
+	);
+
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
 		if (responseMap.get(node)) return 'success';
@@ -147,7 +261,8 @@
 			id: m.id,
 			gateway: m.gateway,
 			provider: m.provider,
-			displayName: m.displayName
+			displayName: m.displayName,
+			contextLength: m.contextLength
 		}));
 	}
 
@@ -158,6 +273,47 @@
 			provider: m.provider,
 			modelId: m.id
 		}));
+	}
+
+	function applyTierDefaults(t: TierName) {
+		if (t === 'free') {
+			assignments = assignDiverseDefaults(availableModels) as [
+				NodeAssignment,
+				NodeAssignment,
+				NodeAssignment
+			];
+		} else {
+			assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+		}
+		configuredNodes.clear();
+		configuredNodes.add(0);
+		configuredNodes.add(1);
+		configuredNodes.add(2);
+		consensusNode = 'MELCHIOR';
+	}
+
+	function applyPersistedSnapshot(snap: PersistedSnapshot) {
+		assignments = snap.assignments.map((a) => ({ ...a })) as [
+			NodeAssignment,
+			NodeAssignment,
+			NodeAssignment
+		];
+		configuredNodes.clear();
+		for (const i of snap.configuredNodes) configuredNodes.add(i);
+		consensusNode = snap.consensusNode;
+	}
+
+	// A persisted snapshot is usable only if every model it names still exists.
+	// Paid tiers draw from the static registry (stable); the free tier's
+	// OpenRouter models rotate, so each saved model must still be on offer.
+	function persistedSnapshotUsable(
+		snap: PersistedSnapshot,
+		t: TierName,
+		models: AvailableModel[]
+	): boolean {
+		if (t !== 'free') return true;
+		const ids = new Set(models.map((m) => m.id));
+		return snap.assignments.every((a) => ids.has(a.modelId));
 	}
 
 	async function fetchModels(t: TierName) {
@@ -171,19 +327,15 @@
 				availableModels = getStaticModels(t);
 			}
 
-			// Set default assignments if no snapshot exists for this tier
+			// No in-session snapshot: restore the saved per-tier config when we
+			// have a usable one, else fall back to this tier's default assignments.
 			if (!tierCache.has(t) && availableModels.length >= 3) {
-				if (t === 'free') {
-					const defaults = assignDiverseDefaults(availableModels);
-					assignments = defaults as [NodeAssignment, NodeAssignment, NodeAssignment];
+				const persisted = persistedSnapshots[t];
+				if (persisted && persistedSnapshotUsable(persisted, t, availableModels)) {
+					applyPersistedSnapshot(persisted);
 				} else {
-					assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+					applyTierDefaults(t);
 				}
-				configuredNodes.clear();
-				configuredNodes.add(0);
-				configuredNodes.add(1);
-				configuredNodes.add(2);
-				consensusNode = 'MELCHIOR';
 			}
 		} catch {
 			if (t !== 'free') {
@@ -193,7 +345,40 @@
 		modelsLoading = false;
 	}
 
-	onMount(() => fetchModels(tier));
+	onMount(async () => {
+		const prefs = loadPrefs();
+		if (prefs) {
+			persistedSnapshots = prefs.snapshots;
+			tier = prefs.tier;
+		}
+		conversationsByTier = loadConversations();
+		conversation = conversationsByTier[tier] ?? [];
+		await fetchModels(tier);
+		prefsHydrated = true;
+	});
+
+	// Persist the active tier and its per-node config on every change. Each tier
+	// keeps its own snapshot, so switching tiers never discards saved selections.
+	$effect(() => {
+		const activeTier = tier;
+		const snap: PersistedSnapshot = {
+			assignments: assignments.map((a) => ({ ...a })),
+			configuredNodes: [...configuredNodes],
+			consensusNode
+		};
+		if (!prefsHydrated) return;
+		persistedSnapshots[activeTier] = snap;
+		savePrefs({ tier: activeTier, snapshots: persistedSnapshots });
+	});
+
+	// Persist the active tier's conversation thread on every change.
+	$effect(() => {
+		const activeTier = tier;
+		const turns = conversation.map((t) => ({ ...t }));
+		if (!prefsHydrated) return;
+		conversationsByTier[activeTier] = turns;
+		saveConversations(conversationsByTier);
+	});
 
 	function saveTierSnapshot() {
 		tierCache.set(tier, {
@@ -207,7 +392,8 @@
 			streamDone,
 			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
 			configuredNodes: new Set(configuredNodes),
-			consensusNode
+			consensusNode,
+			conversation: [...conversation]
 		});
 	}
 
@@ -226,6 +412,7 @@
 			configuredNodes.clear();
 			for (const v of cached.configuredNodes) configuredNodes.add(v);
 			consensusNode = cached.consensusNode;
+			conversation = cached.conversation;
 		} else {
 			responses = [];
 			modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
@@ -240,7 +427,11 @@
 			configuredNodes.add(1);
 			configuredNodes.add(2);
 			consensusNode = 'MELCHIOR';
+			conversation = conversationsByTier[t] ?? [];
 		}
+		activeTurnQuery = '';
+		liveNodeUsage = {};
+		liveConsensusUsage = undefined;
 	}
 
 	function handleTierChange(newTier: TierName) {
@@ -277,13 +468,84 @@
 		assignments[b] = { node: nodeB, ...restA };
 	}
 
+	// Replay completed turns as request history (own-thread context per node).
+	function buildHistory() {
+		return conversation.map((turn) => ({
+			query: turn.query,
+			nodeResponses: MAGI_NODE_NAMES.filter((n) => turn.nodeResponses[n] !== undefined).map(
+				(n) => ({ node: n, text: turn.nodeResponses[n] as string })
+			),
+			consensus: turn.consensus
+		}));
+	}
+
+	// Commit the just-finished turn into the conversation, then clear live state.
+	function finalizeTurn() {
+		if (!activeTurnQuery) return;
+		const hasContent =
+			responses.length > 0 ||
+			modelErrors.length > 0 ||
+			consensusFinal !== '' ||
+			consensusStream !== '';
+		if (!hasContent) {
+			// Aborted or hard-failed before anything usable arrived — record no turn.
+			activeTurnQuery = '';
+			return;
+		}
+		const nodeResponses: Partial<Record<MagiNodeName, string>> = {};
+		const nodeErrors: Partial<Record<MagiNodeName, string>> = {};
+		for (const r of responses) nodeResponses[r.node] = r.text;
+		for (const e of modelErrors) nodeErrors[e.node] = e.error;
+		conversation = [
+			...conversation,
+			{
+				query: activeTurnQuery,
+				nodeResponses,
+				nodeErrors,
+				consensus: consensusFinal || consensusStream,
+				consensusNode,
+				nodeUsage: { ...liveNodeUsage },
+				consensusUsage: liveConsensusUsage
+			}
+		];
+		// Live-turn state now belongs to the committed turn — reset it.
+		activeTurnQuery = '';
+		responses = [];
+		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
+		modelErrors = [];
+		consensusStream = '';
+		consensusFinal = '';
+		consensusWarning = '';
+		error = '';
+		streamDone = false;
+		liveNodeUsage = {};
+		liveConsensusUsage = undefined;
+	}
+
+	function handleNewConversation() {
+		if (loading) return;
+		conversation = [];
+		activeTurnQuery = '';
+		responses = [];
+		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
+		modelErrors = [];
+		consensusStream = '';
+		consensusFinal = '';
+		consensusWarning = '';
+		error = '';
+		streamDone = false;
+		liveNodeUsage = {};
+		liveConsensusUsage = undefined;
+	}
+
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (loading || !allConfigured) return;
 
-		if (!query.trim()) {
-			query = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
-		}
+		const turnQuery =
+			query.trim() || RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
+		query = '';
+		activeTurnQuery = turnQuery;
 
 		abortController?.abort();
 		abortController = new AbortController();
@@ -297,13 +559,15 @@
 		consensusWarning = '';
 		error = '';
 		streamDone = false;
+		liveNodeUsage = {};
+		liveConsensusUsage = undefined;
 
 		try {
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					query,
+					query: turnQuery,
 					tier,
 					strategy,
 					consensusNode,
@@ -311,7 +575,8 @@
 					temperaments,
 					consensusTemperament,
 					temperamentAwareness,
-					genericLabels
+					genericLabels,
+					history: buildHistory()
 				}),
 				signal: abortController.signal
 			});
@@ -319,50 +584,45 @@
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({ error: 'Request failed' }));
 				error = data.error ?? `Request failed (${res.status})`;
-				streamDone = true;
-				loading = false;
-				return;
-			}
+			} else {
+				const reader = res.body!.getReader();
+				const decoder = new TextDecoder();
+				let buffer = '';
 
-			const reader = res.body!.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
+					buffer += decoder.decode(value, { stream: true });
+					const parts = buffer.split('\n\n');
+					buffer = parts.pop() ?? '';
 
-				buffer += decoder.decode(value, { stream: true });
-				const parts = buffer.split('\n\n');
-				buffer = parts.pop() ?? '';
-
-				for (const part of parts) {
-					let event = '';
-					let data = '';
-					for (const line of part.split('\n')) {
-						if (line.startsWith('event: ')) event = line.slice(7);
-						else if (line.startsWith('data: ')) data = line.slice(6);
-					}
-					if (event && data) {
-						try {
-							handleEvent(event, JSON.parse(data));
-						} catch {
-							// Malformed SSE data — skip silently
+					for (const part of parts) {
+						let event = '';
+						let data = '';
+						for (const line of part.split('\n')) {
+							if (line.startsWith('event: ')) event = line.slice(7);
+							else if (line.startsWith('data: ')) data = line.slice(6);
+						}
+						if (event && data) {
+							try {
+								handleEvent(event, JSON.parse(data));
+							} catch {
+								// Malformed SSE data — skip silently
+							}
 						}
 					}
 				}
 			}
 		} catch (err) {
-			if (err instanceof DOMException && err.name === 'AbortError') {
-				streamDone = true;
-				loading = false;
-				return;
+			if (!(err instanceof DOMException && err.name === 'AbortError')) {
+				error = err instanceof Error ? err.message : 'Network error';
 			}
-			error = err instanceof Error ? err.message : 'Network error';
 		}
 
 		streamDone = true;
 		loading = false;
+		finalizeTurn();
 	}
 
 	function handleEvent(event: string, data: unknown) {
@@ -392,6 +652,21 @@
 			case 'partial-consensus': {
 				const d = data as { responded: number; total: number };
 				consensusWarning = `Only ${d.responded} of ${d.total} models responded — consensus is based on partial data.`;
+				break;
+			}
+			case 'model-usage': {
+				const u = data as { node: string; inputTokens: number; outputTokens: number };
+				if (u.node in modelStreams) {
+					liveNodeUsage[u.node as MagiNodeName] = {
+						inputTokens: u.inputTokens,
+						outputTokens: u.outputTokens
+					};
+				}
+				break;
+			}
+			case 'consensus-usage': {
+				const u = data as { inputTokens: number; outputTokens: number };
+				liveConsensusUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
 				break;
 			}
 			case 'error':
@@ -512,6 +787,37 @@
 			{/if}
 		</form>
 
+		<!-- Conversation status bar -->
+		{#if conversation.length > 0}
+			<div
+				class="magi-panel flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
+			>
+				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
+					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
+					<span class="text-gray-600">·</span>
+					<span class="font-mono">
+						<span class="text-gray-500">↑</span>{conversationUsage.input.toLocaleString()}
+						<span class="text-gray-500">↓</span>{conversationUsage.output.toLocaleString()}
+						<span class="text-gray-600">({conversationUsage.total.toLocaleString()} tokens)</span>
+					</span>
+					{#if contextWarnings.length > 0}
+						<span class="flex items-center gap-1 text-amber-400">
+							<AlertTriangle size={12} />
+							{contextWarnings.join(', ')} near context limit
+						</span>
+					{/if}
+				</div>
+				<button
+					type="button"
+					onclick={handleNewConversation}
+					disabled={loading}
+					class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+				>
+					<MessageSquarePlus size={12} /> New conversation
+				</button>
+			</div>
+		{/if}
+
 		<!-- Global error -->
 		{#if error}
 			<div
@@ -547,6 +853,11 @@
 					provider={configuredNodes.has(i) ? assignment.provider : ''}
 					modelId={configuredNodes.has(i) ? assignment.modelId : ''}
 					modelDisplayName={getModelDisplayName(assignment)}
+					transcript={nodeTranscript(assignment.node)}
+					liveQuery={activeTurnQuery}
+					liveTokens={liveNodeTokens(assignment.node)}
+					contextUsed={latestNodeInput(assignment.node)}
+					contextWindow={modelContextWindow(assignment.modelId)}
 					text={responseMap.get(assignment.node)?.text ?? modelStreams[assignment.node]}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
@@ -563,6 +874,13 @@
 		<!-- Consensus -->
 		<div class="flex-1 md:min-h-0">
 			<ConsensusView
+				transcript={consensusTranscript}
+				liveQuery={activeTurnQuery}
+				liveTokens={liveConsensusUsage
+					? liveConsensusUsage.inputTokens + liveConsensusUsage.outputTokens
+					: 0}
+				contextUsed={latestConsensusInput()}
+				contextWindow={modelContextWindow(consensusAssignment.modelId)}
 				text={consensusStream}
 				fullText={consensusFinal}
 				{loading}
@@ -618,6 +936,14 @@
 			<span class="mt-3 text-xs font-medium text-gray-400">Background</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (bgVariant = 'off')}
+				>
+					Off
+				</button>
+				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
@@ -631,7 +957,7 @@
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
 					onclick={() => (bgVariant = 'columns')}
 				>
-					Orbs
+					Columns
 				</button>
 			</div>
 		</div>

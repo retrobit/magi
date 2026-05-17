@@ -35,7 +35,7 @@ export const FREE_MAGI_CONFIG: MagiConfig = [
 /** Maps each tier to its node configuration. */
 export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
 	frontier: [
-		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
 		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.2' },
 		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
 	],
