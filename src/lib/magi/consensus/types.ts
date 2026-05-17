@@ -35,3 +35,7 @@ export interface ConsensusStrategy {
 export const STRATEGY_NAMES = ['synthesis'] as const;
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
 export const DEFAULT_STRATEGY: StrategyName = 'synthesis';
+
+export const STRATEGY_LABELS: Record<StrategyName, string> = {
+	synthesis: 'Synthesis'
+};

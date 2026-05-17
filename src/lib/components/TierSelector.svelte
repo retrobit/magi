@@ -27,7 +27,7 @@
 			<button
 				class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === tier
 					? 'magi-tier-active bg-gray-600 text-white'
-					: 'rounded-md bg-gray-700/50 text-gray-400 hover:text-white'}"
+					: 'bg-gray-700/50 text-gray-400 hover:text-white'}"
 				{disabled}
 				onclick={() => onchange(tier)}
 			>

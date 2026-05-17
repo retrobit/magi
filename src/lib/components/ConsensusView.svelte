@@ -8,11 +8,12 @@
 		NODE_TEMPERAMENTS,
 		TEMPERAMENT_LABELS,
 		CONSENSUS_GRADIENT,
+		contextUsageClass,
 		formatTokenCount,
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import { STRATEGY_NAMES, type StrategyName } from '$lib/magi/consensus';
+	import { STRATEGY_NAMES, STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus';
 	import Markdown from './Markdown.svelte';
 	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
 
@@ -22,10 +23,6 @@
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
 	}
-
-	const strategyLabels: Record<StrategyName, string> = {
-		synthesis: 'Synthesis'
-	};
 
 	interface Props {
 		text: string;
@@ -88,10 +85,7 @@
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
-	const contextRatio = $derived(contextWindow ? contextUsed / contextWindow : 0);
-	const contextClass = $derived(
-		contextRatio >= 0.9 ? 'text-red-400' : contextRatio >= 0.75 ? 'text-amber-400' : 'text-gray-500'
-	);
+	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
 	const gradientStyle = CONSENSUS_GRADIENT;
 
@@ -177,7 +171,7 @@
 						{disabled}
 					>
 						{#each STRATEGY_NAMES as s (s)}
-							<option value={s}>{strategyLabels[s]}</option>
+							<option value={s}>{STRATEGY_LABELS[s]}</option>
 						{/each}
 					</select>
 					<span class="text-xs text-gray-700">·</span>

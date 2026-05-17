@@ -3,12 +3,11 @@
 	import TierSelector from '$lib/components/TierSelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
-	import { TIER_CONFIGS, type NodeAssignment } from '$lib/magi/config';
+	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
 		NODE_TEMPERAMENTS,
-		pickDiverseModels,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -202,7 +201,7 @@
 
 	// Nodes / consensus whose latest prompt is nearing their model's window.
 	const contextWarnings = $derived.by(() => {
-		const names: string[] = [];
+		const names: (MagiNodeName | 'consensus')[] = [];
 		for (const a of assignments) {
 			const win = modelContextWindow(a.modelId);
 			if (win && latestNodeInput(a.node) / win >= CONTEXT_WARN_RATIO) names.push(a.node);
@@ -212,8 +211,15 @@
 		return names;
 	});
 
-	// Per-node transcript — one entry per completed turn, for that node only.
-	function nodeTranscript(node: MagiNodeName) {
+	// Per-node transcripts — one entry per completed turn, for each node. Derived
+	// once from `conversation` so streaming chunks don't rebuild all three.
+	const nodeTranscripts = $derived.by(() => {
+		const byNode = {} as Record<MagiNodeName, ReturnType<typeof buildNodeTranscript>>;
+		for (const node of MAGI_NODE_NAMES) byNode[node] = buildNodeTranscript(node);
+		return byNode;
+	});
+
+	function buildNodeTranscript(node: MagiNodeName) {
 		return conversation.map((turn) => {
 			const u = turn.nodeUsage[node];
 			return {
@@ -261,18 +267,9 @@
 		}));
 	}
 
-	function assignDiverseDefaults(models: AvailableModel[]): NodeAssignment[] {
-		return pickDiverseModels(models, 3).map((m, i) => ({
-			node: MAGI_NODE_NAMES[i],
-			gateway: m.gateway,
-			provider: m.provider,
-			modelId: m.id
-		}));
-	}
-
 	function applyTierDefaults(t: TierName) {
 		if (t === 'free') {
-			assignments = assignDiverseDefaults(availableModels) as [
+			assignments = buildDiverseConfig(availableModels) as [
 				NodeAssignment,
 				NodeAssignment,
 				NodeAssignment
@@ -409,14 +406,7 @@
 			consensusNode = cached.consensusNode;
 			conversation = cached.conversation;
 		} else {
-			responses = [];
-			modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
-			modelErrors = [];
-			consensusStream = '';
-			consensusFinal = '';
-			consensusWarning = '';
-			error = '';
-			streamDone = false;
+			resetLiveState();
 			configuredNodes.clear();
 			configuredNodes.add(0);
 			configuredNodes.add(1);
@@ -474,6 +464,21 @@
 		}));
 	}
 
+	// Clear the in-flight turn's streaming state (responses, errors, consensus,
+	// live token usage). Does not touch the committed `conversation` thread.
+	function resetLiveState() {
+		responses = [];
+		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
+		modelErrors = [];
+		consensusStream = '';
+		consensusFinal = '';
+		consensusWarning = '';
+		error = '';
+		streamDone = false;
+		liveNodeUsage = {};
+		liveConsensusUsage = undefined;
+	}
+
 	// Commit the just-finished turn into the conversation, then clear live state.
 	function finalizeTurn() {
 		if (!activeTurnQuery) return;
@@ -505,32 +510,14 @@
 		];
 		// Live-turn state now belongs to the committed turn — reset it.
 		activeTurnQuery = '';
-		responses = [];
-		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
-		modelErrors = [];
-		consensusStream = '';
-		consensusFinal = '';
-		consensusWarning = '';
-		error = '';
-		streamDone = false;
-		liveNodeUsage = {};
-		liveConsensusUsage = undefined;
+		resetLiveState();
 	}
 
 	function handleNewConversation() {
 		if (loading) return;
 		conversation = [];
 		activeTurnQuery = '';
-		responses = [];
-		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
-		modelErrors = [];
-		consensusStream = '';
-		consensusFinal = '';
-		consensusWarning = '';
-		error = '';
-		streamDone = false;
-		liveNodeUsage = {};
-		liveConsensusUsage = undefined;
+		resetLiveState();
 	}
 
 	async function handleSubmit(e: SubmitEvent) {
@@ -546,16 +533,7 @@
 		abortController = new AbortController();
 
 		loading = true;
-		responses = [];
-		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
-		modelErrors = [];
-		consensusStream = '';
-		consensusFinal = '';
-		consensusWarning = '';
-		error = '';
-		streamDone = false;
-		liveNodeUsage = {};
-		liveConsensusUsage = undefined;
+		resetLiveState();
 
 		try {
 			const res = await fetch('/api/magi', {
@@ -739,7 +717,7 @@
 				<input
 					bind:value={query}
 					type="text"
-					placeholder={'Ask the MAGI system... or click "▶ Execute" for a random prompt'}
+					placeholder="Ask the MAGI system... or click &quot;▶ Execute&quot; for a random prompt"
 					disabled={loading}
 					class="magi-input w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
@@ -848,7 +826,7 @@
 					provider={configuredNodes.has(i) ? assignment.provider : ''}
 					modelId={configuredNodes.has(i) ? assignment.modelId : ''}
 					modelDisplayName={getModelDisplayName(assignment)}
-					transcript={nodeTranscript(assignment.node)}
+					transcript={nodeTranscripts[assignment.node]}
 					liveQuery={activeTurnQuery}
 					liveInput={liveNodeUsage[assignment.node]?.inputTokens ?? 0}
 					liveOutput={liveNodeUsage[assignment.node]?.outputTokens ?? 0}

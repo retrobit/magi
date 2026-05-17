@@ -1,5 +1,5 @@
-import type { MagiNodeName, GatewayName, TierName } from './types';
-import { MAGI_NODE_NAMES, isRouter } from './types';
+import type { MagiNodeName, GatewayName, TierName, AvailableModel } from './types';
+import { MAGI_NODE_NAMES, isRouter, pickDiverseModels } from './types';
 
 export interface NodeAssignment {
 	node: MagiNodeName;
@@ -9,6 +9,18 @@ export interface NodeAssignment {
 }
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
+
+/** Seed a 3-node assignment from a model list, choosing maximally diverse
+ *  providers. Shared by the client (free-tier defaults) and the server
+ *  (free-tier request resolution) so both pick models the same way. */
+export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
+	return pickDiverseModels(models, MAGI_NODE_NAMES.length).map((m, i) => ({
+		node: MAGI_NODE_NAMES[i],
+		gateway: m.gateway,
+		provider: m.provider,
+		modelId: m.id
+	}));
+}
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },

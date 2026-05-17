@@ -6,17 +6,19 @@
 	let { variant = 'columns' }: Props = $props();
 </script>
 
-<div class="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-	{#if variant === 'columns'}
-		<div class="aurora-col aurora-red"></div>
-		<div class="aurora-col aurora-green"></div>
-		<div class="aurora-col aurora-blue"></div>
-	{:else if variant === 'orbs'}
-		<div class="aurora-blob aurora-red"></div>
-		<div class="aurora-blob aurora-green"></div>
-		<div class="aurora-blob aurora-blue"></div>
-	{/if}
-</div>
+{#if variant !== 'off'}
+	<div class="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+		{#if variant === 'columns'}
+			<div class="aurora-col aurora-red"></div>
+			<div class="aurora-col aurora-green"></div>
+			<div class="aurora-col aurora-blue"></div>
+		{:else}
+			<div class="aurora-blob aurora-red"></div>
+			<div class="aurora-blob aurora-green"></div>
+			<div class="aurora-blob aurora-blue"></div>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	/* Columns variant */

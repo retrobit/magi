@@ -130,7 +130,9 @@ export function loadConversations(): Partial<Record<TierName, ConversationTurn[]
 }
 
 /** Persist conversations keyed by tier. No-ops if storage is unavailable. */
-export function saveConversations(conversations: Partial<Record<TierName, ConversationTurn[]>>): void {
+export function saveConversations(
+	conversations: Partial<Record<TierName, ConversationTurn[]>>
+): void {
 	if (!storageAvailable()) return;
 	try {
 		localStorage.setItem(CONVERSATION_KEY, JSON.stringify(conversations));

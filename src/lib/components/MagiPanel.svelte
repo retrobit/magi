@@ -6,6 +6,7 @@
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
 		TEMPERAMENT_LABELS,
+		contextUsageClass,
 		formatTokenCount,
 		getProviderLabel,
 		isRouter
@@ -85,10 +86,7 @@
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 
-	const contextRatio = $derived(contextWindow ? contextUsed / contextWindow : 0);
-	const contextClass = $derived(
-		contextRatio >= 0.9 ? 'text-red-400' : contextRatio >= 0.75 ? 'text-amber-400' : 'text-gray-500'
-	);
+	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
 

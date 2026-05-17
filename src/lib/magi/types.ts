@@ -72,6 +72,15 @@ export function formatTokenCount(n: number): string {
 	return String(n);
 }
 
+/** Tailwind text colour for a context-window usage gauge: red near full,
+ *  amber when getting close, neutral otherwise. */
+export function contextUsageClass(used: number, window: number | undefined): string {
+	const ratio = window ? used / window : 0;
+	if (ratio >= 0.9) return 'text-red-400';
+	if (ratio >= 0.75) return 'text-amber-400';
+	return 'text-gray-500';
+}
+
 /** Token usage for a single model call. */
 export interface TurnUsage {
 	inputTokens: number;

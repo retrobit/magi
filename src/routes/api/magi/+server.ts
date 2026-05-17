@@ -8,17 +8,18 @@ import {
 	DEFAULT_MAGI_CONFIG,
 	FREE_MAGI_CONFIG,
 	validateConfig,
+	buildDiverseConfig,
 	type MagiConfig
 } from '$lib/magi/config';
 import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
-import { MAGI_NODE_NAMES, NODE_TEMPERAMENTS } from '$lib/magi/types';
+import { NODE_TEMPERAMENTS } from '$lib/magi/types';
 import { magiRequestSchema, type HistoryTurn } from '$lib/magi/validation';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
 import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
-import { getOpenRouterFreeModels, pickDiverseModels } from '$lib/server/openrouter';
+import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
@@ -167,17 +168,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	} else if (tier === 'free') {
 		// Resolve free tier dynamically from OpenRouter
 		const orModels = await getOpenRouterFreeModels();
-		if (orModels.length >= 3) {
-			const defaults = pickDiverseModels(orModels, 3);
-			config = defaults.map((m, i) => ({
-				node: MAGI_NODE_NAMES[i],
-				gateway: m.gateway,
-				provider: m.provider,
-				modelId: m.id
-			})) as unknown as MagiConfig;
-		} else {
-			config = FREE_MAGI_CONFIG;
-		}
+		config =
+			orModels.length >= 3
+				? (buildDiverseConfig(orModels) as unknown as MagiConfig)
+				: FREE_MAGI_CONFIG;
 	} else {
 		config = TIER_CONFIGS[tier];
 	}
