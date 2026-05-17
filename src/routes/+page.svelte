@@ -109,7 +109,8 @@
 		[...TIER_CONFIGS.balanced] as [NodeAssignment, NodeAssignment, NodeAssignment]
 	);
 
-	interface TierSnapshot {
+	// The in-flight turn's streaming state — every field reset between turns.
+	interface LiveState {
 		responses: MagiResponse[];
 		modelStreams: Record<MagiNodeName, string>;
 		modelErrors: MagiModelError[];
@@ -118,6 +119,23 @@
 		consensusWarning: string;
 		error: string;
 		streamDone: boolean;
+	}
+
+	function freshLiveState(): LiveState {
+		return {
+			responses: [],
+			modelStreams: { MELCHIOR: '', BALTHASAR: '', CASPAR: '' },
+			modelErrors: [],
+			consensusStream: '',
+			consensusFinal: '',
+			consensusWarning: '',
+			error: '',
+			streamDone: false
+		};
+	}
+
+	interface TierSnapshot {
+		live: LiveState;
 		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
 		configuredNodes: Set<number>;
 		consensusNode: MagiNodeName;
@@ -133,25 +151,16 @@
 	let conversationsByTier: Partial<Record<TierName, ConversationTurn[]>> = {};
 	let prefsHydrated = false;
 
-	let responses = $state<MagiResponse[]>([]);
-	let modelStreams = $state<Record<MagiNodeName, string>>({
-		MELCHIOR: '',
-		BALTHASAR: '',
-		CASPAR: ''
-	});
-	let modelErrors = $state<MagiModelError[]>([]);
-	let consensusStream = $state('');
-	let consensusFinal = $state('');
-	let consensusWarning = $state('');
-	let error = $state('');
-	let streamDone = $state(false);
+	// All in-flight streaming state, grouped so a turn reset or tier snapshot is
+	// one assignment rather than eight.
+	let live = $state<LiveState>(freshLiveState());
 	let abortController: AbortController | null = null;
 
 	type NodeStatus = 'idle' | 'pending' | 'success' | 'error' | 'unknown';
 
-	const responseMap = $derived(new Map(responses.map((r) => [r.node, r])));
-	const errorMap = $derived(new Map(modelErrors.map((e) => [e.node, e.error])));
-	const allModelsResponded = $derived(responses.length + modelErrors.length >= 3);
+	const responseMap = $derived(new Map(live.responses.map((r) => [r.node, r])));
+	const errorMap = $derived(new Map(live.modelErrors.map((e) => [e.node, e.error])));
+	const allModelsResponded = $derived(live.responses.length + live.modelErrors.length >= 3);
 
 	const consensusAssignment = $derived(
 		assignments.find((a) => a.node === consensusNode) ?? assignments[0]
@@ -184,8 +193,8 @@
 	// The most recent prompt size for a node — live turn if streaming, else the
 	// last completed turn. Tracks how full that model's context is running.
 	function latestNodeInput(node: MagiNodeName): number {
-		const live = liveNodeUsage[node];
-		if (live) return live.inputTokens;
+		const usage = liveNodeUsage[node];
+		if (usage) return usage.inputTokens;
 		for (let i = conversation.length - 1; i >= 0; i--) {
 			const u = conversation[i].nodeUsage[node];
 			if (u) return u.inputTokens;
@@ -247,8 +256,8 @@
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
 		if (responseMap.get(node)) return 'success';
-		if (loading && !streamDone) return 'pending';
-		if (loading && streamDone) return 'unknown';
+		if (loading && !live.streamDone) return 'pending';
+		if (loading && live.streamDone) return 'unknown';
 		return 'idle';
 	}
 
@@ -380,14 +389,7 @@
 	// through twelve scattered assignments.
 	function captureTierSnapshot(): TierSnapshot {
 		return {
-			responses,
-			modelStreams: { ...modelStreams },
-			modelErrors,
-			consensusStream,
-			consensusFinal,
-			consensusWarning,
-			error,
-			streamDone,
+			live: $state.snapshot(live),
 			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
 			configuredNodes: new Set(configuredNodes),
 			consensusNode,
@@ -396,14 +398,8 @@
 	}
 
 	function applyTierSnapshot(snap: TierSnapshot) {
-		responses = snap.responses;
-		modelStreams = { ...snap.modelStreams };
-		modelErrors = snap.modelErrors;
-		consensusStream = snap.consensusStream;
-		consensusFinal = snap.consensusFinal;
-		consensusWarning = snap.consensusWarning;
-		error = snap.error;
-		streamDone = snap.streamDone;
+		// Clone so streaming into the restored tier can't mutate the cache entry.
+		live = structuredClone(snap.live);
 		assignments = [...snap.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
 		configuredNodes.clear();
 		for (const v of snap.configuredNodes) configuredNodes.add(v);
@@ -478,17 +474,10 @@
 		}));
 	}
 
-	// Clear the in-flight turn's streaming state (responses, errors, consensus,
-	// live token usage). Does not touch the committed `conversation` thread.
+	// Clear the in-flight turn's streaming state and live token usage. Does not
+	// touch the committed `conversation` thread.
 	function resetLiveState() {
-		responses = [];
-		modelStreams = { MELCHIOR: '', BALTHASAR: '', CASPAR: '' };
-		modelErrors = [];
-		consensusStream = '';
-		consensusFinal = '';
-		consensusWarning = '';
-		error = '';
-		streamDone = false;
+		live = freshLiveState();
 		liveNodeUsage = {};
 		liveConsensusUsage = undefined;
 	}
@@ -497,10 +486,10 @@
 	function finalizeTurn() {
 		if (!activeTurnQuery) return;
 		const hasContent =
-			responses.length > 0 ||
-			modelErrors.length > 0 ||
-			consensusFinal !== '' ||
-			consensusStream !== '';
+			live.responses.length > 0 ||
+			live.modelErrors.length > 0 ||
+			live.consensusFinal !== '' ||
+			live.consensusStream !== '';
 		if (!hasContent) {
 			// Aborted or hard-failed before anything usable arrived — record no turn.
 			activeTurnQuery = '';
@@ -508,15 +497,15 @@
 		}
 		const nodeResponses: Partial<Record<MagiNodeName, string>> = {};
 		const nodeErrors: Partial<Record<MagiNodeName, string>> = {};
-		for (const r of responses) nodeResponses[r.node] = r.text;
-		for (const e of modelErrors) nodeErrors[e.node] = e.error;
+		for (const r of live.responses) nodeResponses[r.node] = r.text;
+		for (const e of live.modelErrors) nodeErrors[e.node] = e.error;
 		conversation = [
 			...conversation,
 			{
 				query: activeTurnQuery,
 				nodeResponses,
 				nodeErrors,
-				consensus: consensusFinal || consensusStream,
+				consensus: live.consensusFinal || live.consensusStream,
 				consensusNode,
 				nodeUsage: { ...liveNodeUsage },
 				consensusUsage: liveConsensusUsage
@@ -570,7 +559,7 @@
 
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({ error: 'Request failed' }));
-				error = data.error ?? `Request failed (${res.status})`;
+				live.error = data.error ?? `Request failed (${res.status})`;
 			} else {
 				const reader = res.body!.getReader();
 				const decoder = new TextDecoder();
@@ -603,11 +592,11 @@
 			}
 		} catch (err) {
 			if (!(err instanceof DOMException && err.name === 'AbortError')) {
-				error = err instanceof Error ? err.message : 'Network error';
+				live.error = err instanceof Error ? err.message : 'Network error';
 			}
 		}
 
-		streamDone = true;
+		live.streamDone = true;
 		loading = false;
 		finalizeTurn();
 	}
@@ -621,31 +610,31 @@
 			assignments = [...data] as [NodeAssignment, NodeAssignment, NodeAssignment];
 		},
 		'model-chunk': ({ node, text }) => {
-			if (node in modelStreams) modelStreams[node] += text;
+			if (node in live.modelStreams) live.modelStreams[node] += text;
 		},
 		'model-response': (data) => {
-			responses = [...responses, data];
+			live.responses = [...live.responses, data];
 		},
 		'model-error': (data) => {
-			modelErrors = [...modelErrors, data];
+			live.modelErrors = [...live.modelErrors, data];
 		},
 		'consensus-chunk': ({ text }) => {
-			consensusStream += text;
+			live.consensusStream += text;
 		},
 		'consensus-complete': ({ text }) => {
-			consensusFinal = text;
+			live.consensusFinal = text;
 		},
 		'partial-consensus': ({ responded, total }) => {
-			consensusWarning = `Only ${responded} of ${total} models responded — consensus is based on partial data.`;
+			live.consensusWarning = `Only ${responded} of ${total} models responded — consensus is based on partial data.`;
 		},
 		'model-usage': ({ node, inputTokens, outputTokens }) => {
-			if (node in modelStreams) liveNodeUsage[node] = { inputTokens, outputTokens };
+			if (node in live.modelStreams) liveNodeUsage[node] = { inputTokens, outputTokens };
 		},
 		'consensus-usage': ({ inputTokens, outputTokens }) => {
 			liveConsensusUsage = { inputTokens, outputTokens };
 		},
 		error: ({ message }) => {
-			error = message;
+			live.error = message;
 		}
 	};
 
@@ -798,12 +787,12 @@
 		{/if}
 
 		<!-- Global error -->
-		{#if error}
+		{#if live.error}
 			<div
 				class="flex shrink-0 items-center gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
 			>
 				<CircleAlert size={16} class="shrink-0" />
-				{error}
+				{live.error}
 			</div>
 		{/if}
 
@@ -838,7 +827,7 @@
 					liveOutput={liveNodeUsage[assignment.node]?.outputTokens ?? 0}
 					contextUsed={latestNodeInput(assignment.node)}
 					contextWindow={modelContextWindow(assignment.modelId)}
-					text={responseMap.get(assignment.node)?.text ?? modelStreams[assignment.node]}
+					text={responseMap.get(assignment.node)?.text ?? live.modelStreams[assignment.node]}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
@@ -860,11 +849,11 @@
 				liveOutput={liveConsensusUsage?.outputTokens ?? 0}
 				contextUsed={latestConsensusInput()}
 				contextWindow={modelContextWindow(consensusAssignment.modelId)}
-				text={consensusStream}
-				fullText={consensusFinal}
+				text={live.consensusStream}
+				fullText={live.consensusFinal}
 				{loading}
 				{allModelsResponded}
-				warning={consensusWarning}
+				warning={live.consensusWarning}
 				{strategy}
 				{consensusNode}
 				consensusGateway={consensusAssignment.gateway}
