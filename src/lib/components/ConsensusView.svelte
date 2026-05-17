@@ -240,7 +240,7 @@
 	</div>
 	<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
 		{#if transcript.length === 0 && !liveQuery}
-			<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond.</p>
+			<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
 		{:else}
 			{#each transcript as turn, i (i)}
 				<div
@@ -285,7 +285,7 @@
 							<Markdown source={text} />
 						</div>
 					{:else}
-						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond.</p>
+						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
 					{/if}
 					{#if liveInput > 0 || liveOutput > 0}
 						<p class="magi-token-split text-[10px] text-gray-400">

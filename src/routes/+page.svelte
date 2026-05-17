@@ -739,7 +739,7 @@
 				<input
 					bind:value={query}
 					type="text"
-					placeholder="Ask the MAGI system... or click Execute for a random prompt"
+					placeholder={'Ask the MAGI system... or click "▶ Execute" for a random prompt'}
 					disabled={loading}
 					class="magi-input w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
