@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TIER_NAMES, MAGI_NODE_NAMES, GATEWAY_NAMES } from './types';
 import { STRATEGY_NAMES } from './consensus/types';
 
-const nodeAssignmentSchema = z.object({
+export const nodeAssignmentSchema = z.object({
 	node: z.enum(MAGI_NODE_NAMES),
 	gateway: z.enum(GATEWAY_NAMES),
 	provider: z.string().min(1),

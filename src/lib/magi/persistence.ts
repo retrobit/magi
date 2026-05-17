@@ -1,5 +1,13 @@
+import { z } from 'zod';
+import { nodeAssignmentSchema } from './validation';
+import {
+	TIER_NAMES,
+	MAGI_NODE_NAMES,
+	type TierName,
+	type MagiNodeName,
+	type ConversationTurn
+} from './types';
 import type { NodeAssignment } from './config';
-import { TIER_NAMES, type TierName, type MagiNodeName, type ConversationTurn } from './types';
 
 const STORAGE_KEY = 'magi:prefs:v1';
 const CONVERSATION_KEY = 'magi:conversation:v1';
@@ -18,6 +26,35 @@ export interface MagiPrefs {
 	snapshots: Partial<Record<TierName, PersistedSnapshot>>;
 }
 
+// Runtime schemas for the localStorage payloads. `nodeAssignmentSchema` is
+// shared with the request validator so a stored snapshot and an API request
+// agree on what a node assignment is.
+const turnUsageSchema = z.object({
+	inputTokens: z.number(),
+	outputTokens: z.number()
+});
+
+// Per-node maps use string keys, not `z.enum`: a `z.record` keyed by an enum
+// requires *every* node to be present, but these maps are sparse (a node that
+// errored has no response, etc.).
+const nodeStringRecord = z.record(z.string(), z.string());
+
+const persistedSnapshotSchema = z.object({
+	assignments: z.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema]),
+	configuredNodes: z.array(z.number()),
+	consensusNode: z.enum(MAGI_NODE_NAMES)
+});
+
+const conversationTurnSchema = z.object({
+	query: z.string(),
+	nodeResponses: nodeStringRecord,
+	nodeErrors: nodeStringRecord,
+	consensus: z.string(),
+	consensusNode: z.enum(MAGI_NODE_NAMES),
+	nodeUsage: z.record(z.string(), turnUsageSchema),
+	consensusUsage: turnUsageSchema.optional()
+});
+
 function storageAvailable(): boolean {
 	try {
 		return typeof localStorage !== 'undefined';
@@ -25,27 +62,6 @@ function storageAvailable(): boolean {
 		// Accessing localStorage can throw in some privacy modes.
 		return false;
 	}
-}
-
-function isValidSnapshot(value: unknown): value is PersistedSnapshot {
-	if (!value || typeof value !== 'object') return false;
-	const s = value as Record<string, unknown>;
-	if (!Array.isArray(s.assignments) || s.assignments.length !== 3) return false;
-	for (const a of s.assignments) {
-		if (!a || typeof a !== 'object') return false;
-		const na = a as Record<string, unknown>;
-		if (
-			typeof na.node !== 'string' ||
-			typeof na.gateway !== 'string' ||
-			typeof na.provider !== 'string' ||
-			typeof na.modelId !== 'string'
-		) {
-			return false;
-		}
-	}
-	if (!Array.isArray(s.configuredNodes)) return false;
-	if (typeof s.consensusNode !== 'string') return false;
-	return true;
 }
 
 /** Read saved preferences, returning null when absent, unparseable, or malformed.
@@ -63,8 +79,8 @@ export function loadPrefs(): MagiPrefs | null {
 		const rawSnapshots = parsed.snapshots as Record<string, unknown>;
 		const snapshots: Partial<Record<TierName, PersistedSnapshot>> = {};
 		for (const t of TIER_NAMES) {
-			const snap = rawSnapshots[t];
-			if (isValidSnapshot(snap)) snapshots[t] = snap;
+			const result = persistedSnapshotSchema.safeParse(rawSnapshots[t]);
+			if (result.success) snapshots[t] = result.data;
 		}
 		return { tier: parsed.tier as TierName, snapshots };
 	} catch {
@@ -92,22 +108,6 @@ export function clearPrefs(): void {
 	}
 }
 
-function isValidTurn(value: unknown): value is ConversationTurn {
-	if (!value || typeof value !== 'object') return false;
-	const t = value as Record<string, unknown>;
-	return (
-		typeof t.query === 'string' &&
-		typeof t.consensus === 'string' &&
-		typeof t.consensusNode === 'string' &&
-		!!t.nodeResponses &&
-		typeof t.nodeResponses === 'object' &&
-		!!t.nodeErrors &&
-		typeof t.nodeErrors === 'object' &&
-		!!t.nodeUsage &&
-		typeof t.nodeUsage === 'object'
-	);
-}
-
 /** Read saved conversations, keyed by tier. Malformed turns/tiers are dropped. */
 export function loadConversations(): Partial<Record<TierName, ConversationTurn[]>> {
 	if (!storageAvailable()) return {};
@@ -119,7 +119,10 @@ export function loadConversations(): Partial<Record<TierName, ConversationTurn[]
 		const out: Partial<Record<TierName, ConversationTurn[]>> = {};
 		for (const t of TIER_NAMES) {
 			const turns = parsed[t];
-			if (Array.isArray(turns) && turns.every(isValidTurn)) {
+			if (
+				Array.isArray(turns) &&
+				turns.every((turn) => conversationTurnSchema.safeParse(turn).success)
+			) {
 				out[t] = turns as ConversationTurn[];
 			}
 		}
