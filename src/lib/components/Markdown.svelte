@@ -9,7 +9,10 @@
 
 	let { source }: Props = $props();
 
-	const emojiRegex = /([\p{Emoji_Presentation}\p{Extended_Pictographic}])/gu;
+	// Detection uses a non-global pattern; a /g/ regex carries `lastIndex` between
+	// .test() calls and would skip matches across successive text nodes.
+	const emojiTest = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+	const emojiReplace = /([\p{Emoji_Presentation}\p{Extended_Pictographic}])/gu;
 
 	function wrapEmojisInTextNodes(html: string): string {
 		const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -18,9 +21,9 @@
 		let node: Text | null;
 		while ((node = walker.nextNode() as Text | null)) textNodes.push(node);
 		for (const tn of textNodes) {
-			if (emojiRegex.test(tn.data)) {
+			if (emojiTest.test(tn.data)) {
 				const span = document.createElement('span');
-				span.innerHTML = tn.data.replace(emojiRegex, '<span class="not-italic">$1</span>');
+				span.innerHTML = tn.data.replace(emojiReplace, '<span class="not-italic">$1</span>');
 				tn.replaceWith(...span.childNodes);
 			}
 		}
