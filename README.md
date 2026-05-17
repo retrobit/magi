@@ -47,7 +47,7 @@ graph TD
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
 - **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
 - **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
-- **Streaming auto-scroll** — Panels follow the latest streamed text while you're pinned to the bottom; scrolling up pauses the follow until you return. Toggleable in settings.
+- **Auto-scroll modes** — Off, Follow (pin to the newest streamed text while scrolled to the bottom), or Snap to top (jump each panel to the start of its latest response once that response finishes). Set in the ⚙️ settings menu.
 - **Background variants** — Animated RGB columns, orbs, or off (settings menu).
 - **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
 - **Random prompts** — Click Execute with an empty input to submit a random thought-provoking question.
