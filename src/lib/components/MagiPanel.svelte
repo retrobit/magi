@@ -104,7 +104,11 @@
 
 	// Streaming auto-scroll: follow the latest content while pinned to the
 	// bottom; a manual scroll up pauses it until the viewport returns there.
+	// A ResizeObserver on the content wrapper drives the follow — tracking the
+	// `text` prop would fire before Markdown's throttled render grew the DOM,
+	// so every scroll chased a stale height and never reached the bottom.
 	let scrollEl = $state<HTMLDivElement>();
+	let contentEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
 
 	function onScroll() {
@@ -113,10 +117,12 @@
 	}
 
 	$effect(() => {
-		const contentSize = transcript.length + liveQuery.length + text.length;
-		if (autoScroll && pinned && scrollEl && contentSize > 0) {
-			scrollEl.scrollTop = scrollEl.scrollHeight;
-		}
+		if (!scrollEl || !contentEl) return;
+		const observer = new ResizeObserver(() => {
+			if (autoScroll && pinned && scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+		});
+		observer.observe(contentEl);
+		return () => observer.disconnect();
 	});
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
@@ -351,57 +357,55 @@
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
 	</div>
-	<div
-		class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
-		bind:this={scrollEl}
-		onscroll={onScroll}
-	>
-		{#if transcript.length === 0 && !liveQuery}
-			<p class="text-sm text-gray-600">Awaiting query...</p>
-		{:else}
-			{#each transcript as turn, i (i)}
-				<div
-					class="flex flex-col gap-1.5 {i > 0
-						? 'magi-turn-divider border-t border-gray-800 pt-3'
-						: ''}"
-				>
-					<p class="text-xs font-medium text-gray-500">{turn.query}</p>
-					{#if turn.error}
-						{@render errorCard(turn.error)}
-					{:else if turn.response}
-						<div class="prose prose-sm max-w-none prose-invert">
-							<Markdown source={turn.response} />
-						</div>
-					{:else}
-						<p class="text-sm text-gray-600">No response</p>
-					{/if}
-					{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
-				</div>
-			{/each}
-			{#if liveQuery}
-				<div
-					class="flex flex-col gap-1.5 {transcript.length > 0
-						? 'magi-turn-divider border-t border-gray-800 pt-3'
-						: ''}"
-				>
-					<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
-					{#if status === 'error'}
-						{@render errorCard(error)}
-					{:else if text}
-						<div class="prose prose-sm max-w-none prose-invert">
-							<Markdown source={text} />
-						</div>
-					{:else if status === 'unknown'}
-						<p class="text-sm text-orange-400">No response received</p>
-					{:else if status === 'success'}
-						<p class="text-sm text-gray-500">Empty response</p>
-					{:else}
-						<p class="text-sm text-gray-500">Thinking...</p>
-					{/if}
-					{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
-				</div>
+	<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollEl} onscroll={onScroll}>
+		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
+			{#if transcript.length === 0 && !liveQuery}
+				<p class="text-sm text-gray-600">Awaiting query...</p>
+			{:else}
+				{#each transcript as turn, i (i)}
+					<div
+						class="flex flex-col gap-1.5 {i > 0
+							? 'magi-turn-divider border-t border-gray-800 pt-3'
+							: ''}"
+					>
+						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
+						{#if turn.error}
+							{@render errorCard(turn.error)}
+						{:else if turn.response}
+							<div class="prose prose-sm max-w-none prose-invert">
+								<Markdown source={turn.response} />
+							</div>
+						{:else}
+							<p class="text-sm text-gray-600">No response</p>
+						{/if}
+						{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
+					</div>
+				{/each}
+				{#if liveQuery}
+					<div
+						class="flex flex-col gap-1.5 {transcript.length > 0
+							? 'magi-turn-divider border-t border-gray-800 pt-3'
+							: ''}"
+					>
+						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
+						{#if status === 'error'}
+							{@render errorCard(error)}
+						{:else if text}
+							<div class="prose prose-sm max-w-none prose-invert">
+								<Markdown source={text} />
+							</div>
+						{:else if status === 'unknown'}
+							<p class="text-sm text-orange-400">No response received</p>
+						{:else if status === 'success'}
+							<p class="text-sm text-gray-500">Empty response</p>
+						{:else}
+							<p class="text-sm text-gray-500">Thinking...</p>
+						{/if}
+						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
+					</div>
+				{/if}
 			{/if}
-		{/if}
+		</div>
 	</div>
 </div>
 
