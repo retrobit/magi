@@ -48,8 +48,10 @@
 		"@ai-sdk/openai": "^3.0.37",
 		"ai": "^6.0.105",
 		"dompurify": "^3.3.3",
+		"highlight.js": "^11.11.1",
 		"lucide-svelte": "^1.0.1",
 		"marked": "^17.0.5",
+		"marked-highlight": "^2.2.4",
 		"zod": "^4.3.6"
 	}
 }

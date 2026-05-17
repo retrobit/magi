@@ -1,8 +1,25 @@
 <script lang="ts">
-	import { marked } from 'marked';
+	import { Marked } from 'marked';
+	import { markedHighlight } from 'marked-highlight';
+	import hljs from 'highlight.js/lib/common';
 	import DOMPurify from 'dompurify';
 	import { browser } from '$app/environment';
 	import { onDestroy } from 'svelte';
+
+	// A marked instance with syntax highlighting wired in. A fenced block with a
+	// recognized language is highlighted as that language; an untagged or unknown
+	// block falls back to auto-detection. Token colors are themed in layout.css.
+	const marked = new Marked(
+		markedHighlight({
+			emptyLangClass: 'hljs',
+			langPrefix: 'hljs language-',
+			highlight(code, lang) {
+				return lang && hljs.getLanguage(lang)
+					? hljs.highlight(code, { language: lang }).value
+					: hljs.highlightAuto(code).value;
+			}
+		})
+	);
 
 	interface Props {
 		source: string;

@@ -213,3 +213,77 @@
 	--tw-prose-pre-bg: #f3f4f6;
 	--tw-prose-pre-code: #374151;
 }
+
+/* ── Code syntax highlighting (highlight.js token classes) ──
+   highlight.js emits a fixed set of `.hljs-*` token spans; rather than ship a
+   prebuilt theme that only suits one mode, the palette is driven by CSS vars
+   the light theme overrides — so code stays legible on both backgrounds. */
+.prose {
+	--hljs-comment: #8b949e;
+	--hljs-keyword: #ff7b72;
+	--hljs-string: #a5d6ff;
+	--hljs-literal: #79c0ff;
+	--hljs-title: #d2a8ff;
+	--hljs-meta: #79c0ff;
+}
+
+.light .prose {
+	--hljs-comment: #6e7781;
+	--hljs-keyword: #cf222e;
+	--hljs-string: #0a3069;
+	--hljs-literal: #0550ae;
+	--hljs-title: #8250df;
+	--hljs-meta: #116329;
+}
+
+.prose .hljs-comment,
+.prose .hljs-quote {
+	color: var(--hljs-comment);
+	font-style: italic;
+}
+
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-built_in,
+.prose .hljs-type,
+.prose .hljs-name,
+.prose .hljs-tag {
+	color: var(--hljs-keyword);
+}
+
+.prose .hljs-string,
+.prose .hljs-regexp,
+.prose .hljs-meta .hljs-string {
+	color: var(--hljs-string);
+}
+
+.prose .hljs-number,
+.prose .hljs-literal,
+.prose .hljs-variable,
+.prose .hljs-template-variable,
+.prose .hljs-symbol,
+.prose .hljs-bullet,
+.prose .hljs-attr,
+.prose .hljs-attribute,
+.prose .hljs-property,
+.prose .hljs-selector-class,
+.prose .hljs-selector-id {
+	color: var(--hljs-literal);
+}
+
+.prose .hljs-title,
+.prose .hljs-section {
+	color: var(--hljs-title);
+}
+
+.prose .hljs-meta {
+	color: var(--hljs-meta);
+}
+
+.prose .hljs-emphasis {
+	font-style: italic;
+}
+
+.prose .hljs-strong {
+	font-weight: 600;
+}
