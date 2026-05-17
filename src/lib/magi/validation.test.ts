@@ -140,3 +140,95 @@ describe('magiRequestSchema', () => {
 		expect(result.success).toBe(false);
 	});
 });
+
+describe('magiRequestSchema — history', () => {
+	const validTurn = {
+		query: 'prior question',
+		nodeResponses: [
+			{ node: 'MELCHIOR', text: 'first answer' },
+			{ node: 'BALTHASAR', text: 'second answer' }
+		],
+		consensus: 'prior consensus'
+	};
+
+	function withHistory(history: unknown) {
+		return magiRequestSchema.safeParse({
+			query: 'follow-up',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			history
+		});
+	}
+
+	it('accepts a valid history array', () => {
+		expect(withHistory([validTurn]).success).toBe(true);
+	});
+
+	it('accepts an empty history array', () => {
+		expect(withHistory([]).success).toBe(true);
+	});
+
+	it('accepts a request without history (defaults to undefined)', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.history).toBeUndefined();
+	});
+
+	it('accepts a turn with an empty nodeResponses array', () => {
+		expect(withHistory([{ ...validTurn, nodeResponses: [] }]).success).toBe(true);
+	});
+
+	it('accepts a history at the 50-turn cap', () => {
+		expect(withHistory(Array(50).fill(validTurn)).success).toBe(true);
+	});
+
+	it('rejects a history exceeding 50 turns', () => {
+		expect(withHistory(Array(51).fill(validTurn)).success).toBe(false);
+	});
+
+	it('rejects a non-array history', () => {
+		expect(withHistory('not an array').success).toBe(false);
+	});
+
+	it('rejects a turn with an empty query', () => {
+		expect(withHistory([{ ...validTurn, query: '' }]).success).toBe(false);
+	});
+
+	it('rejects a turn with a query exceeding max length', () => {
+		expect(withHistory([{ ...validTurn, query: 'x'.repeat(10_001) }]).success).toBe(false);
+	});
+
+	it('rejects a turn missing nodeResponses', () => {
+		const { nodeResponses, ...rest } = validTurn;
+		void nodeResponses;
+		expect(withHistory([rest]).success).toBe(false);
+	});
+
+	it('rejects a turn missing consensus', () => {
+		const { consensus, ...rest } = validTurn;
+		void consensus;
+		expect(withHistory([rest]).success).toBe(false);
+	});
+
+	it('rejects a nodeResponse with an invalid node name', () => {
+		const result = withHistory([
+			{ ...validTurn, nodeResponses: [{ node: 'INVALID', text: 'answer' }] }
+		]);
+		expect(result.success).toBe(false);
+	});
+
+	it('rejects a nodeResponse text exceeding 50k chars', () => {
+		const result = withHistory([
+			{ ...validTurn, nodeResponses: [{ node: 'MELCHIOR', text: 'x'.repeat(50_001) }] }
+		]);
+		expect(result.success).toBe(false);
+	});
+
+	it('rejects a consensus exceeding 50k chars', () => {
+		expect(withHistory([{ ...validTurn, consensus: 'x'.repeat(50_001) }]).success).toBe(false);
+	});
+});
