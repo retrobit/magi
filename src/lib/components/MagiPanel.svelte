@@ -56,6 +56,7 @@
 		contextWindow?: number;
 		temperament?: TemperamentName;
 		genericLabels?: boolean;
+		autoScroll?: boolean;
 		disabled?: boolean;
 		usedProviders?: string[];
 		onchange?: (gateway: GatewayName, provider: string, modelId: string) => void;
@@ -81,6 +82,7 @@
 		contextWindow,
 		temperament,
 		genericLabels = false,
+		autoScroll = true,
 		disabled = false,
 		usedProviders = [],
 		onchange,
@@ -96,6 +98,23 @@
 	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
+
+	// Streaming auto-scroll: follow the latest content while pinned to the
+	// bottom; a manual scroll up pauses it until the viewport returns there.
+	let scrollEl = $state<HTMLDivElement>();
+	let pinned = $state(true);
+
+	function onScroll() {
+		if (!scrollEl) return;
+		pinned = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 24;
+	}
+
+	$effect(() => {
+		const contentSize = transcript.length + liveQuery.length + text.length;
+		if (autoScroll && pinned && scrollEl && contentSize > 0) {
+			scrollEl.scrollTop = scrollEl.scrollHeight;
+		}
+	});
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
 
@@ -170,7 +189,7 @@
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
-		<p class="magi-token-split text-[10px] text-gray-400">
+		<p class="magi-token-split text-[10px] text-gray-500">
 			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
@@ -201,14 +220,17 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center gap-1 font-mono text-[10px] text-gray-500">
+					<span class="group flex items-center gap-1 font-mono text-[10px] text-gray-500">
 						{#if showTokens}
-							<span title="Tokens this conversation">
+							<span
+								class={showContext ? 'hidden group-hover:inline' : ''}
+								title="Tokens this conversation"
+							>
 								<TokenCount input={totalInput} output={totalOutput} estimated={liveEstimated} />
 							</span>
 						{/if}
 						{#if showTokens && showContext}
-							<span class="opacity-50">·</span>
+							<span class="hidden opacity-50 group-hover:inline">·</span>
 						{/if}
 						{#if contextWindow && contextUsed > 0}
 							<span
@@ -319,7 +341,11 @@
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
 	</div>
-	<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+	<div
+		class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+		bind:this={scrollEl}
+		onscroll={onScroll}
+	>
 		{#if transcript.length === 0 && !liveQuery}
 			<p class="text-sm text-gray-600">Awaiting query...</p>
 		{:else}

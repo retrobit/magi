@@ -91,6 +91,7 @@
 	let temperamentAwareness = $state(false);
 	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
+	let autoScroll = $state(true);
 
 	// Multi-turn conversation — completed turns for the active tier, plus the
 	// in-flight turn's query and streaming token usage.
@@ -875,6 +876,7 @@
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
 					{genericLabels}
+					{autoScroll}
 					disabled={loading}
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
@@ -906,6 +908,7 @@
 				{consensusTemperament}
 				{temperamentAwareness}
 				{genericLabels}
+				{autoScroll}
 				disabled={loading}
 				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
@@ -970,6 +973,25 @@
 					onclick={() => (bgVariant = 'columns')}
 				>
 					Columns
+				</button>
+			</div>
+			<span class="mt-3 text-xs font-medium text-gray-400">Auto-scroll</span>
+			<div class="mt-2 flex flex-col gap-1">
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {autoScroll
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (autoScroll = true)}
+				>
+					On
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {!autoScroll
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (autoScroll = false)}
+				>
+					Off
 				</button>
 			</div>
 		</div>
