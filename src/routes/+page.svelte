@@ -799,6 +799,14 @@
 			<div
 				class="magi-panel flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
 			>
+				<button
+					type="button"
+					onclick={handleNewConversation}
+					disabled={loading}
+					class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+				>
+					<MessageSquarePlus size={12} /> New conversation
+				</button>
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
 					<span class="text-gray-600">·</span>
@@ -817,14 +825,6 @@
 						</span>
 					{/if}
 				</div>
-				<button
-					type="button"
-					onclick={handleNewConversation}
-					disabled={loading}
-					class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
-				>
-					<MessageSquarePlus size={12} /> New conversation
-				</button>
 			</div>
 		{/if}
 
