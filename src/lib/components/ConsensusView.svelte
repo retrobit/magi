@@ -35,6 +35,7 @@
 		liveQuery?: string;
 		liveInput?: number;
 		liveOutput?: number;
+		liveEstimated?: boolean;
 		contextUsed?: number;
 		contextWindow?: number;
 		strategy: StrategyName;
@@ -62,6 +63,7 @@
 		liveQuery = '',
 		liveInput = 0,
 		liveOutput = 0,
+		liveEstimated = false,
 		contextUsed = 0,
 		contextWindow,
 		strategy,
@@ -86,6 +88,8 @@
 	// Cumulative consensus tokens: every completed turn plus the live turn.
 	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
 	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
+	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
+	const showContext = $derived(!!contextWindow && contextUsed > 0);
 
 	const gradientStyle = CONSENSUS_GRADIENT;
 
@@ -107,10 +111,10 @@
 	}
 </script>
 
-{#snippet tokenFooter(input: number, output: number)}
+{#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
 		<p class="magi-token-split text-[10px] text-gray-400">
-			<TokenCount {input} {output} />
+			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
 {/snippet}
@@ -134,17 +138,24 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
-				{#if totalInput > 0 || totalOutput > 0}
-					<span class="text-[10px] text-gray-400" title="Tokens this conversation">
-						<TokenCount input={totalInput} output={totalOutput} />
+				{#if showTokens || showContext}
+					<span class="flex items-center gap-1 font-mono text-[10px] text-gray-500">
+						{#if showTokens}
+							<span title="Tokens this conversation">
+								<TokenCount input={totalInput} output={totalOutput} estimated={liveEstimated} />
+							</span>
+						{/if}
+						{#if showTokens && showContext}
+							<span class="opacity-50">·</span>
+						{/if}
+						{#if contextWindow && contextUsed > 0}
+							<span
+								class={contextClass}
+								title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
+								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
+							>
+						{/if}
 					</span>
-				{/if}
-				{#if contextWindow && contextUsed > 0}
-					<span
-						class="text-[10px] {contextClass}"
-						title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
-						>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
-					>
 				{/if}
 				{#if loading && !allModelsResponded}
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
@@ -263,7 +274,7 @@
 					{:else}
 						<p class="text-sm text-gray-600">No consensus</p>
 					{/if}
-					{@render tokenFooter(turn.inputTokens, turn.outputTokens)}
+					{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
 				</div>
 			{/each}
 			{#if liveQuery}
@@ -290,7 +301,7 @@
 					{:else}
 						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
 					{/if}
-					{@render tokenFooter(liveInput, liveOutput)}
+					{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 				</div>
 			{/if}
 		{/if}

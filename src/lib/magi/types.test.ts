@@ -7,7 +7,8 @@ import {
 	PROVIDER_NAMES,
 	ROUTER_GATEWAYS,
 	isRouter,
-	DEFAULT_TIER
+	DEFAULT_TIER,
+	estimateTokens
 } from './types';
 
 describe('MAGI_NODES', () => {
@@ -73,5 +74,21 @@ describe('isRouter', () => {
 		expect(isRouter('anthropic')).toBe(false);
 		expect(isRouter('openai')).toBe(false);
 		expect(isRouter('google')).toBe(false);
+	});
+});
+
+describe('estimateTokens', () => {
+	it('returns 0 for empty text', () => {
+		expect(estimateTokens('')).toBe(0);
+	});
+
+	it('estimates roughly four characters per token', () => {
+		expect(estimateTokens('abcd')).toBe(1);
+		expect(estimateTokens('a'.repeat(400))).toBe(100);
+	});
+
+	it('rounds partial tokens up', () => {
+		expect(estimateTokens('ab')).toBe(1);
+		expect(estimateTokens('abcde')).toBe(2);
 	});
 });

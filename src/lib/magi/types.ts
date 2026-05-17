@@ -72,6 +72,13 @@ export function formatTokenCount(n: number): string {
 	return String(n);
 }
 
+/** Rough token estimate for streamed text, used to show a live count before
+ *  the provider reports exact usage — about four characters per token for
+ *  typical English prose. */
+export function estimateTokens(text: string): number {
+	return Math.ceil(text.length / 4);
+}
+
 /** Tailwind text colour for a context-window usage gauge: red near full,
  *  amber when getting close, neutral otherwise. */
 export function contextUsageClass(used: number, window: number | undefined): string {

@@ -9,6 +9,7 @@
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
 		NODE_TEMPERAMENTS,
+		estimateTokens,
 		type TierName,
 		type MagiNodeName,
 		type GatewayName,
@@ -167,7 +168,34 @@
 		assignments.find((a) => a.node === consensusNode) ?? assignments[0]
 	);
 
-	// Cumulative token usage across every turn of the conversation.
+	// Live output tokens: exact once the usage event lands, otherwise an estimate
+	// from the streamed text so the count climbs live. Errored nodes report none.
+	const liveNodeOutputs = $derived.by(() => {
+		const out = {} as Record<MagiNodeName, { tokens: number; estimated: boolean }>;
+		for (const node of MAGI_NODE_NAMES) {
+			const exact = liveNodeUsage[node];
+			if (exact) {
+				out[node] = { tokens: exact.outputTokens, estimated: false };
+			} else if (errorMap.has(node)) {
+				out[node] = { tokens: 0, estimated: false };
+			} else {
+				const text = live.modelStreams[node];
+				out[node] = { tokens: estimateTokens(text), estimated: text.length > 0 };
+			}
+		}
+		return out;
+	});
+
+	const liveConsensusOutput = $derived.by(() => {
+		if (liveConsensusUsage) {
+			return { tokens: liveConsensusUsage.outputTokens, estimated: false };
+		}
+		const text = live.consensusStream;
+		return { tokens: estimateTokens(text), estimated: text.length > 0 };
+	});
+
+	// Cumulative token usage across the conversation, including the in-flight
+	// turn so the running total climbs live.
 	const conversationUsage = $derived.by(() => {
 		let input = 0;
 		let output = 0;
@@ -184,8 +212,18 @@
 				output += turn.consensusUsage.outputTokens;
 			}
 		}
+		for (const node of MAGI_NODE_NAMES) {
+			input += liveNodeUsage[node]?.inputTokens ?? 0;
+			output += liveNodeOutputs[node].tokens;
+		}
+		input += liveConsensusUsage?.inputTokens ?? 0;
+		output += liveConsensusOutput.tokens;
 		return { input, output, total: input + output };
 	});
+
+	const conversationEstimated = $derived(
+		MAGI_NODE_NAMES.some((n) => liveNodeOutputs[n].estimated) || liveConsensusOutput.estimated
+	);
 
 	function modelContextWindow(modelId: string): number | undefined {
 		return availableModels.find((m) => m.id === modelId)?.contextLength;
@@ -765,7 +803,12 @@
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
 					<span class="text-gray-600">·</span>
 					<span class="magi-token-total text-gray-500">
-						<TokenCount input={conversationUsage.input} output={conversationUsage.output} total />
+						<TokenCount
+							input={conversationUsage.input}
+							output={conversationUsage.output}
+							estimated={conversationEstimated}
+							total
+						/>
 					</span>
 					{#if contextWarnings.length > 0}
 						<span class="flex items-center gap-1 text-amber-400">
@@ -823,7 +866,8 @@
 					transcript={nodeTranscripts[assignment.node]}
 					liveQuery={activeTurnQuery}
 					liveInput={liveNodeUsage[assignment.node]?.inputTokens ?? 0}
-					liveOutput={liveNodeUsage[assignment.node]?.outputTokens ?? 0}
+					liveOutput={liveNodeOutputs[assignment.node].tokens}
+					liveEstimated={liveNodeOutputs[assignment.node].estimated}
 					contextUsed={latestNodeInput(assignment.node)}
 					contextWindow={modelContextWindow(assignment.modelId)}
 					text={responseMap.get(assignment.node)?.text ?? live.modelStreams[assignment.node]}
@@ -845,7 +889,8 @@
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
-				liveOutput={liveConsensusUsage?.outputTokens ?? 0}
+				liveOutput={liveConsensusOutput.tokens}
+				liveEstimated={liveConsensusOutput.estimated}
 				contextUsed={latestConsensusInput()}
 				contextWindow={modelContextWindow(consensusAssignment.modelId)}
 				text={live.consensusStream}
