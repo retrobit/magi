@@ -68,9 +68,9 @@ describe('getModelsForProvider', () => {
 
 describe('findModelEntry', () => {
 	it('finds an existing model', () => {
-		const entry = findModelEntry('anthropic', 'claude-opus-4-6');
+		const entry = findModelEntry('anthropic', 'claude-opus-4-7');
 		expect(entry).toBeDefined();
-		expect(entry!.displayName).toBe('Claude Opus 4.6');
+		expect(entry!.displayName).toBe('Claude Opus 4.7');
 	});
 
 	it('returns undefined for unknown model', () => {

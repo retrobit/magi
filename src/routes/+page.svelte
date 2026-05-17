@@ -220,23 +220,18 @@
 				query: turn.query,
 				response: turn.nodeResponses[node] ?? '',
 				error: turn.nodeErrors[node] ?? '',
-				tokens: u ? u.inputTokens + u.outputTokens : 0
+				inputTokens: u?.inputTokens ?? 0,
+				outputTokens: u?.outputTokens ?? 0
 			};
 		});
-	}
-
-	function liveNodeTokens(node: MagiNodeName): number {
-		const u = liveNodeUsage[node];
-		return u ? u.inputTokens + u.outputTokens : 0;
 	}
 
 	const consensusTranscript = $derived(
 		conversation.map((turn) => ({
 			query: turn.query,
 			consensus: turn.consensus,
-			tokens: turn.consensusUsage
-				? turn.consensusUsage.inputTokens + turn.consensusUsage.outputTokens
-				: 0
+			inputTokens: turn.consensusUsage?.inputTokens ?? 0,
+			outputTokens: turn.consensusUsage?.outputTokens ?? 0
 		}))
 	);
 
@@ -795,7 +790,7 @@
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
 					<span class="text-gray-600">·</span>
-					<span class="font-mono">
+					<span class="magi-token-total font-mono text-gray-600">
 						<span class="text-gray-500">↑</span>{conversationUsage.input.toLocaleString()}
 						<span class="text-gray-500">↓</span>{conversationUsage.output.toLocaleString()}
 						<span class="text-gray-600">({conversationUsage.total.toLocaleString()} tokens)</span>
@@ -855,7 +850,8 @@
 					modelDisplayName={getModelDisplayName(assignment)}
 					transcript={nodeTranscript(assignment.node)}
 					liveQuery={activeTurnQuery}
-					liveTokens={liveNodeTokens(assignment.node)}
+					liveInput={liveNodeUsage[assignment.node]?.inputTokens ?? 0}
+					liveOutput={liveNodeUsage[assignment.node]?.outputTokens ?? 0}
 					contextUsed={latestNodeInput(assignment.node)}
 					contextWindow={modelContextWindow(assignment.modelId)}
 					text={responseMap.get(assignment.node)?.text ?? modelStreams[assignment.node]}
@@ -876,9 +872,8 @@
 			<ConsensusView
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
-				liveTokens={liveConsensusUsage
-					? liveConsensusUsage.inputTokens + liveConsensusUsage.outputTokens
-					: 0}
+				liveInput={liveConsensusUsage?.inputTokens ?? 0}
+				liveOutput={liveConsensusUsage?.outputTokens ?? 0}
 				contextUsed={latestConsensusInput()}
 				contextWindow={modelContextWindow(consensusAssignment.modelId)}
 				text={consensusStream}

@@ -39,9 +39,16 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
-		transcript?: { query: string; response: string; error: string; tokens: number }[];
+		transcript?: {
+			query: string;
+			response: string;
+			error: string;
+			inputTokens: number;
+			outputTokens: number;
+		}[];
 		liveQuery?: string;
-		liveTokens?: number;
+		liveInput?: number;
+		liveOutput?: number;
 		contextUsed?: number;
 		contextWindow?: number;
 		temperament?: TemperamentName;
@@ -64,7 +71,8 @@
 		status,
 		transcript = [],
 		liveQuery = '',
-		liveTokens = 0,
+		liveInput = 0,
+		liveOutput = 0,
 		contextUsed = 0,
 		contextWindow,
 		temperament,
@@ -144,6 +152,14 @@
 		onchange?.(entry.gateway, entry.provider, entry.id);
 	}
 </script>
+
+{#snippet errorCard(message: string)}
+	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+		<CircleAlert size={24} class="text-red-500" />
+		<p class="text-sm font-medium text-red-400">Model unavailable</p>
+		<p class="text-xs text-gray-500">{message}</p>
+	</div>
+{/snippet}
 
 <div
 	class="magi-panel flex max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {status ===
@@ -288,7 +304,7 @@
 				>
 					<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 					{#if turn.error}
-						<p class="text-sm text-red-400">⚠ {turn.error}</p>
+						{@render errorCard(turn.error)}
 					{:else if turn.response}
 						<div class="prose prose-sm max-w-none prose-invert">
 							<Markdown source={turn.response} />
@@ -296,8 +312,10 @@
 					{:else}
 						<p class="text-sm text-gray-600">No response</p>
 					{/if}
-					{#if turn.tokens > 0}
-						<p class="text-[10px] text-gray-600">{turn.tokens.toLocaleString()} tokens</p>
+					{#if turn.inputTokens > 0 || turn.outputTokens > 0}
+						<p class="magi-token-split text-[10px] text-gray-400">
+							↑{turn.inputTokens.toLocaleString()} ↓{turn.outputTokens.toLocaleString()}
+						</p>
 					{/if}
 				</div>
 			{/each}
@@ -309,11 +327,7 @@
 				>
 					<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 					{#if status === 'error'}
-						<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
-							<CircleAlert size={24} class="text-red-500" />
-							<p class="text-sm font-medium text-red-400">Model unavailable</p>
-							<p class="text-xs text-gray-500">{error}</p>
-						</div>
+						{@render errorCard(error)}
 					{:else if text}
 						<div class="prose prose-sm max-w-none prose-invert">
 							<Markdown source={text} />
@@ -325,8 +339,10 @@
 					{:else}
 						<p class="text-sm text-gray-500">Thinking...</p>
 					{/if}
-					{#if liveTokens > 0}
-						<p class="text-[10px] text-gray-600">{liveTokens.toLocaleString()} tokens</p>
+					{#if liveInput > 0 || liveOutput > 0}
+						<p class="magi-token-split text-[10px] text-gray-400">
+							↑{liveInput.toLocaleString()} ↓{liveOutput.toLocaleString()}
+						</p>
 					{/if}
 				</div>
 			{/if}

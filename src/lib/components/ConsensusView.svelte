@@ -33,9 +33,15 @@
 		loading: boolean;
 		allModelsResponded: boolean;
 		warning?: string;
-		transcript?: { query: string; consensus: string; tokens: number }[];
+		transcript?: {
+			query: string;
+			consensus: string;
+			inputTokens: number;
+			outputTokens: number;
+		}[];
 		liveQuery?: string;
-		liveTokens?: number;
+		liveInput?: number;
+		liveOutput?: number;
 		contextUsed?: number;
 		contextWindow?: number;
 		strategy: StrategyName;
@@ -61,7 +67,8 @@
 		warning = '',
 		transcript = [],
 		liveQuery = '',
-		liveTokens = 0,
+		liveInput = 0,
+		liveOutput = 0,
 		contextUsed = 0,
 		contextWindow,
 		strategy,
@@ -123,6 +130,8 @@
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
 				{/if}
+			</div>
+			<div class="flex items-center gap-2">
 				{#if contextWindow && contextUsed > 0}
 					<span
 						class="text-[10px] {contextClass}"
@@ -130,31 +139,31 @@
 						>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
 					>
 				{/if}
+				{#if loading && !allModelsResponded}
+					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+				{:else if loading}
+					<LoaderCircle size={14} class="animate-spin text-yellow-400" />
+				{:else if text}
+					<div class="flex items-center gap-2">
+						{#if fullText}
+							<button
+								class="text-gray-400 transition-colors hover:text-white"
+								onclick={copyConsensus}
+								title="Copy consensus"
+							>
+								{#if copied}
+									<Check size={14} class="text-green-400" />
+								{:else}
+									<Copy size={14} />
+								{/if}
+							</button>
+						{/if}
+						<CircleCheck size={14} class="text-green-400" />
+					</div>
+				{:else}
+					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+				{/if}
 			</div>
-			{#if loading && !allModelsResponded}
-				<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-			{:else if loading}
-				<LoaderCircle size={14} class="animate-spin text-yellow-400" />
-			{:else if text}
-				<div class="flex items-center gap-2">
-					{#if fullText}
-						<button
-							class="text-gray-400 transition-colors hover:text-white"
-							onclick={copyConsensus}
-							title="Copy consensus"
-						>
-							{#if copied}
-								<Check size={14} class="text-green-400" />
-							{:else}
-								<Copy size={14} />
-							{/if}
-						</button>
-					{/if}
-					<CircleCheck size={14} class="text-green-400" />
-				</div>
-			{:else}
-				<div class="h-2 w-2 rounded-full bg-gray-600"></div>
-			{/if}
 		</div>
 		<div class="border-t border-gray-700"></div>
 		<div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -247,8 +256,10 @@
 					{:else}
 						<p class="text-sm text-gray-600">No consensus</p>
 					{/if}
-					{#if turn.tokens > 0}
-						<p class="text-[10px] text-gray-600">{turn.tokens.toLocaleString()} tokens</p>
+					{#if turn.inputTokens > 0 || turn.outputTokens > 0}
+						<p class="magi-token-split text-[10px] text-gray-400">
+							↑{turn.inputTokens.toLocaleString()} ↓{turn.outputTokens.toLocaleString()}
+						</p>
 					{/if}
 				</div>
 			{/each}
@@ -276,8 +287,10 @@
 					{:else}
 						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond.</p>
 					{/if}
-					{#if liveTokens > 0}
-						<p class="text-[10px] text-gray-600">{liveTokens.toLocaleString()} tokens</p>
+					{#if liveInput > 0 || liveOutput > 0}
+						<p class="magi-token-split text-[10px] text-gray-400">
+							↑{liveInput.toLocaleString()} ↓{liveOutput.toLocaleString()}
+						</p>
 					{/if}
 				</div>
 			{/if}

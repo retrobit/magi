@@ -37,11 +37,15 @@ graph TD
 2. **Independent responses** — Each model responds without knowledge of the others, ensuring genuinely independent perspectives. Model responses stream to the client in real time as they arrive.
 3. **Consensus synthesis** — Once all three responses are in, the consensus engine streams a unified answer via `streamText()` that identifies agreements, resolves disagreements, and flags remaining uncertainty.
 4. **Partial consensus** — If one or two models fail, the system proceeds with the available responses and warns the user that consensus is based on partial data.
+5. **Multi-turn context** — On a follow-up query, each node replays only its _own_ prior turns (it never sees the other nodes or the consensus), and the consensus builds on prior consensuses. Token usage is tracked per node and against each model's context window.
 
 ## 🎨 UI Features
 
 - **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
-- **Background variants** — Choose between animated RGB columns or orbs (settings menu).
+- **Background variants** — Animated RGB columns, orbs, or off (settings menu).
+- **Multi-turn conversation** — Ask follow-ups; each panel keeps a scrollable per-turn transcript. Conversations persist per-tier in `localStorage` and survive reloads.
+- **Token tracking** — Per-node input/output token counts, a cumulative conversation total, and a per-model context-window gauge that warns as a model nears its limit.
+- **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
 - **Random prompts** — Click Execute with an empty input to submit a random thought-provoking question.
 - **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input.
@@ -80,7 +84,7 @@ Users can select a tier to control quality vs. cost:
 
 | Tier         | Anthropic         | OpenAI       | Google                |
 | ------------ | ----------------- | ------------ | --------------------- |
-| **Frontier** | Claude Opus 4.6   | GPT-5.2      | Gemini 2.5 Pro        |
+| **Frontier** | Claude Opus 4.7   | GPT-5.2      | Gemini 2.5 Pro        |
 | **Balanced** | Claude Sonnet 4.6 | GPT-4o       | Gemini 2.5 Flash      |
 | **Budget**   | Claude Haiku 4.5  | GPT-4.1 mini | Gemini 2.5 Flash Lite |
 
@@ -166,7 +170,8 @@ Returns available models for a given tier. Paid tiers return from the static reg
 			"id": "qwen/qwen3-coder:free",
 			"gateway": "openrouter",
 			"provider": "qwen",
-			"displayName": "Qwen3 Coder"
+			"displayName": "Qwen3 Coder",
+			"contextLength": 262144
 		}
 	]
 }
@@ -225,6 +230,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `consensusTemperament` | boolean | No       | Give the consensus synthesizer its own dispositional lens (based on `consensusNode`). Defaults to `false`.                      |
 | `temperamentAwareness` | boolean | No       | Tell the synthesizer about each node's dispositional lens so it can surface _why_ they diverge. Defaults to `false`.            |
 | `genericLabels`        | boolean | No       | Use generic labels (MAGI 1/2/3) in consensus prompts instead of proper names (MELCHIOR/BALTHASAR/CASPAR). Defaults to `true`.   |
+| `history`              | array   | No       | Prior conversation turns for multi-turn context. Each turn: `{ query, nodeResponses: [{ node, text }], consensus }`. Max 50.    |
 
 **SSE events:**
 
@@ -234,9 +240,11 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `model-chunk`        | `{ node, text }`                     | Streaming text delta from a node   |
 | `model-response`     | `{ node, gateway, provider, text }`  | Individual model complete response |
 | `model-error`        | `{ node, gateway, provider, error }` | Individual model failure           |
+| `model-usage`        | `{ node, inputTokens, outputTokens }`| Token usage for a completed node   |
 | `partial-consensus`  | `{ responded, total }`               | Warning: not all models responded  |
 | `consensus-chunk`    | `{ text }`                           | Streaming consensus text delta     |
 | `consensus-complete` | `{ text }`                           | Full consensus text                |
+| `consensus-usage`    | `{ inputTokens, outputTokens }`      | Token usage for the consensus      |
 | `error`              | `{ message }`                        | Fatal error                        |
 
 **Rate limiting:** 10 requests per minute per IP.
@@ -314,6 +322,7 @@ src/
 │   │   ├── temperaments.test.ts
 │   │   ├── validation.ts           # Zod request schema
 │   │   ├── validation.test.ts
+│   │   ├── persistence.ts          # localStorage — per-tier assignments + conversations
 │   │   └── consensus/
 │   │       ├── types.ts            # ConsensusStrategy interface
 │   │       ├── synthesis.ts        # Synthesis strategy

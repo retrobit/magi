@@ -114,6 +114,16 @@
 	background-color: #e5e7eb;
 }
 
+/* Token counts — dark theme shows per-turn splits brighter than the running
+   total; light theme keeps the original weighting (splits dimmer). */
+.light .magi-token-split {
+	color: #4b5563;
+}
+
+.light .magi-token-total {
+	color: #9ca3af;
+}
+
 .light .magi-panel button,
 .light .magi-panel h3 {
 	color: var(--magi-text);

@@ -30,6 +30,7 @@ vite.config.ts.timestamp-*
 # Output
 /build
 /.svelte-kit
+/coverage
 .output
 .netlify
 .vercel
