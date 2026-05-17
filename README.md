@@ -42,12 +42,14 @@ graph TD
 
 ## 🎨 UI Features
 
-- **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
-- **Background variants** — Animated RGB columns, orbs, or off (settings menu).
 - **Multi-turn conversation** — Ask follow-ups; each panel keeps a scrollable per-turn transcript. Conversations persist per-tier in `localStorage` and survive reloads.
-- **Token tracking** — Per-node input/output token counts, a cumulative conversation total, and a per-model context-window gauge that warns as a model nears its limit.
-- **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
+- **Token tracking** — Per-node input/output token counts, a cumulative conversation total, prompt-cache hits surfaced on hover, and a per-model context-window gauge that warns as a model nears its limit.
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
+- **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
+- **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
+- **Streaming auto-scroll** — Panels follow the latest streamed text while you're pinned to the bottom; scrolling up pauses the follow until you return. Toggleable in settings.
+- **Background variants** — Animated RGB columns, orbs, or off (settings menu).
+- **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
 - **Random prompts** — Click Execute with an empty input to submit a random thought-provoking question.
 - **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input.
 - **Responsive layout** — Panels stack vertically on narrow viewports with scrolling; desktop uses a fixed side-by-side layout.
@@ -235,18 +237,18 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 
 **SSE events:**
 
-| Event                | Payload                              | Description                        |
-| -------------------- | ------------------------------------ | ---------------------------------- |
-| `config`             | `NodeAssignment[]`                   | Node-to-model assignment mapping   |
-| `model-chunk`        | `{ node, text }`                     | Streaming text delta from a node   |
-| `model-response`     | `{ node, gateway, provider, text }`  | Individual model complete response |
-| `model-error`        | `{ node, gateway, provider, error }` | Individual model failure           |
-| `model-usage`        | `{ node, inputTokens, outputTokens }`| Token usage for a completed node   |
-| `partial-consensus`  | `{ responded, total }`               | Warning: not all models responded  |
-| `consensus-chunk`    | `{ text }`                           | Streaming consensus text delta     |
-| `consensus-complete` | `{ text }`                           | Full consensus text                |
-| `consensus-usage`    | `{ inputTokens, outputTokens }`      | Token usage for the consensus      |
-| `error`              | `{ message }`                        | Fatal error                        |
+| Event                | Payload                                                  | Description                        |
+| -------------------- | -------------------------------------------------------- | ---------------------------------- |
+| `config`             | `NodeAssignment[]`                                       | Node-to-model assignment mapping   |
+| `model-chunk`        | `{ node, text }`                                         | Streaming text delta from a node   |
+| `model-response`     | `{ node, gateway, provider, text }`                      | Individual model complete response |
+| `model-error`        | `{ node, gateway, provider, error }`                     | Individual model failure           |
+| `model-usage`        | `{ node, inputTokens, outputTokens, cachedInputTokens }` | Token usage for a completed node   |
+| `partial-consensus`  | `{ responded, total }`                                   | Warning: not all models responded  |
+| `consensus-chunk`    | `{ text }`                                               | Streaming consensus text delta     |
+| `consensus-complete` | `{ text }`                                               | Full consensus text                |
+| `consensus-usage`    | `{ inputTokens, outputTokens, cachedInputTokens }`       | Token usage for the consensus      |
+| `error`              | `{ message }`                                            | Fatal error                        |
 
 **Rate limiting:** 10 requests per minute per IP.
 
@@ -308,8 +310,11 @@ src/
 │   │   └── favicon.svg             # App icon
 │   ├── server/
 │   │   ├── rate-limit.ts           # Per-IP sliding window rate limiter
+│   │   ├── rate-limit.test.ts
 │   │   ├── health.ts               # Model health tracking
 │   │   ├── health.test.ts
+│   │   ├── logger.ts               # Structured logging + latency timers
+│   │   ├── logger.test.ts
 │   │   └── openrouter.ts           # Dynamic model discovery from OpenRouter API
 │   ├── magi/
 │   │   ├── types.ts                # Core types (nodes, tiers, providers, temperaments)
@@ -324,6 +329,9 @@ src/
 │   │   ├── validation.ts           # Zod request schema
 │   │   ├── validation.test.ts
 │   │   ├── persistence.ts          # localStorage — per-tier assignments + conversations
+│   │   ├── persistence.test.ts
+│   │   ├── stream-events.ts        # Typed SSE event map (server + client)
+│   │   ├── prompt-cache.ts         # Anthropic prompt-cache breakpoint helper
 │   │   └── consensus/
 │   │       ├── types.ts            # ConsensusStrategy interface
 │   │       ├── synthesis.ts        # Synthesis strategy
@@ -332,10 +340,10 @@ src/
 │   └── components/
 │       ├── MagiBackground.svelte   # Animated background
 │       ├── MagiPanel.svelte        # Individual model response panel
-│       ├── Markdown.svelte         # Sanitized markdown renderer
-│       ├── TierSelector.svelte     # Tier toggle
-│       ├── StrategySelector.svelte # Consensus strategy toggle
-│       └── ConsensusView.svelte    # Consensus display with copy
+│       ├── ConsensusView.svelte    # Consensus display with copy
+│       ├── Markdown.svelte         # Sanitized, syntax-highlighted markdown renderer
+│       ├── TokenCount.svelte       # Compact ↑/↓/⚡ token-count formatter
+│       └── TierSelector.svelte     # Tier toggle
 ```
 
 ## 🧰 Stack
@@ -374,6 +382,8 @@ bun run build
 Make sure your production environment has all required environment variables set.
 
 > **Note:** The in-memory rate limiter resets on deploy/restart. For production at scale, consider replacing it with a Redis-backed solution.
+
+> **Logs:** Request logs are structured — readable `key=value` lines in development, one JSON object per line in production — so a log collector can parse per-model latency (time-to-first-token, total duration) and token metrics.
 
 ## 🗺️ Roadmap
 
