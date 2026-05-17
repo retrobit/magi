@@ -25,6 +25,7 @@ import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
 import { getOpenRouterFreeModels } from '$lib/server/openrouter';
+import { markCacheBreakpoint } from '$lib/server/prompt-cache';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
@@ -297,6 +298,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									content: `${temperamentPrompt}\n\n---\n\n${first.content as string}`
 								};
 							}
+							// Cache the replayed thread — a no-op for non-Anthropic gateways.
+							markCacheBreakpoint(messages);
 							log(`${node} starting (${modelId}, ${history.length} prior turns)`);
 							const result = streamText({
 								model,
@@ -310,8 +313,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								send('model-chunk', { node, text: chunk });
 							}
 							const usage = await result.usage;
+							const cached = usage.cachedInputTokens ?? 0;
 							log(
-								`${node} complete (${fullText.length} chars, ${usage.totalTokens ?? '?'} tokens)`
+								`${node} complete (${fullText.length} chars, ${usage.totalTokens ?? '?'} tokens` +
+									`${cached ? `, ${cached} cached` : ''})`
 							);
 							const response: MagiResponse = { node, gateway, provider, text: fullText };
 							send('model-response', response);

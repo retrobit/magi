@@ -8,6 +8,7 @@ import {
 	type MagiNodeName
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
+import { markCacheBreakpoint } from '$lib/server/prompt-cache';
 
 export const synthesisStrategy: ConsensusStrategy = {
 	name: 'synthesis',
@@ -79,6 +80,8 @@ Provide the synthesized consensus response.`;
 			messages.push({ role: 'assistant', content: turn.consensus });
 		}
 		messages.push({ role: 'user', content: synthesisPrompt });
+		// Cache the replayed consensus thread — a no-op for non-Anthropic gateways.
+		markCacheBreakpoint(messages);
 
 		const result = streamText({
 			model,
