@@ -4,7 +4,8 @@
 		GatewayName,
 		TemperamentName,
 		AvailableModel,
-		NodeTranscriptEntry
+		NodeTranscriptEntry,
+		ScrollMode
 	} from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
@@ -57,7 +58,7 @@
 		contextWindow?: number;
 		temperament?: TemperamentName;
 		genericLabels?: boolean;
-		autoScroll?: boolean;
+		scrollMode?: ScrollMode;
 		disabled?: boolean;
 		usedProviders?: string[];
 		onchange?: (gateway: GatewayName, provider: string, modelId: string) => void;
@@ -84,7 +85,7 @@
 		contextWindow,
 		temperament,
 		genericLabels = false,
-		autoScroll = true,
+		scrollMode = 'follow',
 		disabled = false,
 		usedProviders = [],
 		onchange,
@@ -102,11 +103,11 @@
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
 
-	// Streaming auto-scroll: follow the latest content while pinned to the
-	// bottom; a manual scroll up pauses it until the viewport returns there.
-	// A ResizeObserver on the content wrapper drives the follow — tracking the
-	// `text` prop would fire before Markdown's throttled render grew the DOM,
-	// so every scroll chased a stale height and never reached the bottom.
+	// Follow mode: track the latest content while pinned to the bottom; a manual
+	// scroll up pauses it until the viewport returns there. A ResizeObserver on
+	// the content wrapper drives the follow — tracking the `text` prop would fire
+	// before Markdown's throttled render grew the DOM, so every scroll chased a
+	// stale height and never reached the bottom.
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
@@ -119,10 +120,29 @@
 	$effect(() => {
 		if (!scrollEl || !contentEl) return;
 		const observer = new ResizeObserver(() => {
-			if (autoScroll && pinned && scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+			if (scrollMode === 'follow' && pinned && scrollEl) {
+				scrollEl.scrollTop = scrollEl.scrollHeight;
+			}
 		});
 		observer.observe(contentEl);
 		return () => observer.disconnect();
+	});
+
+	// Snap mode: when this node's response finishes, jump so the latest turn
+	// block sits at the top of the panel — a clean reading start rather than
+	// chasing the streaming tail.
+	$effect(() => {
+		if (scrollMode !== 'snap' || (status !== 'success' && status !== 'error')) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const frame = requestAnimationFrame(() => {
+			const block = content.lastElementChild;
+			if (block) {
+				el.scrollTop += block.getBoundingClientRect().top - el.getBoundingClientRect().top;
+			}
+		});
+		return () => cancelAnimationFrame(frame);
 	});
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);

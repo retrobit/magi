@@ -1,5 +1,10 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName, ConsensusTranscriptEntry } from '$lib/magi/types';
+	import type {
+		MagiNodeName,
+		GatewayName,
+		ConsensusTranscriptEntry,
+		ScrollMode
+	} from '$lib/magi/types';
 	import {
 		MAGI_NODE_NAMES,
 		GATEWAY_LABELS,
@@ -47,7 +52,7 @@
 		consensusTemperament?: boolean;
 		temperamentAwareness?: boolean;
 		genericLabels?: boolean;
-		autoScroll?: boolean;
+		scrollMode?: ScrollMode;
 		disabled?: boolean;
 		onstrategychange?: (strategy: StrategyName) => void;
 		onconsensuschange?: (node: MagiNodeName) => void;
@@ -77,7 +82,7 @@
 		consensusTemperament = false,
 		temperamentAwareness = false,
 		genericLabels = false,
-		autoScroll = true,
+		scrollMode = 'follow',
 		disabled = false,
 		onstrategychange,
 		onconsensuschange,
@@ -96,11 +101,11 @@
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
 
-	// Streaming auto-scroll: follow the latest content while pinned to the
-	// bottom; a manual scroll up pauses it until the viewport returns there.
-	// A ResizeObserver on the content wrapper drives the follow — tracking the
-	// `text` prop would fire before Markdown's throttled render grew the DOM,
-	// so every scroll chased a stale height and never reached the bottom.
+	// Follow mode: track the latest content while pinned to the bottom; a manual
+	// scroll up pauses it until the viewport returns there. A ResizeObserver on
+	// the content wrapper drives the follow — tracking the `text` prop would fire
+	// before Markdown's throttled render grew the DOM, so every scroll chased a
+	// stale height and never reached the bottom.
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
@@ -113,10 +118,28 @@
 	$effect(() => {
 		if (!scrollEl || !contentEl) return;
 		const observer = new ResizeObserver(() => {
-			if (autoScroll && pinned && scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+			if (scrollMode === 'follow' && pinned && scrollEl) {
+				scrollEl.scrollTop = scrollEl.scrollHeight;
+			}
 		});
 		observer.observe(contentEl);
 		return () => observer.disconnect();
+	});
+
+	// Snap mode: once the consensus finishes, jump so the latest turn block sits
+	// at the top of the panel — a clean reading start rather than the tail.
+	$effect(() => {
+		if (scrollMode !== 'snap' || !fullText) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const frame = requestAnimationFrame(() => {
+			const block = content.lastElementChild;
+			if (block) {
+				el.scrollTop += block.getBoundingClientRect().top - el.getBoundingClientRect().top;
+			}
+		});
+		return () => cancelAnimationFrame(frame);
 	});
 
 	const gradientStyle = CONSENSUS_GRADIENT;

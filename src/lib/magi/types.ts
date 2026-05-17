@@ -88,6 +88,11 @@ export function contextUsageClass(used: number, window: number | undefined): str
 	return 'text-gray-500';
 }
 
+/** How a panel reacts to streamed content. `off` — never moves. `follow` —
+ *  pins to the newest text while scrolled to the bottom. `snap` — jumps to the
+ *  start of the latest response once that response finishes. */
+export type ScrollMode = 'off' | 'follow' | 'snap';
+
 /** Token usage for a single model call. `cachedTokens` is the slice of
  *  `inputTokens` served from a prompt cache — present only for gateways that
  *  report it (Anthropic, OpenAI). Optional for back-compat with persisted turns. */

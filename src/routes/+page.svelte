@@ -18,7 +18,8 @@
 		type ConversationTurn,
 		type TurnUsage,
 		type NodeTranscriptEntry,
-		type ConsensusTranscriptEntry
+		type ConsensusTranscriptEntry,
+		type ScrollMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
@@ -91,7 +92,7 @@
 	let temperamentAwareness = $state(false);
 	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
-	let autoScroll = $state(true);
+	let scrollMode = $state<ScrollMode>('follow');
 
 	// Multi-turn conversation — completed turns for the active tier, plus the
 	// in-flight turn's query and streaming token usage.
@@ -880,7 +881,7 @@
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
 					{genericLabels}
-					{autoScroll}
+					{scrollMode}
 					disabled={loading}
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
@@ -913,7 +914,7 @@
 				{consensusTemperament}
 				{temperamentAwareness}
 				{genericLabels}
-				{autoScroll}
+				{scrollMode}
 				disabled={loading}
 				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
@@ -983,18 +984,26 @@
 			<span class="mt-3 text-xs font-medium text-gray-400">Auto-scroll</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {autoScroll
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
-					onclick={() => (autoScroll = true)}
+					onclick={() => (scrollMode = 'follow')}
 				>
-					On
+					Follow
 				</button>
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {!autoScroll
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
-					onclick={() => (autoScroll = false)}
+					onclick={() => (scrollMode = 'snap')}
+				>
+					Snap to top
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (scrollMode = 'off')}
 				>
 					Off
 				</button>
