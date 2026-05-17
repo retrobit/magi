@@ -15,6 +15,7 @@
 	} from '$lib/magi/types';
 	import { STRATEGY_NAMES, STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus';
 	import Markdown from './Markdown.svelte';
+	import TokenCount from './TokenCount.svelte';
 	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
 
 	let copied = $state(false);
@@ -82,6 +83,10 @@
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
+	// Cumulative consensus tokens: every completed turn plus the live turn.
+	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
+	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
+
 	const gradientStyle = CONSENSUS_GRADIENT;
 
 	const synthesisLabel = $derived.by(() => {
@@ -105,7 +110,7 @@
 {#snippet tokenFooter(input: number, output: number)}
 	{#if input > 0 || output > 0}
 		<p class="magi-token-split text-[10px] text-gray-400">
-			↑{input.toLocaleString()} ↓{output.toLocaleString()}
+			<TokenCount {input} {output} />
 		</p>
 	{/if}
 {/snippet}
@@ -129,6 +134,11 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
+				{#if totalInput > 0 || totalOutput > 0}
+					<span class="text-[10px] text-gray-400" title="Tokens this conversation">
+						<TokenCount input={totalInput} output={totalOutput} />
+					</span>
+				{/if}
 				{#if contextWindow && contextUsed > 0}
 					<span
 						class="text-[10px] {contextClass}"

@@ -18,6 +18,7 @@
 		isRouter
 	} from '$lib/magi/types';
 	import Markdown from './Markdown.svelte';
+	import TokenCount from './TokenCount.svelte';
 	import {
 		Shuffle,
 		CircleAlert,
@@ -87,6 +88,10 @@
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
+
+	// Cumulative tokens for this node: every completed turn plus the live turn.
+	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
+	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
 
@@ -162,7 +167,7 @@
 {#snippet tokenFooter(input: number, output: number)}
 	{#if input > 0 || output > 0}
 		<p class="magi-token-split text-[10px] text-gray-400">
-			↑{input.toLocaleString()} ↓{output.toLocaleString()}
+			<TokenCount {input} {output} />
 		</p>
 	{/if}
 {/snippet}
@@ -191,6 +196,11 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
+				{#if totalInput > 0 || totalOutput > 0}
+					<span class="text-[10px] text-gray-400" title="Tokens this conversation">
+						<TokenCount input={totalInput} output={totalOutput} />
+					</span>
+				{/if}
 				{#if contextWindow && contextUsed > 0}
 					<span
 						class="text-[10px] {contextClass}"

@@ -3,6 +3,7 @@
 	import TierSelector from '$lib/components/TierSelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
+	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
@@ -763,10 +764,8 @@
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
 					<span class="text-gray-600">·</span>
-					<span class="magi-token-total font-mono text-gray-600">
-						<span class="text-gray-500">↑</span>{conversationUsage.input.toLocaleString()}
-						<span class="text-gray-500">↓</span>{conversationUsage.output.toLocaleString()}
-						<span class="text-gray-600">({conversationUsage.total.toLocaleString()} tokens)</span>
+					<span class="magi-token-total text-gray-500">
+						<TokenCount input={conversationUsage.input} output={conversationUsage.output} total />
 					</span>
 					{#if contextWarnings.length > 0}
 						<span class="flex items-center gap-1 text-amber-400">
