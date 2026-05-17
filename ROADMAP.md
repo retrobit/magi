@@ -2,13 +2,6 @@
 
 Planned features, improvements, and known items for the MAGI project.
 
-## Recently shipped
-
-- **Multi-turn conversation** — Follow-up queries with per-node own-thread context and a consensus thread; scrollable per-turn transcripts; conversations persist per-tier in `localStorage`.
-- **Token tracking** — Per-node input/output counts, cumulative totals, and per-model context-window budget gauges with warnings.
-- **Per-node model persistence** — Custom node/model assignments saved per tier and restored across sessions.
-- **UI polish** — Light-theme contrast pass, background "off" option, consistent error cards, mobile panel height caps.
-
 ## Consensus Strategies
 
 - **Structured Voting** — Each model scores the other two responses; majority wins.
@@ -19,14 +12,12 @@ Planned features, improvements, and known items for the MAGI project.
 - **CI pipeline** — Automated test, lint, and type-check on pull requests.
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
 - **Observability** — Structured logging and per-model latency metrics.
-- **Test coverage** — `persistence.ts`, `rate-limit.ts`, and the `history` validation schema are currently untested; component and API-route coverage is absent.
+- **Test coverage** — Component and API-route (`/api/magi`) coverage is absent; only library modules are unit-tested.
 - **Dev debug panel** — A dev-only panel to inject model errors and inflate token counts, for exercising error and context-limit UI states.
 
 ## UI / UX
 
-- **Syntax highlighting** — Add code block syntax highlighting in model panel markdown rendering.
 - **Loading progress summary** — A consolidated "2/3 models responded" indicator visible at a glance, complementing the per-panel status icons.
-- **Streaming auto-scroll** — Optionally keep node and consensus panels pinned to the latest streamed text (toggleable).
 - **Mobile layout** — Panels stack and scroll with a height cap on narrow viewports; further polish (typography, spacing) still welcome.
 
 ## Model Management

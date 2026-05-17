@@ -26,6 +26,7 @@ import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
 import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
+import { logEvent, startTimer } from '$lib/server/logger';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
@@ -77,17 +78,8 @@ function buildNodeMessages(
 	return messages;
 }
 
-function log(message: string, level: 'info' | 'error' = 'info') {
-	const ts = new Date().toISOString().slice(11, 23);
-	const prefix = `[MAGI ${ts}]`;
-	if (level === 'error') {
-		console.error(prefix, message);
-	} else {
-		console.log(prefix, message);
-	}
-}
-
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const requestTimer = startTimer();
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
 	if (env.MAGI_API_KEY) {
 		const authHeader = request.headers.get('authorization');
@@ -108,7 +100,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	}
 
 	const body = await request.json().catch((err: unknown) => {
-		console.error('[MAGI] Failed to parse request body:', err);
+		logEvent('error', 'request.parse_failed', {
+			error: err instanceof Error ? err.message : String(err)
+		});
 		return null;
 	});
 	if (!body) {
@@ -136,7 +130,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		history = []
 	} = parsed.data;
 
-	log(`request: tier=${tier} strategy=${strategyName} temperaments=${useTemperaments ?? false}`);
+	logEvent('info', 'request', {
+		tier,
+		strategy: strategyName,
+		temperaments: useTemperaments ?? false,
+		priorTurns: history.length
+	});
 
 	// Use client assignments if provided, otherwise fall back to tier preset
 	let config: MagiConfig;
@@ -257,7 +256,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// Emit model-error immediately for unhealthy nodes (no API call)
 				for (const h of nodeHealth) {
 					if (!h.healthy) {
-						log(`${h.node} unhealthy: ${h.reason}`, 'error');
+						logEvent('warn', 'node.unhealthy', {
+							node: h.node,
+							model: h.modelId,
+							reason: h.reason
+						});
 						send('model-error', {
 							node: h.node,
 							gateway: h.gateway,
@@ -270,16 +273,16 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const healthyNodes = nodeHealth.filter((h) => h.healthy);
 
 				if (healthyNodes.length === 0) {
-					log('all models unhealthy — aborting', 'error');
+					logEvent('error', 'request.aborted', { reason: 'all models unhealthy' });
 					send('error', { message: 'All three models are unavailable' });
 					close();
 					return;
 				}
 
 				// Phase 1: Dispatch only to healthy MAGI nodes in parallel (streaming)
-				log(
-					`dispatching to nodes: ${healthyNodes.map((c) => `${c.node}/${c.modelId}`).join(', ')}`
-				);
+				logEvent('info', 'phase1.dispatch', {
+					nodes: healthyNodes.map((c) => `${c.node}/${c.modelId}`).join(',')
+				});
 				const results = await Promise.allSettled(
 					healthyNodes.map(async ({ node, gateway, provider, modelId }) => {
 						try {
@@ -300,7 +303,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							}
 							// Cache the replayed thread — a no-op for non-Anthropic gateways.
 							markCacheBreakpoint(messages);
-							log(`${node} starting (${modelId}, ${history.length} prior turns)`);
+							const nodeTimer = startTimer();
+							let ttftMs: number | null = null;
 							const result = streamText({
 								model,
 								...(useSystem && { system: temperamentPrompt }),
@@ -309,15 +313,22 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							});
 							let fullText = '';
 							for await (const chunk of result.textStream) {
+								ttftMs ??= nodeTimer();
 								fullText += chunk;
 								send('model-chunk', { node, text: chunk });
 							}
 							const usage = await result.usage;
 							const cached = usage.cachedInputTokens ?? 0;
-							log(
-								`${node} complete (${fullText.length} chars, ${usage.totalTokens ?? '?'} tokens` +
-									`${cached ? `, ${cached} cached` : ''})`
-							);
+							logEvent('info', 'node.complete', {
+								node,
+								model: modelId,
+								ttftMs: ttftMs ?? nodeTimer(),
+								totalMs: nodeTimer(),
+								inputTokens: usage.inputTokens ?? 0,
+								outputTokens: usage.outputTokens ?? 0,
+								cachedTokens: cached,
+								chars: fullText.length
+							});
 							const response: MagiResponse = { node, gateway, provider, text: fullText };
 							send('model-response', response);
 							send('model-usage', {
@@ -334,7 +345,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								throw err;
 							}
 							const message = extractErrorMessage(err);
-							log(`${node} failed: ${message}`, 'error');
+							logEvent('error', 'node.failed', { node, model: modelId, error: message });
 							markUnhealthy(modelId, message);
 							send('model-error', { node, gateway, provider, error: message });
 							throw err;
@@ -348,19 +359,24 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				const totalNodes = config.length;
 
-				log(
-					`phase 1 complete: ${responses.length} responded, ${nodeHealth.filter((h) => !h.healthy).length} skipped (unhealthy)`
-				);
+				logEvent('info', 'phase1.complete', {
+					responded: responses.length,
+					skipped: nodeHealth.filter((h) => !h.healthy).length,
+					elapsedMs: requestTimer()
+				});
 
 				if (responses.length === 0) {
-					log('all dispatched models failed — aborting', 'error');
+					logEvent('error', 'request.aborted', { reason: 'all dispatched models failed' });
 					send('error', { message: 'All models failed to respond' });
 					close();
 					return;
 				}
 
 				if (responses.length < totalNodes) {
-					log(`partial consensus: ${responses.length}/${totalNodes}`);
+					logEvent('warn', 'consensus.partial', {
+						responded: responses.length,
+						total: totalNodes
+					});
 					send('partial-consensus', {
 						responded: responses.length,
 						total: totalNodes
@@ -368,8 +384,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				}
 
 				// Phase 2: Stream consensus synthesis
-				log(`consensus starting (${strategyName} via ${config[consensusNodeIndex].node})`);
 				const consensusStrategy = getStrategy(strategyName);
+				const consensusSeat = config[consensusNodeIndex];
 				const ctx: ConsensusContext = {
 					responses,
 					query,
@@ -383,15 +399,28 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					signal: abortController.signal
 				};
 
+				const consensusTimer = startTimer();
+				let consensusTtftMs: number | null = null;
 				for await (const event of consensusStrategy.execute(ctx)) {
 					switch (event.type) {
 						case 'text-delta':
+							consensusTtftMs ??= consensusTimer();
 							send('consensus-chunk', { text: event.text });
 							break;
 						case 'complete':
 							send('consensus-complete', { text: event.fullText });
 							break;
 						case 'usage':
+							logEvent('info', 'consensus.complete', {
+								strategy: strategyName,
+								node: consensusSeat.node,
+								model: consensusSeat.modelId,
+								ttftMs: consensusTtftMs ?? consensusTimer(),
+								totalMs: consensusTimer(),
+								inputTokens: event.inputTokens,
+								outputTokens: event.outputTokens,
+								cachedTokens: event.cachedInputTokens
+							});
 							send('consensus-usage', {
 								inputTokens: event.inputTokens,
 								outputTokens: event.outputTokens,
@@ -400,7 +429,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							break;
 					}
 				}
+				logEvent('info', 'request.complete', { elapsedMs: requestTimer() });
 			} catch (err) {
+				logEvent('error', 'request.failed', {
+					error: err instanceof Error ? err.message : String(err),
+					elapsedMs: requestTimer()
+				});
 				send('error', {
 					message: err instanceof Error ? err.message : 'Internal server error'
 				});
