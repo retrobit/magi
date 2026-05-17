@@ -88,10 +88,13 @@ export function contextUsageClass(used: number, window: number | undefined): str
 	return 'text-gray-500';
 }
 
-/** Token usage for a single model call. */
+/** Token usage for a single model call. `cachedTokens` is the slice of
+ *  `inputTokens` served from a prompt cache — present only for gateways that
+ *  report it (Anthropic, OpenAI). Optional for back-compat with persisted turns. */
 export interface TurnUsage {
 	inputTokens: number;
 	outputTokens: number;
+	cachedTokens?: number;
 }
 
 /** One completed conversation turn — the unit of multi-turn history. */
@@ -112,6 +115,7 @@ export interface NodeTranscriptEntry {
 	error: string;
 	inputTokens: number;
 	outputTokens: number;
+	cachedTokens: number;
 }
 
 /** A completed turn as rendered in the consensus transcript. */
@@ -120,6 +124,7 @@ export interface ConsensusTranscriptEntry {
 	consensus: string;
 	inputTokens: number;
 	outputTokens: number;
+	cachedTokens: number;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {

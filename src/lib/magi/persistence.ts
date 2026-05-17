@@ -31,7 +31,8 @@ export interface MagiPrefs {
 // agree on what a node assignment is.
 const turnUsageSchema = z.object({
 	inputTokens: z.number(),
-	outputTokens: z.number()
+	outputTokens: z.number(),
+	cachedTokens: z.number().optional()
 });
 
 // Per-node maps use string keys, not `z.enum`: a `z.record` keyed by an enum

@@ -323,7 +323,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							send('model-usage', {
 								node,
 								inputTokens: usage.inputTokens ?? 0,
-								outputTokens: usage.outputTokens ?? 0
+								outputTokens: usage.outputTokens ?? 0,
+								cachedInputTokens: cached
 							});
 							return response;
 						} catch (err) {
@@ -393,7 +394,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						case 'usage':
 							send('consensus-usage', {
 								inputTokens: event.inputTokens,
-								outputTokens: event.outputTokens
+								outputTokens: event.outputTokens,
+								cachedInputTokens: event.cachedInputTokens
 							});
 							break;
 					}

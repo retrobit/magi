@@ -279,7 +279,8 @@
 				response: turn.nodeResponses[node] ?? '',
 				error: turn.nodeErrors[node] ?? '',
 				inputTokens: u?.inputTokens ?? 0,
-				outputTokens: u?.outputTokens ?? 0
+				outputTokens: u?.outputTokens ?? 0,
+				cachedTokens: u?.cachedTokens ?? 0
 			};
 		});
 	}
@@ -289,7 +290,8 @@
 			query: turn.query,
 			consensus: turn.consensus,
 			inputTokens: turn.consensusUsage?.inputTokens ?? 0,
-			outputTokens: turn.consensusUsage?.outputTokens ?? 0
+			outputTokens: turn.consensusUsage?.outputTokens ?? 0,
+			cachedTokens: turn.consensusUsage?.cachedTokens ?? 0
 		}))
 	);
 
@@ -667,11 +669,12 @@
 		'partial-consensus': ({ responded, total }) => {
 			live.consensusWarning = `Only ${responded} of ${total} models responded — consensus is based on partial data.`;
 		},
-		'model-usage': ({ node, inputTokens, outputTokens }) => {
-			if (node in live.modelStreams) liveNodeUsage[node] = { inputTokens, outputTokens };
+		'model-usage': ({ node, inputTokens, outputTokens, cachedInputTokens }) => {
+			if (node in live.modelStreams)
+				liveNodeUsage[node] = { inputTokens, outputTokens, cachedTokens: cachedInputTokens };
 		},
-		'consensus-usage': ({ inputTokens, outputTokens }) => {
-			liveConsensusUsage = { inputTokens, outputTokens };
+		'consensus-usage': ({ inputTokens, outputTokens, cachedInputTokens }) => {
+			liveConsensusUsage = { inputTokens, outputTokens, cachedTokens: cachedInputTokens };
 		},
 		error: ({ message }) => {
 			live.error = message;
@@ -868,6 +871,7 @@
 					liveQuery={activeTurnQuery}
 					liveInput={liveNodeUsage[assignment.node]?.inputTokens ?? 0}
 					liveOutput={liveNodeOutputs[assignment.node].tokens}
+					liveCached={liveNodeUsage[assignment.node]?.cachedTokens ?? 0}
 					liveEstimated={liveNodeOutputs[assignment.node].estimated}
 					contextUsed={latestNodeInput(assignment.node)}
 					contextWindow={modelContextWindow(assignment.modelId)}
@@ -892,6 +896,7 @@
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
 				liveOutput={liveConsensusOutput.tokens}
+				liveCached={liveConsensusUsage?.cachedTokens ?? 0}
 				liveEstimated={liveConsensusOutput.estimated}
 				contextUsed={latestConsensusInput()}
 				contextWindow={modelContextWindow(consensusAssignment.modelId)}

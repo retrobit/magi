@@ -35,6 +35,7 @@
 		liveQuery?: string;
 		liveInput?: number;
 		liveOutput?: number;
+		liveCached?: number;
 		liveEstimated?: boolean;
 		contextUsed?: number;
 		contextWindow?: number;
@@ -64,6 +65,7 @@
 		liveQuery = '',
 		liveInput = 0,
 		liveOutput = 0,
+		liveCached = 0,
 		liveEstimated = false,
 		contextUsed = 0,
 		contextWindow,
@@ -90,6 +92,7 @@
 	// Cumulative consensus tokens: every completed turn plus the live turn.
 	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
 	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
+	const totalCached = $derived(transcript.reduce((sum, t) => sum + t.cachedTokens, 0) + liveCached);
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
 
@@ -162,9 +165,16 @@
 						{#if showTokens}
 							<span
 								class={showContext ? 'hidden group-hover:inline' : ''}
-								title="Tokens this conversation"
+								title="Tokens this conversation{totalCached > 0
+									? ` — ⚡${formatTokenCount(totalCached)} prompt-cached`
+									: ''}"
 							>
-								<TokenCount input={totalInput} output={totalOutput} estimated={liveEstimated} />
+								<TokenCount
+									input={totalInput}
+									output={totalOutput}
+									cached={totalCached}
+									estimated={liveEstimated}
+								/>
 							</span>
 						{/if}
 						{#if showTokens && showContext}

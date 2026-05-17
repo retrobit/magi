@@ -107,7 +107,8 @@ Do NOT simply concatenate or summarize the responses. Produce a unified answer t
 		yield {
 			type: 'usage',
 			inputTokens: usage.inputTokens ?? 0,
-			outputTokens: usage.outputTokens ?? 0
+			outputTokens: usage.outputTokens ?? 0,
+			cachedInputTokens: usage.cachedInputTokens ?? 0
 		};
 	}
 };

@@ -10,11 +10,16 @@ export interface StreamEventPayloads {
 	'model-chunk': { node: MagiNodeName; text: string };
 	'model-response': MagiResponse;
 	'model-error': { node: MagiNodeName; gateway: GatewayName; provider: string; error: string };
-	'model-usage': { node: MagiNodeName; inputTokens: number; outputTokens: number };
+	'model-usage': {
+		node: MagiNodeName;
+		inputTokens: number;
+		outputTokens: number;
+		cachedInputTokens: number;
+	};
 	'partial-consensus': { responded: number; total: number };
 	'consensus-chunk': { text: string };
 	'consensus-complete': { text: string };
-	'consensus-usage': { inputTokens: number; outputTokens: number };
+	'consensus-usage': { inputTokens: number; outputTokens: number; cachedInputTokens: number };
 	error: { message: string };
 }
 
