@@ -8,7 +8,7 @@ import {
 	type MagiNodeName
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
-import { markCacheBreakpoint } from '$lib/server/prompt-cache';
+import { markCacheBreakpoint } from '../prompt-cache';
 
 export const synthesisStrategy: ConsensusStrategy = {
 	name: 'synthesis',

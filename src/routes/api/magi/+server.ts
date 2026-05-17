@@ -25,7 +25,7 @@ import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
 import { getOpenRouterFreeModels } from '$lib/server/openrouter';
-import { markCacheBreakpoint } from '$lib/server/prompt-cache';
+import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { timingSafeEqual } from 'node:crypto';
 
 // Validate hardcoded configs once at module load
