@@ -38,6 +38,15 @@ graph TD
 3. **Consensus synthesis** — Once all three responses are in, the consensus engine streams a unified answer via `streamText()` that identifies agreements, resolves disagreements, and flags remaining uncertainty.
 4. **Partial consensus** — If one or two models fail, the system proceeds with the available responses and warns the user that consensus is based on partial data.
 
+## 🎨 UI Features
+
+- **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
+- **Background variants** — Choose between animated RGB columns or orbs (settings menu).
+- **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
+- **Random prompts** — Click Execute with an empty input to submit a random thought-provoking question.
+- **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input.
+- **Responsive layout** — Panels stack vertically on narrow viewports with scrolling; desktop uses a fixed side-by-side layout.
+
 ## 🎭 Temperaments
 
 Each MAGI node has an optional **temperament** — a dispositional lens that shapes how it approaches a query. When enabled, each node receives a system prompt that steers its reasoning style:
@@ -55,6 +64,15 @@ Each MAGI node has an optional **temperament** — a dispositional lens that sha
 Temperaments are **off by default** and can be toggled via the 🧠 button in the UI header or the `temperaments: true` flag in the API request body. When disabled, all three nodes respond without any system prompt, giving raw model output.
 
 > **Note:** For direct-API models (Anthropic, OpenAI, Google), temperaments are sent as a native `system` message. For OpenRouter models, the temperament is prepended to the user prompt instead — OpenRouter's free-tier models do not reliably support the `system` role, and their API provides no way to detect support per model.
+
+### Consensus Temperament & Awareness
+
+When temperaments are enabled, two additional controls appear in the consensus panel:
+
+- **Temperament** — Gives the synthesis model its own dispositional lens (based on the selected consensus node). A Rationalist synthesizer prioritizes logic; a Caretaker weighs human cost; an Individualist gives bold takes.
+- **Temperament awareness** — Tells the synthesizer that each response came from a different lens, so it can surface _why_ perspectives diverge rather than just noting disagreements.
+
+Both are independent toggles and off by default.
 
 ## 🎚️ Model Tiers
 
@@ -196,14 +214,17 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 }
 ```
 
-| Field           | Type    | Required | Values                                                                                                                          |
-| --------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `query`         | string  | Yes      | 1–10,000 characters                                                                                                             |
-| `tier`          | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
-| `strategy`      | string  | Yes      | `synthesis`                                                                                                                     |
-| `consensusNode` | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
-| `assignments`   | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
-| `temperaments`  | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
+| Field                  | Type    | Required | Values                                                                                                                          |
+| ---------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `query`                | string  | Yes      | 1–10,000 characters                                                                                                             |
+| `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
+| `strategy`             | string  | Yes      | `synthesis`                                                                                                                     |
+| `consensusNode`        | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
+| `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
+| `temperaments`         | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
+| `consensusTemperament` | boolean | No       | Give the consensus synthesizer its own dispositional lens (based on `consensusNode`). Defaults to `false`.                      |
+| `temperamentAwareness` | boolean | No       | Tell the synthesizer about each node's dispositional lens so it can surface _why_ they diverge. Defaults to `false`.            |
+| `genericLabels`        | boolean | No       | Use generic labels (MAGI 1/2/3) in consensus prompts instead of proper names (MELCHIOR/BALTHASAR/CASPAR). Defaults to `true`.   |
 
 **SSE events:**
 

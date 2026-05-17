@@ -2,12 +2,6 @@
 
 Planned features, improvements, and known items for the MAGI project.
 
-## Developer Experience / Code Quality
-
-- **Svelte 5 reactivity** — Replace `Map` and `Set` usage in `+page.svelte` (`tierCache`, `configuredNodes`) with `SvelteMap` and `SvelteSet` for idiomatic Svelte 5 fine-grained reactivity.
-- **Unused imports** — Clean up `ModelEntry` in `MagiPanel.svelte` and `TIER_NAMES` in `TierSelector.svelte`.
-- **`{@html}` ESLint suppression** — Add an inline disable comment for the intentional `{@html}` in `Markdown.svelte` (content is sanitized via DOMPurify).
-
 ## Consensus Strategies
 
 - **Structured Voting** — Each model scores the other two responses; majority wins.
@@ -19,16 +13,11 @@ Planned features, improvements, and known items for the MAGI project.
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
 - **Observability** — Structured logging and per-model latency metrics.
 
-## Temperaments
-
-- **Consensus awareness** — Optionally tell the synthesis model that responses came from different dispositional lenses, so it can surface _why_ perspectives diverge (e.g. "the Rationalist and Individualist agree, but the Caretaker flags a human cost"). Would need its own toggle to avoid biasing the synthesizer.
-
 ## UI / UX
 
 - **Conversation history** — Persist past queries and responses across sessions (localStorage or DB) so users can scroll back through prior MAGI interactions.
 - **Conversation context** — Send prior turns to the models so they can reference earlier exchanges, turning MAGI into a multi-turn chat rather than isolated one-shots. The UI would show alternating user prompts and consensus responses; node panels show the three individual responses for the current turn only. **Caveats:** token usage multiplies ×3 per turn across all models, so this should be togglable (one-shot vs. retain context), warn the user about cumulative cost, and enforce a configurable cap on the number of retained rounds.
 - **Syntax highlighting** — Add code block syntax highlighting in model panel markdown rendering.
-- **Dark/light theme** — Toggle between dark and light themes.
 - **Loading progress summary** — A consolidated "2/3 models responded" indicator visible at a glance, complementing the per-panel status icons.
 - **Mobile layout** — Improve panel layout on narrow viewports (currently cramped on mobile).
 
