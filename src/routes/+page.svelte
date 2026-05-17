@@ -375,8 +375,11 @@
 		saveConversations(conversationsByTier);
 	});
 
-	function saveTierSnapshot() {
-		tierCache.set(tier, {
+	// Capture and restore the full per-tier snapshot. Kept as a symmetric
+	// pair so a new field is added to both sides at once, not threaded
+	// through twelve scattered assignments.
+	function captureTierSnapshot(): TierSnapshot {
+		return {
 			responses,
 			modelStreams: { ...modelStreams },
 			modelErrors,
@@ -389,25 +392,33 @@
 			configuredNodes: new Set(configuredNodes),
 			consensusNode,
 			conversation: [...conversation]
-		});
+		};
+	}
+
+	function applyTierSnapshot(snap: TierSnapshot) {
+		responses = snap.responses;
+		modelStreams = { ...snap.modelStreams };
+		modelErrors = snap.modelErrors;
+		consensusStream = snap.consensusStream;
+		consensusFinal = snap.consensusFinal;
+		consensusWarning = snap.consensusWarning;
+		error = snap.error;
+		streamDone = snap.streamDone;
+		assignments = [...snap.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
+		configuredNodes.clear();
+		for (const v of snap.configuredNodes) configuredNodes.add(v);
+		consensusNode = snap.consensusNode;
+		conversation = snap.conversation;
+	}
+
+	function saveTierSnapshot() {
+		tierCache.set(tier, captureTierSnapshot());
 	}
 
 	function loadTierSnapshot(t: TierName) {
 		const cached = tierCache.get(t);
 		if (cached) {
-			responses = cached.responses;
-			modelStreams = { ...cached.modelStreams };
-			modelErrors = cached.modelErrors;
-			consensusStream = cached.consensusStream;
-			consensusFinal = cached.consensusFinal;
-			consensusWarning = cached.consensusWarning;
-			error = cached.error;
-			streamDone = cached.streamDone;
-			assignments = [...cached.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
-			configuredNodes.clear();
-			for (const v of cached.configuredNodes) configuredNodes.add(v);
-			consensusNode = cached.consensusNode;
-			conversation = cached.conversation;
+			applyTierSnapshot(cached);
 		} else {
 			resetLiveState();
 			configuredNodes.clear();
