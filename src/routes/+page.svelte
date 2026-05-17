@@ -70,7 +70,7 @@
 	let settingsOpen = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
-	let bgVariant = $state<'columns' | 'orbs'>('columns');
+	let bgVariant = $state<'columns' | 'orbs'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
 
 	function copyQuery() {
@@ -618,18 +618,18 @@
 			<span class="mt-3 text-xs font-medium text-gray-400">Background</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
-						? 'bg-gray-600 text-white'
-						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
-					onclick={() => (bgVariant = 'columns')}
-				>
-					Columns
-				</button>
-				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
 					onclick={() => (bgVariant = 'orbs')}
+				>
+					Orbs
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (bgVariant = 'columns')}
 				>
 					Orbs
 				</button>
