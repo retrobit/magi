@@ -1,5 +1,11 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName, TemperamentName, AvailableModel } from '$lib/magi/types';
+	import type {
+		MagiNodeName,
+		GatewayName,
+		TemperamentName,
+		AvailableModel,
+		NodeTranscriptEntry
+	} from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
 		NODE_HEX_COLORS,
@@ -40,13 +46,7 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
-		transcript?: {
-			query: string;
-			response: string;
-			error: string;
-			inputTokens: number;
-			outputTokens: number;
-		}[];
+		transcript?: NodeTranscriptEntry[];
 		liveQuery?: string;
 		liveInput?: number;
 		liveOutput?: number;
@@ -157,6 +157,14 @@
 		<p class="text-sm font-medium text-red-400">Model unavailable</p>
 		<p class="text-xs text-gray-500">{message}</p>
 	</div>
+{/snippet}
+
+{#snippet tokenFooter(input: number, output: number)}
+	{#if input > 0 || output > 0}
+		<p class="magi-token-split text-[10px] text-gray-400">
+			↑{input.toLocaleString()} ↓{output.toLocaleString()}
+		</p>
+	{/if}
 {/snippet}
 
 <div
@@ -310,11 +318,7 @@
 					{:else}
 						<p class="text-sm text-gray-600">No response</p>
 					{/if}
-					{#if turn.inputTokens > 0 || turn.outputTokens > 0}
-						<p class="magi-token-split text-[10px] text-gray-400">
-							↑{turn.inputTokens.toLocaleString()} ↓{turn.outputTokens.toLocaleString()}
-						</p>
-					{/if}
+					{@render tokenFooter(turn.inputTokens, turn.outputTokens)}
 				</div>
 			{/each}
 			{#if liveQuery}
@@ -337,11 +341,7 @@
 					{:else}
 						<p class="text-sm text-gray-500">Thinking...</p>
 					{/if}
-					{#if liveInput > 0 || liveOutput > 0}
-						<p class="magi-token-split text-[10px] text-gray-400">
-							↑{liveInput.toLocaleString()} ↓{liveOutput.toLocaleString()}
-						</p>
-					{/if}
+					{@render tokenFooter(liveInput, liveOutput)}
 				</div>
 			{/if}
 		{/if}

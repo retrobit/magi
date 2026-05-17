@@ -14,7 +14,9 @@
 		type AvailableModel,
 		type MagiResponse,
 		type ConversationTurn,
-		type TurnUsage
+		type TurnUsage,
+		type NodeTranscriptEntry,
+		type ConsensusTranscriptEntry
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
@@ -215,12 +217,12 @@
 	// Per-node transcripts — one entry per completed turn, for each node. Derived
 	// once from `conversation` so streaming chunks don't rebuild all three.
 	const nodeTranscripts = $derived.by(() => {
-		const byNode = {} as Record<MagiNodeName, ReturnType<typeof buildNodeTranscript>>;
+		const byNode = {} as Record<MagiNodeName, NodeTranscriptEntry[]>;
 		for (const node of MAGI_NODE_NAMES) byNode[node] = buildNodeTranscript(node);
 		return byNode;
 	});
 
-	function buildNodeTranscript(node: MagiNodeName) {
+	function buildNodeTranscript(node: MagiNodeName): NodeTranscriptEntry[] {
 		return conversation.map((turn) => {
 			const u = turn.nodeUsage[node];
 			return {
@@ -233,7 +235,7 @@
 		});
 	}
 
-	const consensusTranscript = $derived(
+	const consensusTranscript: ConsensusTranscriptEntry[] = $derived(
 		conversation.map((turn) => ({
 			query: turn.query,
 			consensus: turn.consensus,

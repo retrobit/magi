@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MagiNodeName, GatewayName } from '$lib/magi/types';
+	import type { MagiNodeName, GatewayName, ConsensusTranscriptEntry } from '$lib/magi/types';
 	import {
 		MAGI_NODE_NAMES,
 		GATEWAY_LABELS,
@@ -30,12 +30,7 @@
 		loading: boolean;
 		allModelsResponded: boolean;
 		warning?: string;
-		transcript?: {
-			query: string;
-			consensus: string;
-			inputTokens: number;
-			outputTokens: number;
-		}[];
+		transcript?: ConsensusTranscriptEntry[];
 		liveQuery?: string;
 		liveInput?: number;
 		liveOutput?: number;
@@ -106,6 +101,14 @@
 		onconsensuschange?.(node);
 	}
 </script>
+
+{#snippet tokenFooter(input: number, output: number)}
+	{#if input > 0 || output > 0}
+		<p class="magi-token-split text-[10px] text-gray-400">
+			↑{input.toLocaleString()} ↓{output.toLocaleString()}
+		</p>
+	{/if}
+{/snippet}
 
 <div
 	class="magi-panel flex h-full max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {loading &&
@@ -250,11 +253,7 @@
 					{:else}
 						<p class="text-sm text-gray-600">No consensus</p>
 					{/if}
-					{#if turn.inputTokens > 0 || turn.outputTokens > 0}
-						<p class="magi-token-split text-[10px] text-gray-400">
-							↑{turn.inputTokens.toLocaleString()} ↓{turn.outputTokens.toLocaleString()}
-						</p>
-					{/if}
+					{@render tokenFooter(turn.inputTokens, turn.outputTokens)}
 				</div>
 			{/each}
 			{#if liveQuery}
@@ -281,11 +280,7 @@
 					{:else}
 						<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
 					{/if}
-					{#if liveInput > 0 || liveOutput > 0}
-						<p class="magi-token-split text-[10px] text-gray-400">
-							↑{liveInput.toLocaleString()} ↓{liveOutput.toLocaleString()}
-						</p>
-					{/if}
+					{@render tokenFooter(liveInput, liveOutput)}
 				</div>
 			{/if}
 		{/if}

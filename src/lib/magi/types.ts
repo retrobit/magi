@@ -98,6 +98,23 @@ export interface ConversationTurn {
 	consensusUsage?: TurnUsage;
 }
 
+/** A completed turn as rendered in a single node panel's transcript. */
+export interface NodeTranscriptEntry {
+	query: string;
+	response: string;
+	error: string;
+	inputTokens: number;
+	outputTokens: number;
+}
+
+/** A completed turn as rendered in the consensus transcript. */
+export interface ConsensusTranscriptEntry {
+	query: string;
+	consensus: string;
+	inputTokens: number;
+	outputTokens: number;
+}
+
 export const NODE_COLORS: Record<MagiNodeName, string> = {
 	MELCHIOR: 'border-red-500',
 	BALTHASAR: 'border-emerald-400',
