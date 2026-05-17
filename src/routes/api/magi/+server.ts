@@ -261,14 +261,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					healthyNodes.map(async ({ node, gateway, provider, modelId }) => {
 						try {
 							const model = getModel(gateway, modelId);
-							const systemPrompt = useTemperaments
+							const temperamentPrompt = useTemperaments
 								? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
 								: undefined;
+							// OpenRouter models may not support the system role —
+							// prepend temperament to the user prompt instead
+							const useSystem = temperamentPrompt && gateway !== 'openrouter';
+							const effectivePrompt =
+								temperamentPrompt && gateway === 'openrouter'
+									? `${temperamentPrompt}\n\n---\n\n${query}`
+									: query;
 							log(`${node} starting (${modelId})`);
 							const result = streamText({
 								model,
-								...(systemPrompt && { system: systemPrompt }),
-								prompt: query,
+								...(useSystem && { system: temperamentPrompt }),
+								prompt: effectivePrompt,
 
 								abortSignal: abortController.signal
 							});

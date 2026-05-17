@@ -54,6 +54,8 @@ Each MAGI node has an optional **temperament** — a dispositional lens that sha
 
 Temperaments are **off by default** and can be toggled via the 🧠 button in the UI header or the `temperaments: true` flag in the API request body. When disabled, all three nodes respond without any system prompt, giving raw model output.
 
+> **Note:** For direct-API models (Anthropic, OpenAI, Google), temperaments are sent as a native `system` message. For OpenRouter models, the temperament is prepended to the user prompt instead — OpenRouter's free-tier models do not reliably support the `system` role, and their API provides no way to detect support per model.
+
 ## 🎚️ Model Tiers
 
 Users can select a tier to control quality vs. cost:
