@@ -101,6 +101,10 @@
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
+	// Temperament awareness shapes only the synthesis writer — voting jurors
+	// already score through their own lens — so the toggle is inert for voting.
+	const awarenessApplies = $derived(strategy !== 'voting');
+
 	// Live loading-progress summary — how many of the MAGI have settled so far.
 	const waitingLabel = $derived.by(() => {
 		const parts = [`${respondedCount} / ${MAGI_NODE_NAMES.length} responded`];
@@ -318,12 +322,17 @@
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
 								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'}"
-							onclick={() => onawarenesschange(!temperamentAwareness)}
+								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} {awarenessApplies
+								? ''
+								: 'cursor-not-allowed opacity-40'}"
+							onclick={() => awarenessApplies && onawarenesschange(!temperamentAwareness)}
 							{disabled}
-							title={temperamentAwareness
-								? 'Temperament awareness active — synthesizer considers dispositional lenses'
-								: "Enable temperament awareness — tell the synthesizer about each node's dispositional lens"}
+							aria-disabled={!awarenessApplies}
+							title={!awarenessApplies
+								? 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
+								: temperamentAwareness
+									? 'Temperament awareness active — synthesizer considers dispositional lenses'
+									: "Enable temperament awareness — tell the synthesizer about each node's dispositional lens"}
 						>
 							<Brain size={12} />
 							Awareness {temperamentAwareness ? 'ON' : 'OFF'}
