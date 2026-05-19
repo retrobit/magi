@@ -35,6 +35,8 @@
 		fullText: string;
 		loading: boolean;
 		allModelsResponded: boolean;
+		respondedCount?: number;
+		erroredCount?: number;
 		warning?: string;
 		transcript?: ConsensusTranscriptEntry[];
 		liveQuery?: string;
@@ -65,6 +67,8 @@
 		fullText,
 		loading,
 		allModelsResponded,
+		respondedCount = 0,
+		erroredCount = 0,
 		warning = '',
 		transcript = [],
 		liveQuery = '',
@@ -91,6 +95,13 @@
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
+
+	// Live loading-progress summary — how many of the MAGI have settled so far.
+	const waitingLabel = $derived.by(() => {
+		const parts = [`${respondedCount} / ${MAGI_NODE_NAMES.length} responded`];
+		if (erroredCount > 0) parts.push(`${erroredCount} failed`);
+		return `Waiting for MAGI — ${parts.join(', ')}…`;
+	});
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
@@ -353,7 +364,7 @@
 							</p>
 						{/if}
 						{#if loading && !allModelsResponded}
-							<p class="text-sm text-gray-500">Waiting for MAGI responses...</p>
+							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
 							<p class="animate-pulse text-sm text-gray-500">Synthesizing consensus...</p>
 						{:else if text}

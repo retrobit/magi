@@ -4,6 +4,12 @@
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
+	import DebugPanel, {
+		freshDebugScenario,
+		isDebugScenarioActive,
+		type DebugScenario,
+		type ContextLevel
+	} from '$lib/components/DebugPanel.svelte';
 	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
 	import {
 		DEFAULT_TIER,
@@ -44,6 +50,7 @@
 		Copy,
 		Check,
 		Settings,
+		Bug,
 		MessageSquarePlus
 	} from 'lucide-svelte';
 
@@ -93,6 +100,8 @@
 	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('follow');
+	let debugOpen = $state(false);
+	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 
 	// Multi-turn conversation — completed turns for the active tier, plus the
 	// in-flight turn's query and streaming token usage.
@@ -525,6 +534,71 @@
 		liveConsensusUsage = undefined;
 	}
 
+	// --- Dev debug panel -----------------------------------------------------
+	// Injects synthetic error / context-limit UI states straight into the live
+	// turn, so those states can be exercised without making a real model call.
+	const DEBUG_QUERY = '[debug] UI state inspection';
+	const DEBUG_RESPONSE =
+		'Debug placeholder response — injected by the dev debug panel, no model was called.';
+	const DEBUG_CONSENSUS =
+		'Debug placeholder consensus — injected by the dev debug panel, no model was called.';
+	const DEBUG_NODE_ERROR = 'Debug: injected model failure (no real request was made).';
+	const DEBUG_GLOBAL_ERROR = 'Debug: injected global error banner.';
+	const DEBUG_PARTIAL = 'Only 2 of 3 models responded — consensus is based on partial data.';
+
+	// Token count that drives a model's context gauge into the requested band.
+	function debugContextTokens(modelId: string, level: ContextLevel): number {
+		const window = modelContextWindow(modelId) ?? 128_000;
+		const ratio = level === 'critical' ? 0.95 : level === 'warn' ? 0.8 : 0.1;
+		return Math.round(window * ratio);
+	}
+
+	function applyDebugScenario(scenario: DebugScenario) {
+		if (loading) return;
+		if (!isDebugScenarioActive(scenario)) {
+			activeTurnQuery = '';
+			resetLiveState();
+			return;
+		}
+		const next = freshLiveState();
+		const usage: Partial<Record<MagiNodeName, TurnUsage>> = {};
+		for (const a of assignments) {
+			if (scenario.nodeError[a.node]) {
+				next.modelErrors.push({
+					node: a.node,
+					gateway: a.gateway,
+					provider: a.provider,
+					error: DEBUG_NODE_ERROR
+				});
+			} else {
+				next.responses.push({
+					node: a.node,
+					gateway: a.gateway,
+					provider: a.provider,
+					text: DEBUG_RESPONSE
+				});
+				usage[a.node] = {
+					inputTokens: debugContextTokens(a.modelId, scenario.nodeContext[a.node]),
+					outputTokens: 320,
+					cachedTokens: 0
+				};
+			}
+		}
+		next.error = scenario.globalError ? DEBUG_GLOBAL_ERROR : '';
+		next.consensusWarning = scenario.partialConsensus ? DEBUG_PARTIAL : '';
+		next.consensusStream = DEBUG_CONSENSUS;
+		next.consensusFinal = DEBUG_CONSENSUS;
+		next.streamDone = true;
+		activeTurnQuery = DEBUG_QUERY;
+		live = next;
+		liveNodeUsage = usage;
+		liveConsensusUsage = {
+			inputTokens: debugContextTokens(consensusAssignment.modelId, scenario.consensusContext),
+			outputTokens: 480,
+			cachedTokens: 0
+		};
+	}
+
 	// Commit the just-finished turn into the conversation, then clear live state.
 	function finalizeTurn() {
 		if (!activeTurnQuery) return;
@@ -563,12 +637,14 @@
 		if (loading) return;
 		conversation = [];
 		activeTurnQuery = '';
+		debugScenario = freshDebugScenario();
 		resetLiveState();
 	}
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (loading || !allConfigured) return;
+		debugScenario = freshDebugScenario();
 
 		const turnQuery =
 			query.trim() || RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
@@ -708,14 +784,32 @@
 			<h1 class="text-center text-2xl font-bold tracking-wider">
 				MAGI <span class="text-lg">🔺🔻🔺</span>
 			</h1>
-			<button
-				type="button"
-				class="absolute top-1/2 right-6 -translate-y-1/2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
-				onclick={() => (settingsOpen = !settingsOpen)}
-				title="Settings"
-			>
-				<Settings size={16} />
-			</button>
+			<div class="absolute top-1/2 right-6 flex -translate-y-1/2 items-center gap-1">
+				{#if import.meta.env.DEV}
+					<button
+						type="button"
+						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
+						onclick={() => {
+							debugOpen = !debugOpen;
+							settingsOpen = false;
+						}}
+						title="Debug panel (dev only)"
+					>
+						<Bug size={16} />
+					</button>
+				{/if}
+				<button
+					type="button"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
+					onclick={() => {
+						settingsOpen = !settingsOpen;
+						debugOpen = false;
+					}}
+					title="Settings"
+				>
+					<Settings size={16} />
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -905,6 +999,8 @@
 				fullText={live.consensusFinal}
 				{loading}
 				{allModelsResponded}
+				respondedCount={live.responses.length}
+				erroredCount={live.modelErrors.length}
 				warning={live.consensusWarning}
 				{strategy}
 				{consensusNode}
@@ -957,14 +1053,6 @@
 			<span class="mt-3 text-xs font-medium text-gray-400">Background</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
-						? 'bg-gray-600 text-white'
-						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
-					onclick={() => (bgVariant = 'off')}
-				>
-					Off
-				</button>
-				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
@@ -979,6 +1067,14 @@
 					onclick={() => (bgVariant = 'columns')}
 				>
 					Columns
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (bgVariant = 'off')}
+				>
+					Off
 				</button>
 			</div>
 			<span class="mt-3 text-xs font-medium text-gray-400">Auto-scroll</span>
@@ -1008,6 +1104,28 @@
 					Off
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+
+{#if debugOpen && import.meta.env.DEV}
+	<button
+		class="fixed inset-0 z-40 cursor-default"
+		onclick={() => (debugOpen = false)}
+		aria-label="Close debug panel"
+	></button>
+	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-6">
+		<div class="pointer-events-auto ml-auto w-80">
+			<DebugPanel
+				scenario={debugScenario}
+				{assignments}
+				disabled={loading}
+				onchange={(next) => {
+					debugScenario = next;
+					applyDebugScenario(next);
+				}}
+				onclose={() => (debugOpen = false)}
+			/>
 		</div>
 	</div>
 {/if}
