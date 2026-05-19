@@ -24,7 +24,7 @@ export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
+	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
 	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-flash' }
 ];
 
@@ -48,13 +48,13 @@ export const FREE_MAGI_CONFIG: MagiConfig = [
 export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
 	frontier: [
 		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
-		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.2' },
+		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
 		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
 	],
 	balanced: DEFAULT_MAGI_CONFIG,
 	budget: [
 		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
-		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4.1-mini' },
+		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4-mini' },
 		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-flash-lite' }
 	],
 	free: FREE_MAGI_CONFIG

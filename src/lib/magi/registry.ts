@@ -6,8 +6,8 @@ export interface ModelEntry {
 	provider: ProviderName;
 	tier: TierName;
 	displayName: string;
-	/** Approximate context window in tokens — drives context-budget warnings.
-	 *  Estimates; verify against provider docs alongside model-freshness checks. */
+	/** Context window in tokens — drives context-budget warnings.
+	 *  Re-verify against provider docs during model-freshness checks. */
 	contextLength: number;
 }
 
@@ -19,7 +19,7 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'anthropic',
 		tier: 'frontier',
 		displayName: 'Claude Opus 4.7',
-		contextLength: 200_000
+		contextLength: 1_000_000
 	},
 	{
 		id: 'claude-sonnet-4-6',
@@ -27,7 +27,7 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'anthropic',
 		tier: 'balanced',
 		displayName: 'Claude Sonnet 4.6',
-		contextLength: 200_000
+		contextLength: 1_000_000
 	},
 	{
 		id: 'claude-haiku-4-5',
@@ -39,27 +39,27 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 	},
 	// OpenAI (direct)
 	{
-		id: 'gpt-5.2',
+		id: 'gpt-5.5',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'frontier',
-		displayName: 'GPT-5.2',
-		contextLength: 400_000
+		displayName: 'GPT-5.5',
+		contextLength: 1_000_000
 	},
 	{
-		id: 'gpt-4o',
+		id: 'gpt-5.4',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'balanced',
-		displayName: 'GPT-4o',
-		contextLength: 128_000
+		displayName: 'GPT-5.4',
+		contextLength: 1_000_000
 	},
 	{
-		id: 'gpt-4.1-mini',
+		id: 'gpt-5.4-mini',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'budget',
-		displayName: 'GPT-4.1 Mini',
+		displayName: 'GPT-5.4 Mini',
 		contextLength: 1_000_000
 	},
 	// Google (direct)
