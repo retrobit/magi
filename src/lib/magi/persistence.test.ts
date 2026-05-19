@@ -5,7 +5,8 @@ import {
 	clearPrefs,
 	loadConversations,
 	saveConversations,
-	type MagiPrefs
+	type MagiPrefs,
+	type PersistedSettings
 } from './persistence';
 import type { ConversationTurn } from './types';
 
@@ -48,6 +49,17 @@ const validPrefs: MagiPrefs = {
 			consensusNode: 'MELCHIOR'
 		}
 	}
+};
+
+const validSettings: PersistedSettings = {
+	strategy: 'voting',
+	temperaments: true,
+	consensusTemperament: false,
+	temperamentAwareness: true,
+	genericLabels: false,
+	theme: 'light',
+	bgVariant: 'columns',
+	scrollMode: 'snap'
 };
 
 const validTurn: ConversationTurn = {
@@ -119,6 +131,30 @@ describe('loadPrefs / savePrefs', () => {
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
 		expect(loadPrefs()?.snapshots.balanced).toBeUndefined();
+	});
+
+	it('round-trips the settings slice', () => {
+		savePrefs({ ...validPrefs, settings: validSettings });
+		expect(loadPrefs()?.settings).toEqual(validSettings);
+	});
+
+	it('loads prefs saved before the settings slice existed', () => {
+		savePrefs(validPrefs);
+		const result = loadPrefs();
+		expect(result?.tier).toBe('balanced');
+		expect(result?.settings).toBeUndefined();
+	});
+
+	it('drops a malformed settings slice but keeps tier and snapshots', () => {
+		const bad = {
+			tier: 'balanced',
+			snapshots: validPrefs.snapshots,
+			settings: { strategy: 'synthesis', theme: 'neon' }
+		};
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
+		const result = loadPrefs();
+		expect(result?.snapshots.balanced).toEqual(validPrefs.snapshots.balanced);
+		expect(result?.settings).toBeUndefined();
 	});
 
 	it('returns null when storage is unavailable', () => {

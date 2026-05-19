@@ -37,7 +37,8 @@
 		savePrefs,
 		loadConversations,
 		saveConversations,
-		type PersistedSnapshot
+		type PersistedSnapshot,
+		type PersistedSettings
 	} from '$lib/magi/persistence';
 	import { onMount, onDestroy } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -369,6 +370,18 @@
 		consensusNode = snap.consensusNode;
 	}
 
+	// Restore the global (not per-tier) UI settings saved from a previous visit.
+	function applyPersistedSettings(s: PersistedSettings) {
+		strategy = s.strategy;
+		temperaments = s.temperaments;
+		consensusTemperament = s.consensusTemperament;
+		temperamentAwareness = s.temperamentAwareness;
+		genericLabels = s.genericLabels;
+		theme = s.theme;
+		bgVariant = s.bgVariant;
+		scrollMode = s.scrollMode;
+	}
+
 	// A persisted snapshot is usable only if every model it names still exists.
 	// Paid tiers draw from the static registry (stable); the free tier's
 	// OpenRouter models rotate, so each saved model must still be on offer.
@@ -416,6 +429,7 @@
 		if (prefs) {
 			persistedSnapshots = prefs.snapshots;
 			tier = prefs.tier;
+			if (prefs.settings) applyPersistedSettings(prefs.settings);
 		}
 		conversationsByTier = loadConversations();
 		conversation = conversationsByTier[tier] ?? [];
@@ -432,9 +446,19 @@
 			configuredNodes: [...configuredNodes],
 			consensusNode
 		};
+		const settings: PersistedSettings = {
+			strategy,
+			temperaments,
+			consensusTemperament,
+			temperamentAwareness,
+			genericLabels,
+			theme,
+			bgVariant,
+			scrollMode
+		};
 		if (!prefsHydrated) return;
 		persistedSnapshots[activeTier] = snap;
-		savePrefs({ tier: activeTier, snapshots: persistedSnapshots });
+		savePrefs({ tier: activeTier, snapshots: persistedSnapshots, settings });
 	});
 
 	// Persist the active tier's conversation thread on every change.
