@@ -2,6 +2,21 @@
 
 This document covers manual testing for MAGI features that can't be verified by unit tests or type checking alone. Run through the relevant sections after making UI, streaming, or model-related changes.
 
+## Automated tests
+
+Run the full suite before manual testing — it covers the pure modules, the
+`/api/magi` and `/api/magi/models` route handlers, and the Svelte components:
+
+```bash
+bun run test     # vitest, both projects
+bun run check    # svelte-check / type checking
+bun run lint     # prettier + eslint
+```
+
+Vitest runs two projects (configured in `vite.config.ts`): a **server** project
+(Node environment) for route and module tests, and a **client** project (jsdom)
+for `*.svelte.test.ts` component tests.
+
 ## Prerequisites
 
 ```bash
@@ -19,7 +34,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] All three panels transition from "Awaiting query..." to "Thinking..." (pending state)
 - [ ] Streaming text appears in each panel as chunks arrive
 - [ ] All three panels show green checkmark (success) when complete
-- [ ] Consensus section shows "Waiting for MAGI responses..." during model phase
+- [ ] Consensus section shows a live "Waiting for MAGI — N / 3 responded…" progress line during model phase
 - [ ] Consensus section shows "Synthesizing consensus..." after models finish
 - [ ] Consensus streams in and shows green checkmark when complete
 - [ ] Copy button on consensus works

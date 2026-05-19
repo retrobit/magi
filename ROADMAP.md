@@ -11,12 +11,9 @@ Planned features, improvements, and known items for the MAGI project.
 
 - **CI pipeline** — Automated test, lint, and type-check on pull requests.
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
-- **Test coverage** — Component and API-route (`/api/magi`) coverage is absent; only library modules are unit-tested.
-- **Dev debug panel** — A dev-only panel to inject model errors and inflate token counts, for exercising error and context-limit UI states.
 
 ## UI / UX
 
-- **Loading progress summary** — A consolidated "2/3 models responded" indicator visible at a glance, complementing the per-panel status icons.
 - **Mobile layout** — Panels stack and scroll with a height cap on narrow viewports; further polish (typography, spacing) still welcome.
 
 ## Model Management
