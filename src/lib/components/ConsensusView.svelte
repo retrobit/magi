@@ -105,6 +105,10 @@
 	// already score through their own lens — so the toggle is inert for voting.
 	const awarenessApplies = $derived(strategy !== 'voting');
 
+	// Voting tallies all jurors equally; there's no single consensus node, so
+	// both the Node dropdown and the consensus-temperament badge are inert.
+	const consensusNodeApplies = $derived(strategy !== 'voting');
+
 	// Live loading-progress summary — how many of the MAGI have settled so far.
 	const waitingLabel = $derived.by(() => {
 		const parts = [`${respondedCount} / ${MAGI_NODE_NAMES.length} responded`];
@@ -201,7 +205,7 @@
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
-				{#if consensusTemperament}
+				{#if consensusTemperament && consensusNodeApplies}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
@@ -284,10 +288,13 @@
 				{#if onconsensuschange}
 					<span class="text-xs text-gray-500">Node</span>
 					<select
-						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
 						value={consensusNode}
 						onchange={handleNodeChange}
-						{disabled}
+						disabled={disabled || !consensusNodeApplies}
+						title={!consensusNodeApplies
+							? 'Voting tallies all jurors equally — no single consensus node'
+							: undefined}
 					>
 						{#each MAGI_NODE_NAMES as node (node)}
 							<option value={node}>{nodeLabels[node]}</option>
