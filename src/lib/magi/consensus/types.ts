@@ -32,10 +32,17 @@ export interface ConsensusStrategy {
 	execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent>;
 }
 
-export const STRATEGY_NAMES = ['synthesis'] as const;
+export const STRATEGY_NAMES = ['synthesis', 'voting'] as const;
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
 export const DEFAULT_STRATEGY: StrategyName = 'synthesis';
 
 export const STRATEGY_LABELS: Record<StrategyName, string> = {
-	synthesis: 'Synthesis'
+	synthesis: 'Synthesis',
+	voting: 'Structured Voting'
+};
+
+/** Text shown in the consensus panel while a strategy is still running. */
+export const STRATEGY_PENDING_LABELS: Record<StrategyName, string> = {
+	synthesis: 'Synthesizing consensus…',
+	voting: 'Tallying votes…'
 };

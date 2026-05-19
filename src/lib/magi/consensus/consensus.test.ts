@@ -7,15 +7,20 @@ describe('getStrategy', () => {
 		expect(strategy).toBeDefined();
 		expect(strategy.name).toBe('synthesis');
 	});
+
+	it('returns the voting strategy', () => {
+		const strategy = getStrategy('voting');
+		expect(strategy).toBeDefined();
+		expect(strategy.name).toBe('voting');
+	});
 });
 
 describe('getAvailableStrategies', () => {
-	it('returns all registered strategies', () => {
+	it('returns every registered strategy with a description', () => {
 		const strategies = getAvailableStrategies();
-		expect(strategies).toHaveLength(1);
-		expect(strategies[0]).toEqual({
-			name: 'synthesis',
-			description: expect.any(String)
-		});
+		expect(strategies.map((s) => s.name)).toEqual(['synthesis', 'voting']);
+		for (const strategy of strategies) {
+			expect(strategy.description).toEqual(expect.any(String));
+		}
 	});
 });

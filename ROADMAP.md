@@ -4,7 +4,6 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Consensus Strategies
 
-- **Structured Voting** — Each model scores the other two responses; majority wins.
 - **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
 
 ## Infrastructure

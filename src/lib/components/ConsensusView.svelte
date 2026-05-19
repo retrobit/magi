@@ -18,7 +18,12 @@
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import { STRATEGY_NAMES, STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus';
+	import {
+		STRATEGY_NAMES,
+		STRATEGY_LABELS,
+		STRATEGY_PENDING_LABELS,
+		type StrategyName
+	} from '$lib/magi/consensus';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
@@ -366,7 +371,7 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="animate-pulse text-sm text-gray-500">Synthesizing consensus...</p>
+							<p class="animate-pulse text-sm text-gray-500">{STRATEGY_PENDING_LABELS[strategy]}</p>
 						{:else if text}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />

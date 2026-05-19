@@ -1,8 +1,10 @@
 import { synthesisStrategy } from './synthesis';
+import { votingStrategy } from './voting';
 import type { ConsensusStrategy, StrategyName } from './types';
 
 const strategies: Record<StrategyName, ConsensusStrategy> = {
-	synthesis: synthesisStrategy
+	synthesis: synthesisStrategy,
+	voting: votingStrategy
 };
 
 export function getStrategy(name: StrategyName): ConsensusStrategy {
@@ -19,6 +21,7 @@ export function getAvailableStrategies(): { name: StrategyName; description: str
 export {
 	STRATEGY_NAMES,
 	STRATEGY_LABELS,
+	STRATEGY_PENDING_LABELS,
 	DEFAULT_STRATEGY,
 	type ConsensusStrategy,
 	type StrategyName,

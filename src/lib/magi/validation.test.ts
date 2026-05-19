@@ -41,7 +41,7 @@ describe('magiRequestSchema', () => {
 		const result = magiRequestSchema.safeParse({
 			query: 'hello',
 			tier: 'balanced',
-			strategy: 'voting'
+			strategy: 'not-a-strategy'
 		});
 		expect(result.success).toBe(false);
 	});
