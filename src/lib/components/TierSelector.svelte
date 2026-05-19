@@ -25,7 +25,8 @@
 	<div class="flex gap-1">
 		{#each freeTiers as tier (tier)}
 			<button
-				class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === tier
+				class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
+				tier
 					? 'magi-tier-active bg-gray-600 text-white'
 					: 'bg-gray-700/50 text-gray-400 hover:text-white'}"
 				{disabled}
@@ -43,7 +44,8 @@
 	<div class="flex gap-1">
 		{#each paidTiers as tier (tier)}
 			<button
-				class="rounded-md px-4 py-2 text-sm font-medium transition-colors {value === tier
+				class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
+				tier
 					? 'magi-tier-active bg-gray-600 text-white'
 					: 'text-gray-400 hover:text-white'}"
 				{disabled}

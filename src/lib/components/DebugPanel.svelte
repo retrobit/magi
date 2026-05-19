@@ -85,7 +85,7 @@
 	</button>
 {/snippet}
 
-<div class="w-80 rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+<div class="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
 	<div class="flex items-center justify-between">
 		<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-amber-400">
 			<Bug size={13} /> DEBUG · dev only

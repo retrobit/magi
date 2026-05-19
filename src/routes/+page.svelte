@@ -436,6 +436,23 @@
 		saveConversations(conversationsByTier);
 	});
 
+	// The query form collapses to an icon-only button under the `sm` breakpoint;
+	// `compact` tracks that so the input placeholder can shorten to match.
+	let compact = $state(false);
+	$effect(() => {
+		const mq = window.matchMedia('(max-width: 639.98px)');
+		const sync = () => (compact = mq.matches);
+		sync();
+		mq.addEventListener('change', sync);
+		return () => mq.removeEventListener('change', sync);
+	});
+
+	const queryPlaceholder = $derived(
+		compact
+			? 'Ask the MAGI system... or click "▶"'
+			: 'Ask the MAGI system... or click "▶ Execute" for a random prompt'
+	);
+
 	// Capture and restore the full per-tier snapshot. Kept as a symmetric
 	// pair so a new field is added to both sides at once, not threaded
 	// through twelve scattered assignments.
@@ -780,11 +797,11 @@
 
 	<!-- Header -->
 	<header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
-		<div class="relative mx-auto max-w-7xl px-6 py-4">
+		<div class="relative mx-auto max-w-7xl px-4 py-4 md:px-6">
 			<h1 class="text-center text-2xl font-bold tracking-wider">
 				MAGI <span class="text-lg">🔺🔻🔺</span>
 			</h1>
-			<div class="absolute top-1/2 right-6 flex -translate-y-1/2 items-center gap-1">
+			<div class="absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-1 md:right-6">
 				{#if import.meta.env.DEV}
 					<button
 						type="button"
@@ -816,7 +833,7 @@
 	<!-- Control strip -->
 	<div class="magi-controls relative z-10 shrink-0 border-b border-gray-800 bg-gray-950/80">
 		<div
-			class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-6 py-2 sm:flex-row sm:justify-between"
+			class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-2 sm:flex-row sm:justify-between md:px-6"
 		>
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-gray-500">TIER</span>
@@ -843,14 +860,14 @@
 	</div>
 
 	<!-- Main content -->
-	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-6 md:min-h-0">
+	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 md:min-h-0 md:p-6">
 		<!-- Query input -->
 		<form onsubmit={handleSubmit} class="flex shrink-0 gap-3">
 			<div class="relative flex-1">
 				<input
 					bind:value={query}
 					type="text"
-					placeholder="Ask the MAGI system... or click &quot;▶ Execute&quot; for a random prompt"
+					placeholder={queryPlaceholder}
 					disabled={loading}
 					class="magi-input w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
@@ -873,22 +890,27 @@
 				<button
 					type="button"
 					onclick={() => abortController?.abort()}
-					class="magi-btn group flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600"
+					aria-label="Abort"
+					class="magi-btn group flex w-12 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600 sm:w-40"
 				>
 					<span class="flex items-center gap-2 group-hover:hidden">
-						<LoaderCircle size={16} class="animate-spin" /> Processing...
+						<LoaderCircle size={16} class="animate-spin" />
+						<span class="hidden sm:inline">Processing...</span>
 					</span>
 					<span class="hidden items-center gap-2 group-hover:flex">
-						<X size={16} /> Abort
+						<X size={16} />
+						<span class="hidden sm:inline">Abort</span>
 					</span>
 				</button>
 			{:else}
 				<button
 					type="submit"
 					disabled={!allConfigured || modelsLoading}
-					class="magi-btn flex w-40 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600"
+					aria-label="Execute"
+					class="magi-btn flex w-12 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600 sm:w-40"
 				>
-					<Triangle size={14} class="rotate-90 fill-current" /> Execute
+					<Triangle size={14} class="rotate-90 fill-current" />
+					<span class="hidden sm:inline">Execute</span>
 				</button>
 			{/if}
 		</form>
@@ -1027,7 +1049,7 @@
 		onclick={() => (settingsOpen = false)}
 		aria-label="Close settings"
 	></button>
-	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-6">
+	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
 		<div
 			class="pointer-events-auto ml-auto w-48 rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
 		>
@@ -1114,8 +1136,8 @@
 		onclick={() => (debugOpen = false)}
 		aria-label="Close debug panel"
 	></button>
-	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-6">
-		<div class="pointer-events-auto ml-auto w-80">
+	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
+		<div class="pointer-events-auto ml-auto w-80 max-w-full">
 			<DebugPanel
 				scenario={debugScenario}
 				{assignments}
