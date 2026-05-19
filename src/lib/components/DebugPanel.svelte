@@ -39,19 +39,28 @@
 
 <script lang="ts">
 	import type { NodeAssignment } from '$lib/magi/config';
-	import { NODE_HEX_COLORS } from '$lib/magi/types';
+	import { NODE_HEX_COLORS, NODE_LABELS, NODE_LABELS_GENERIC } from '$lib/magi/types';
 	import { Bug, X } from 'lucide-svelte';
 
 	interface Props {
 		scenario: DebugScenario;
 		assignments: NodeAssignment[];
+		genericLabels?: boolean;
 		disabled?: boolean;
 		onchange: (scenario: DebugScenario) => void;
 		onclose: () => void;
 	}
 
-	let { scenario, assignments, disabled = false, onchange, onclose }: Props = $props();
+	let {
+		scenario,
+		assignments,
+		genericLabels = false,
+		disabled = false,
+		onchange,
+		onclose
+	}: Props = $props();
 
+	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 	const CONTEXT_LEVELS: ContextLevel[] = ['off', 'warn', 'critical'];
 	const CONTEXT_LABELS: Record<ContextLevel, string> = {
 		off: 'Context OK',
@@ -112,7 +121,7 @@
 						class="h-2 w-2 shrink-0 rounded-full"
 						style="background: {NODE_HEX_COLORS[assignment.node]}"
 					></span>
-					<span class="truncate">{assignment.node}</span>
+					<span class="truncate">{nodeLabels[assignment.node]}</span>
 				</span>
 				<button
 					type="button"
@@ -126,7 +135,7 @@
 					Error
 				</button>
 				<select
-					class="rounded bg-gray-800 px-1.5 py-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+					class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 					value={scenario.nodeContext[assignment.node]}
 					disabled={disabled || scenario.nodeError[assignment.node]}
 					onchange={(e) => setNodeContext(assignment.node, e.currentTarget.value as ContextLevel)}
@@ -146,7 +155,7 @@
 		<div class="flex items-center gap-2">
 			<span class="flex-1 text-xs font-medium text-gray-300">Consensus</span>
 			<select
-				class="rounded bg-gray-800 px-1.5 py-1 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+				class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 				value={scenario.consensusContext}
 				{disabled}
 				onchange={(e) => setConsensusContext(e.currentTarget.value as ContextLevel)}

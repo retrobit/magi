@@ -14,6 +14,8 @@
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
+		NODE_LABELS,
+		NODE_LABELS_GENERIC,
 		NODE_TEMPERAMENTS,
 		estimateTokens,
 		type TierName,
@@ -272,6 +274,14 @@
 		if (cWin && latestConsensusInput() / cWin >= CONTEXT_WARN_RATIO) names.push('consensus');
 		return names;
 	});
+
+	// Names each near-limit seat with the label the UI is currently showing —
+	// EVA names or generic MAGI numbers — rather than the raw node key.
+	const contextWarningLabels = $derived(
+		contextWarnings.map((name) =>
+			name === 'consensus' ? 'Consensus' : (genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS)[name]
+		)
+	);
 
 	// Per-node transcripts — one entry per completed turn, for each node. Derived
 	// once from `conversation` so streaming chunks don't rebuild all three.
@@ -942,7 +952,7 @@
 					{#if contextWarnings.length > 0}
 						<span class="flex items-center gap-1 text-amber-400">
 							<AlertTriangle size={12} />
-							{contextWarnings.join(', ')} near context limit
+							{contextWarningLabels.join(', ')} near context limit
 						</span>
 					{/if}
 				</div>
@@ -1053,6 +1063,19 @@
 		<div
 			class="pointer-events-auto ml-auto w-48 rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
 		>
+			<div class="mb-3 flex items-center justify-between">
+				<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-gray-400">
+					<Settings size={13} /> SETTINGS
+				</span>
+				<button
+					type="button"
+					class="text-gray-500 transition-colors hover:text-white"
+					onclick={() => (settingsOpen = false)}
+					aria-label="Close settings"
+				>
+					<X size={14} />
+				</button>
+			</div>
 			<span class="text-xs font-medium text-gray-400">Theme</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
@@ -1141,6 +1164,7 @@
 			<DebugPanel
 				scenario={debugScenario}
 				{assignments}
+				{genericLabels}
 				disabled={loading}
 				onchange={(next) => {
 					debugScenario = next;
