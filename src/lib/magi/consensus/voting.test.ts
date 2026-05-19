@@ -101,6 +101,8 @@ describe('votingStrategy.execute', () => {
 		expect(text).toContain('BALTHASAR');
 		expect(text).toContain('wins (17 / 20)');
 		expect(text).toContain('Answer from BALTHASAR');
+		// Juror scores are bracketed so the score reads clearly after the label.
+		expect(text).toContain('MELCHIOR • 1 (9)');
 	});
 
 	it('parses scores from replies with bullets and bold markers', async () => {
@@ -220,6 +222,38 @@ describe('votingStrategy.execute', () => {
 		await collect(votingStrategy.execute(context({ signal })));
 		for (const call of generateTextMock.mock.calls) {
 			expect(call[0].abortSignal).toBe(signal);
+		}
+	});
+
+	it('gives each juror its own temperament lens when consensusTemperament is set', async () => {
+		generateTextMock.mockResolvedValue(
+			jurorReply([
+				{ candidate: 'A', score: 5 },
+				{ candidate: 'B', score: 5 }
+			]) as never
+		);
+		await collect(votingStrategy.execute(context({ consensusTemperament: true })));
+		// Jurors run in node order — MELCHIOR (Rationalist), BALTHASAR (Caretaker),
+		// CASPAR (Individualist). Each prompt carries that juror's lens only.
+		const prompts = generateTextMock.mock.calls.map((c) => String(c[0].prompt));
+		expect(prompts[0]).toContain('Rationalist aspect');
+		expect(prompts[1]).toContain('Caretaker aspect');
+		expect(prompts[2]).toContain('Individualist aspect');
+		// A juror is never told a peer's temperament — anonymity holds.
+		expect(prompts[0]).not.toContain('Caretaker');
+		expect(prompts[0]).not.toContain('Individualist');
+	});
+
+	it('omits temperament lenses from juror prompts by default', async () => {
+		generateTextMock.mockResolvedValue(
+			jurorReply([
+				{ candidate: 'A', score: 5 },
+				{ candidate: 'B', score: 5 }
+			]) as never
+		);
+		await collect(votingStrategy.execute(context()));
+		for (const call of generateTextMock.mock.calls) {
+			expect(String(call[0].prompt)).not.toContain('aspect of the MAGI system');
 		}
 	});
 

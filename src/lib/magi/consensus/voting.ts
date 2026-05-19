@@ -1,7 +1,8 @@
 import { generateText } from 'ai';
 import type { ConsensusStrategy, ConsensusContext, ConsensusEvent } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
+import { NODE_LABELS, NODE_LABELS_GENERIC, NODE_TEMPERAMENTS } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
+import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 
 interface Candidate {
 	label: string;
@@ -20,12 +21,12 @@ interface Tally {
 	best: number;
 }
 
-function buildJurorPrompt(query: string, candidates: Candidate[]): string {
+function buildJurorPrompt(query: string, candidates: Candidate[], lens?: string): string {
 	const blocks = candidates.map((c) => `Candidate ${c.label}:\n${c.response.text}`).join('\n\n');
 	const format = candidates
 		.map((c) => `${c.label}: <score 0-10> — <one-sentence reason>`)
 		.join('\n');
-	return `Several AI models answered the same question. Score each candidate answer from 0 to 10, weighing accuracy, completeness, clarity, and usefulness. Judge substance, not length or style.
+	const instructions = `Several AI models answered the same question. Score each candidate answer from 0 to 10, weighing accuracy, completeness, clarity, and usefulness. Judge substance, not length or style.
 
 Question:
 ${query}
@@ -34,6 +35,10 @@ ${blocks}
 
 Reply with exactly one line per candidate, in this format and nothing else:
 ${format}`;
+	// A temperament lens shapes how this juror weighs the answers. It describes
+	// only the juror's own disposition — never the candidates' — so the A/B
+	// anonymity holds.
+	return lens ? `${lens}\n\n---\n\n${instructions}` : instructions;
 }
 
 // Round and clamp a raw score into the 0–10 band a juror was asked for.
@@ -74,7 +79,7 @@ function buildVoteMarkdown(
 	const rows = ranked
 		.map((t) => {
 			const detail = t.scores.length
-				? t.scores.map((s) => `${labels[s.juror]} ${s.score}`).join(' · ')
+				? t.scores.map((s) => `${labels[s.juror]} (${s.score})`).join(' · ')
 				: '—';
 			return `| ${labels[t.response.node]} | ${t.total} | ${detail} |`;
 		})
@@ -88,7 +93,15 @@ export const votingStrategy: ConsensusStrategy = {
 	description: 'Each model scores its peers and the highest-scoring response becomes the consensus',
 
 	async *execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent> {
-		const { responses, query, getModel, nodeAssignments, genericLabels, signal } = ctx;
+		const {
+			responses,
+			query,
+			getModel,
+			nodeAssignments,
+			consensusTemperament,
+			genericLabels,
+			signal
+		} = ctx;
 		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
 
 		// With a single response there is nothing to vote on — it wins outright.
@@ -112,9 +125,14 @@ export const votingStrategy: ConsensusStrategy = {
 				const candidates: Candidate[] = responses
 					.filter((r) => r.node !== juror.node)
 					.map((response, i) => ({ label: String.fromCharCode(65 + i), response }));
+				// When consensus temperament is on, the juror scores through its own
+				// dispositional lens — its own only, so candidates stay anonymous.
+				const lens = consensusTemperament
+					? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[juror.node]]
+					: undefined;
 				const { text, usage } = await generateText({
 					model: getModel(assignment.gateway, assignment.modelId),
-					prompt: buildJurorPrompt(query, candidates),
+					prompt: buildJurorPrompt(query, candidates, lens),
 					abortSignal: signal
 				});
 				return { juror: juror.node, candidates, text, usage };
