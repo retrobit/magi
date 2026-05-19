@@ -9,7 +9,6 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Infrastructure
 
-- **CI pipeline** — Automated test, lint, and type-check on pull requests.
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
 
 ## Model Management
