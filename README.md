@@ -45,9 +45,11 @@ graph TD
 ## 🎨 UI Features
 
 - **Multi-turn conversation** — Ask follow-ups; each panel keeps a scrollable per-turn transcript. Conversations persist per-tier in `localStorage` and survive reloads.
+- **Live response progress** — While a query runs, the consensus panel shows a live "Waiting for MAGI — N / 3 responded…" count, with a "M failed" clause when nodes error out.
 - **Token tracking** — Per-node input/output token counts, a cumulative conversation total, prompt-cache hits surfaced on hover, and a per-model context-window gauge that warns as a model nears its limit.
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
 - **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
+- **All UI settings persist** — Strategy, temperament toggles, generic labels, theme, background, and auto-scroll mode all survive a reload via `localStorage`.
 - **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
 - **Auto-scroll modes** — Off, Follow (pin to the newest streamed text while scrolled to the bottom), or Snap to top (jump each panel to the start of its latest response once that response finishes). Set in the ⚙️ settings menu.
 - **Background variants** — Animated RGB columns, orbs, or off (settings menu).
@@ -76,12 +78,14 @@ Temperaments are **off by default** and can be toggled via the 🧠 button in th
 
 ### Consensus Temperament & Awareness
 
-When temperaments are enabled, two additional controls appear in the consensus panel:
+When temperaments are enabled, two additional controls appear in the consensus panel. Their effect depends on the active strategy:
 
-- **Temperament** — Gives the synthesis model its own dispositional lens (based on the selected consensus node). A Rationalist synthesizer prioritizes logic; a Caretaker weighs human cost; an Individualist gives bold takes.
-- **Temperament awareness** — Tells the synthesizer that each response came from a different lens, so it can surface _why_ perspectives diverge rather than just noting disagreements.
+- **Consensus Temperament** — Active for both strategies.
+  - In **Synthesis**, gives the synthesizer the consensus node's lens (a Rationalist synthesis prioritizes logic; a Caretaker weighs human cost; an Individualist gives bold takes).
+  - In **Structured Voting**, each juror scores through _its own_ lens. Anonymity holds — a juror is told only its own temperament, never its peers'.
+- **Temperament awareness** — Tells the synthesizer that each response came from a different lens, so it can surface _why_ perspectives diverge. **Synthesis only** — for Voting this toggle is greyed (with a tooltip), since voting has no single narrator to be "aware."
 
-Both are independent toggles and off by default.
+Both are independent toggles and off by default. With **Structured Voting** selected, the Consensus Node dropdown is also greyed and the consensus-temperament badge next to the panel title is hidden — voting tallies all jurors equally and has no single consensus node.
 
 ## 🎚️ Model Tiers
 
@@ -104,10 +108,10 @@ Users can select a tier to control quality vs. cost:
 The consensus engine is pluggable. Available strategies:
 
 - **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusNode` request parameter (defaults to the first node, MELCHIOR).
+- **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier — including free OpenRouter models that don't support structured output. When **Consensus Temperament** is on, each juror scores through its own dispositional lens.
 
 Future strategies (planned):
 
-- **Structured Voting** — Each model scores the other two responses; majority wins.
 - **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
 
 ## 📋 Prerequisites
@@ -153,6 +157,8 @@ bun run format       # Auto-format with Prettier
 ```
 
 For manual UI testing, see [TESTING.md](TESTING.md).
+
+In dev mode (`bun run dev`), a 🐞 button next to the settings gear opens a **dev-only debug panel** that injects synthetic error and context-limit UI states into the live turn — useful for exercising failure modes and near-full-context views without making a real model request. The button is gated by `import.meta.env.DEV` and never renders in production builds.
 
 ## 🔌 API
 
@@ -228,7 +234,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | ---------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `query`                | string  | Yes      | 1–10,000 characters                                                                                                             |
 | `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
-| `strategy`             | string  | Yes      | `synthesis`                                                                                                                     |
+| `strategy`             | string  | Yes      | `synthesis` or `voting`                                                                                                         |
 | `consensusNode`        | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
 | `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
 | `temperaments`         | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
@@ -304,8 +310,10 @@ src/
 │   ├── layout.css                  # Global styles (Tailwind)
 │   └── api/magi/
 │       ├── +server.ts              # SSE orchestration endpoint
+│       ├── route.test.ts
 │       └── models/
-│           └── +server.ts          # Model discovery endpoint
+│           ├── +server.ts          # Model discovery endpoint
+│           └── route.test.ts
 ├── lib/
 │   ├── index.ts                    # Barrel exports
 │   ├── assets/
@@ -317,35 +325,47 @@ src/
 │   │   ├── health.test.ts
 │   │   ├── logger.ts               # Structured logging + latency timers
 │   │   ├── logger.test.ts
-│   │   └── openrouter.ts           # Dynamic model discovery from OpenRouter API
+│   │   ├── openrouter.ts           # Dynamic model discovery from OpenRouter API
+│   │   └── openrouter.test.ts
 │   ├── magi/
 │   │   ├── types.ts                # Core types (nodes, tiers, providers, temperaments)
 │   │   ├── types.test.ts
 │   │   ├── config.ts               # Node-to-provider assignment + validation
 │   │   ├── config.test.ts
 │   │   ├── models.ts               # AI SDK client factory
+│   │   ├── models.test.ts
 │   │   ├── registry.ts             # Model ID registry (provider × tier)
 │   │   ├── registry.test.ts
 │   │   ├── temperaments.ts         # Temperament system prompts
 │   │   ├── temperaments.test.ts
 │   │   ├── validation.ts           # Zod request schema
 │   │   ├── validation.test.ts
-│   │   ├── persistence.ts          # localStorage — per-tier assignments + conversations
+│   │   ├── persistence.ts          # localStorage — per-tier assignments + global UI settings + conversations
 │   │   ├── persistence.test.ts
 │   │   ├── stream-events.ts        # Typed SSE event map (server + client)
+│   │   ├── stream-events.test.ts
 │   │   ├── prompt-cache.ts         # Anthropic prompt-cache breakpoint helper
+│   │   ├── prompt-cache.test.ts
 │   │   └── consensus/
-│   │       ├── types.ts            # ConsensusStrategy interface
+│   │       ├── types.ts            # ConsensusStrategy interface + strategy labels
 │   │       ├── synthesis.ts        # Synthesis strategy
+│   │       ├── synthesis.test.ts
+│   │       ├── voting.ts           # Structured Voting strategy
+│   │       ├── voting.test.ts
 │   │       ├── consensus.test.ts
 │   │       └── index.ts            # Strategy registry
 │   └── components/
 │       ├── MagiBackground.svelte   # Animated background
 │       ├── MagiPanel.svelte        # Individual model response panel
 │       ├── ConsensusView.svelte    # Consensus display with copy
+│       ├── DebugPanel.svelte       # Dev-only panel (gated by import.meta.env.DEV)
+│       ├── DebugPanel.svelte.test.ts
 │       ├── Markdown.svelte         # Sanitized, syntax-highlighted markdown renderer
 │       ├── TokenCount.svelte       # Compact ↑/↓/⚡ token-count formatter
-│       └── TierSelector.svelte     # Tier toggle
+│       ├── TokenCount.svelte.test.ts
+│       ├── TierSelector.svelte     # Tier toggle
+│       └── TierSelector.svelte.test.ts
+└── vitest-setup-client.ts          # jest-dom matchers for the jsdom test project
 ```
 
 ## 🧰 Stack
