@@ -12,10 +12,6 @@ Planned features, improvements, and known items for the MAGI project.
 - **CI pipeline** — Automated test, lint, and type-check on pull requests.
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
 
-## UI / UX
-
-- **Mobile layout** — Panels stack and scroll with a height cap on narrow viewports; further polish (typography, spacing) still welcome.
-
 ## Model Management
 
 - **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). `gpt-5.2`'s context length is currently an estimate.
