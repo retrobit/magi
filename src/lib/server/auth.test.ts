@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { env } from '$env/dynamic/private';
+import { env as _env } from '$env/dynamic/private';
 import { checkApiKey } from './auth';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} as Record<string, string | undefined> }));
+interface MutableEnv {
+	MAGI_API_KEY?: string;
+}
+
+const env = _env as unknown as MutableEnv;
+
+vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
 
 function makeRequest(authHeader?: string) {
 	return new Request('http://localhost/x', {

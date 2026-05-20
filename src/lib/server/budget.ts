@@ -127,41 +127,162 @@ async function fetchOpenRouterBudget(): Promise<ProviderBudget> {
 	};
 }
 
-// Anthropic's Admin API (`/v1/organizations/cost_report`) requires an
-// organization admin key (sk-ant-admin-…), which is a separate credential
-// from the regular message-sending key. Wire-up of the cost-report fetch
-// itself is a future step; for now we only signal whether the env var is
-// configured so the UI can guide the user.
+// Parse a USD monthly-budget env var into a positive number (or null when
+// unset/invalid). Used by both admin fetchers to give the UI bar a denominator.
+function parseMonthlyBudget(value: string | undefined): number | null {
+	if (!value) return null;
+	const n = parseFloat(value);
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// UTC window covering "today so far" — a single 1d bucket per provider.
+function todayUTCWindow(): { startSec: number; startISO: string; endISO: string } {
+	const now = new Date();
+	const startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+	return {
+		startSec: Math.floor(startMs / 1000),
+		startISO: new Date(startMs).toISOString(),
+		endISO: now.toISOString()
+	};
+}
+
+// Best-effort upstream-error extraction: surface the provider's own message
+// (e.g. "invalid_api_key") so the user can act on it, instead of a bare HTTP code.
+async function readErrorMessage(res: Response): Promise<string> {
+	let msg = `HTTP ${res.status}`;
+	try {
+		const body = (await res.json()) as { error?: { message?: string } | string };
+		const inner =
+			typeof body?.error === 'object' && body.error
+				? body.error.message
+				: typeof body?.error === 'string'
+					? body.error
+					: undefined;
+		if (inner) msg = `${msg}: ${inner}`;
+	} catch {
+		// non-JSON body — keep the bare status
+	}
+	return msg;
+}
+
+// Anthropic Cost API: GET /v1/organizations/cost_report with x-api-key + the
+// anthropic-version header. Only admin keys (sk-ant-admin…) are accepted by
+// the upstream; we still attempt the call with the regular ANTHROPIC_API_KEY
+// as a fallback so the user sees the real failure (invalid_api_key) rather
+// than us guessing in advance. Per Anthropic's docs, cost values are USD
+// reported as decimal strings "in lowest units (cents)" — we sum and divide.
 async function fetchAnthropicBudget(): Promise<ProviderBudget> {
-	if (!env.ANTHROPIC_ADMIN_KEY) {
+	const adminKey = env.ANTHROPIC_ADMIN_KEY;
+	const fallbackKey = env.ANTHROPIC_API_KEY;
+	const key = adminKey ?? fallbackKey;
+	const usingFallback = !adminKey && !!fallbackKey;
+
+	if (!key) {
 		return {
 			provider: 'anthropic',
 			status: 'unavailable',
 			reason: 'ANTHROPIC_ADMIN_KEY not configured'
 		};
 	}
+
+	const { startISO, endISO } = todayUTCWindow();
+	const url = new URL('https://api.anthropic.com/v1/organizations/cost_report');
+	url.searchParams.set('starting_at', startISO);
+	url.searchParams.set('ending_at', endISO);
+	url.searchParams.set('bucket_width', '1d');
+
+	const res = await fetch(url, {
+		headers: {
+			'x-api-key': key,
+			'anthropic-version': '2023-06-01'
+		}
+	});
+
+	if (!res.ok) {
+		const upstream = await readErrorMessage(res);
+		return {
+			provider: 'anthropic',
+			status: 'error',
+			reason: usingFallback ? `${upstream} (tried regular key — admin key not set)` : upstream
+		};
+	}
+
+	const body = (await res.json()) as {
+		data?: Array<{ results?: Array<{ amount?: { amount?: string; currency?: string } }> }>;
+	};
+
+	// Sum across every bucket × every result entry. Defensive: amounts can be
+	// strings or numbers depending on the response variant.
+	let cents = 0;
+	for (const bucket of body.data ?? []) {
+		for (const result of bucket.results ?? []) {
+			const raw = result.amount?.amount;
+			const n = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : 0;
+			if (Number.isFinite(n)) cents += n;
+		}
+	}
+	const usage = cents / 100;
+	const limit = parseMonthlyBudget(env.ANTHROPIC_MONTHLY_BUDGET);
 	return {
 		provider: 'anthropic',
-		status: 'unavailable',
-		reason: 'admin API integration coming soon'
+		status: 'ok',
+		label: usingFallback ? 'today (via regular key)' : 'today',
+		usage,
+		limit,
+		remaining: limit !== null ? Math.max(0, limit - usage) : undefined
 	};
 }
 
-// OpenAI mirrors Anthropic — usage lives behind an admin key
-// (OPENAI_ADMIN_KEY) at `/v1/organization/usage/...`, distinct from the
-// regular API key. Same shape, same placeholder for now.
+// OpenAI Costs API: GET /v1/organization/costs with a Bearer admin key. One
+// `1d` bucket since midnight UTC → today's spend, summed across every result
+// entry (each entry is one line item under that bucket).
 async function fetchOpenAIBudget(): Promise<ProviderBudget> {
-	if (!env.OPENAI_ADMIN_KEY) {
+	const key = env.OPENAI_ADMIN_KEY;
+	if (!key) {
 		return {
 			provider: 'openai',
 			status: 'unavailable',
 			reason: 'OPENAI_ADMIN_KEY not configured'
 		};
 	}
+
+	const { startSec } = todayUTCWindow();
+	const url = new URL('https://api.openai.com/v1/organization/costs');
+	url.searchParams.set('start_time', String(startSec));
+	url.searchParams.set('bucket_width', '1d');
+	url.searchParams.set('limit', '1');
+
+	const res = await fetch(url, {
+		headers: { Authorization: `Bearer ${key}` }
+	});
+
+	if (!res.ok) {
+		return { provider: 'openai', status: 'error', reason: await readErrorMessage(res) };
+	}
+
+	// Top-level shape is the standard OpenAI page wrapper `{data: [bucket]}`,
+	// but cookbook examples sometimes show a single bucket directly — accept both.
+	const body = (await res.json()) as
+		| { data?: Array<{ results?: Array<{ amount?: { value?: number } }> }> }
+		| { results?: Array<{ amount?: { value?: number } }> };
+	const buckets = 'data' in body && body.data ? body.data : [body as { results?: unknown[] }];
+	let usage = 0;
+	for (const bucket of buckets) {
+		const results = (bucket as { results?: Array<{ amount?: { value?: number } }> }).results ?? [];
+		for (const result of results) {
+			const v = result.amount?.value;
+			if (typeof v === 'number' && Number.isFinite(v)) usage += v;
+		}
+	}
+
+	const limit = parseMonthlyBudget(env.OPENAI_MONTHLY_BUDGET);
 	return {
 		provider: 'openai',
-		status: 'unavailable',
-		reason: 'admin API integration coming soon'
+		status: 'ok',
+		label: 'today',
+		usage,
+		limit,
+		remaining: limit !== null ? Math.max(0, limit - usage) : undefined
 	};
 }
 

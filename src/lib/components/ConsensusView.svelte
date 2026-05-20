@@ -300,7 +300,7 @@
 						</select>
 					{:else}
 						<!-- Voting tallies jurors in code — there's no consensus model
-						     call to assign, so the dropdown shows "None" instead of a
+						     call to assign, so the dropdown shows "N/A" instead of a
 						     stale selection. The original `consensusNode` state is kept
 						     so it returns when the user switches back to Synthesis. -->
 						<select
@@ -308,11 +308,13 @@
 							disabled
 							title="Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything."
 						>
-							<option>None</option>
+							<option>N/A</option>
 						</select>
 					{/if}
 				{/if}
-				{#if synthesisLabel}
+				<!-- synthesisLabel names the model the consensus node would call —
+				     also meaningless in voting, since there is no such call. -->
+				{#if synthesisLabel && consensusNodeApplies}
 					<span class="text-xs text-gray-400">{synthesisLabel}</span>
 				{/if}
 			</div>

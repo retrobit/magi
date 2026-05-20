@@ -6,6 +6,14 @@ Planned features, improvements, and known items for the MAGI project.
 
 - **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
 
+## UI / UX
+
+- **Promote the stats panel out of dev mode** — The 📊 panel is currently `import.meta.env.DEV`-gated and only covers voting. Surface it for every user, label the button "STATS", and broaden the breakdowns: wins/usage by **gateway**, **provider**, **model**, **node**, and **strategy** (including the existing Structured Voting breakdown).
+- **Strategy dropdown tooltips** — Explain how each consensus strategy works on hover over its option in the dropdown (Synthesis vs Structured Voting vs future Multi-Round Debate). Helps a first-time user pick without leaving for the README.
+- **Temperament tooltips** — Hovering over a node's temperament badge (🧊 Rationalist / 🛡️ Caretaker / 🔥 Individualist) should pop a short explainer with the guiding question, so users learn the system without having to consult the README.
+- **Stats panel respects `genericLabels`** — The 📊 panel currently hard-codes `MELCHIOR / BALTHASAR / CASPAR`, ignoring the user's MAGI 1/2/3 vs proper-name preference. Should mirror what the rest of the UI is showing.
+- **Budget readout: indent items under the section heading** — The other settings sections (Theme, Background, Auto-scroll) indent their options slightly under the section label; the Budget rows currently sit flush left, so the section reads as visually flatter than its neighbors. Match the surrounding pattern.
+
 ## Infrastructure
 
 - **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.

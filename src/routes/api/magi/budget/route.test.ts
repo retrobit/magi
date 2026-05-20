@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { env } from '$env/dynamic/private';
+import { env as _env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { GET } from './+server';
 import { getProviderBudgets, type ProviderBudget } from '$lib/server/budget';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} as Record<string, string | undefined> }));
+interface MutableEnv {
+	MAGI_API_KEY?: string;
+}
+
+const env = _env as unknown as MutableEnv;
+
+vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
 vi.mock('$lib/server/budget', () => ({ getProviderBudgets: vi.fn() }));
 vi.mock('$lib/server/logger', () => ({ logEvent: vi.fn(), startTimer: vi.fn(() => () => 0) }));
 

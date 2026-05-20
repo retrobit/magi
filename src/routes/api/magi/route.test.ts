@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamText } from 'ai';
-import { env } from '$env/dynamic/private';
+import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy } from '$lib/server/health';
 import { POST } from './+server';
 
+interface MutableEnv {
+	MAGI_API_KEY?: string;
+}
+
+const env = _env as unknown as MutableEnv;
+
 vi.mock('ai', () => ({ streamText: vi.fn() }));
-vi.mock('$env/dynamic/private', () => ({ env: {} as Record<string, string | undefined> }));
+vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
 vi.mock('$lib/server/rate-limit', () => ({ isRateLimited: vi.fn(() => false) }));
 vi.mock('$lib/server/health', () => ({
 	markUnhealthy: vi.fn(),
