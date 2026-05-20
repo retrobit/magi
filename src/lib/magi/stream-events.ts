@@ -1,5 +1,6 @@
 import type { GatewayName, MagiNodeName, MagiResponse } from './types';
 import type { MagiConfig } from './config';
+import type { VotingStats } from './consensus/types';
 
 /** Payload shape for every server-sent event on the `/api/magi` SSE stream.
  *  The server's `send()` and the client's event handlers are both typed
@@ -20,6 +21,8 @@ export interface StreamEventPayloads {
 	'consensus-chunk': { text: string };
 	'consensus-complete': { text: string };
 	'consensus-usage': { inputTokens: number; outputTokens: number; cachedInputTokens: number };
+	/** Structured stats from a strategy that has them (currently voting only). */
+	'vote-stats': VotingStats;
 	error: { message: string };
 }
 

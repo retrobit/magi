@@ -1,5 +1,11 @@
 import { generateText } from 'ai';
-import type { ConsensusStrategy, ConsensusContext, ConsensusEvent } from './types';
+import type {
+	ConsensusStrategy,
+	ConsensusContext,
+	ConsensusEvent,
+	VotingStats,
+	VotingJurorBreakdown
+} from './types';
 import { NODE_LABELS, NODE_LABELS_GENERIC, NODE_TEMPERAMENTS } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
@@ -99,10 +105,14 @@ export const votingStrategy: ConsensusStrategy = {
 			getModel,
 			nodeAssignments,
 			consensusTemperament,
+			temperaments,
 			genericLabels,
-			signal
+			signal,
+			tier
 		} = ctx;
 		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
+		const modelOf = (node: MagiNodeName): string =>
+			nodeAssignments.find((a) => a.node === node)?.modelId ?? 'unknown';
 
 		// With a single response there is nothing to vote on — it wins outright.
 		if (responses.length <= 1) {
@@ -112,6 +122,40 @@ export const votingStrategy: ConsensusStrategy = {
 			yield { type: 'text-delta', text };
 			yield { type: 'complete', fullText: text };
 			yield { type: 'usage', inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+			if (responses[0]) {
+				const sole = responses[0];
+				const totals = Object.fromEntries(responses.map((r) => [r.node, 0])) as Record<
+					MagiNodeName,
+					number
+				>;
+				const lengths = Object.fromEntries(responses.map((r) => [r.node, r.text.length])) as Record<
+					MagiNodeName,
+					number
+				>;
+				const models = Object.fromEntries(
+					responses.map((r) => [r.node, modelOf(r.node)])
+				) as Record<MagiNodeName, string>;
+				yield {
+					type: 'stats',
+					stats: {
+						strategy: 'voting',
+						winner: sole.node,
+						winnerModel: modelOf(sole.node),
+						winnerTotal: 0,
+						tiebreak: 'walkover',
+						totals,
+						lengths,
+						models,
+						jurors: [],
+						positionBias: { avgA: 0, avgB: 0, n: 0 },
+						config: {
+							tier: tier ?? 'unknown',
+							temperaments: temperaments ?? false,
+							consensusTemperament: consensusTemperament ?? false
+						}
+					}
+				};
+			}
 			return;
 		}
 
@@ -144,6 +188,16 @@ export const votingStrategy: ConsensusStrategy = {
 		const received = new Map<MagiNodeName, JurorScore[]>();
 		for (const r of responses) received.set(r.node, []);
 		const jurorErrors: string[] = [];
+		// Per-juror, per-candidate-letter score grid — preserves the A/B
+		// position so we can compute position bias later. A juror only ever sees
+		// two candidates, so each entry has at most A and B.
+		const jurorBreakdown: VotingJurorBreakdown[] = [];
+		// Running totals for position-bias: average score given to Candidate A
+		// vs Candidate B across every juror's reply.
+		let aSum = 0;
+		let aCount = 0;
+		let bSum = 0;
+		let bCount = 0;
 		let inputTokens = 0;
 		let outputTokens = 0;
 		let cachedInputTokens = 0;
@@ -158,6 +212,30 @@ export const votingStrategy: ConsensusStrategy = {
 			outputTokens += usage.outputTokens ?? 0;
 			cachedInputTokens += usage.cachedInputTokens ?? 0;
 			const parsed = parseJurorScores(text, candidates);
+
+			// Always record the breakdown, even when nothing parsed — the absence
+			// is itself signal ("MELCHIOR returned nothing readable this turn").
+			const candA = candidates.find((c) => c.label === 'A');
+			const candB = candidates.find((c) => c.label === 'B');
+			const aScore = candA && parsed.has('A') ? (parsed.get('A') as number) : null;
+			const bScore = candB && parsed.has('B') ? (parsed.get('B') as number) : null;
+			if (candA) {
+				jurorBreakdown.push({
+					juror,
+					jurorModel: modelOf(juror),
+					candidateA: { node: candA.response.node, score: aScore },
+					...(candB && { candidateB: { node: candB.response.node, score: bScore } })
+				});
+			}
+			if (aScore !== null) {
+				aSum += aScore;
+				aCount += 1;
+			}
+			if (bScore !== null) {
+				bSum += bScore;
+				bCount += 1;
+			}
+
 			if (parsed.size === 0) {
 				jurorErrors.push(`${juror} returned no readable scores`);
 				continue;
@@ -187,5 +265,50 @@ export const votingStrategy: ConsensusStrategy = {
 		yield { type: 'text-delta', text: markdown };
 		yield { type: 'complete', fullText: markdown };
 		yield { type: 'usage', inputTokens, outputTokens, cachedInputTokens };
+
+		// Determine which mechanism actually picked the winner — useful signal
+		// for "is MELCHIOR winning on merit or by sitting first in node order?"
+		const winnerTally = ranked[0];
+		const runnerUp = ranked[1];
+		let tiebreak: VotingStats['tiebreak'] = 'none';
+		if (runnerUp && winnerTally.total === runnerUp.total) {
+			tiebreak = winnerTally.best > runnerUp.best ? 'best-score' : 'node-order';
+		}
+
+		const totals = Object.fromEntries(ranked.map((t) => [t.response.node, t.total])) as Record<
+			MagiNodeName,
+			number
+		>;
+		const lengths = Object.fromEntries(responses.map((r) => [r.node, r.text.length])) as Record<
+			MagiNodeName,
+			number
+		>;
+		const models = Object.fromEntries(responses.map((r) => [r.node, modelOf(r.node)])) as Record<
+			MagiNodeName,
+			string
+		>;
+
+		const stats: VotingStats = {
+			strategy: 'voting',
+			winner: winnerTally.response.node,
+			winnerModel: modelOf(winnerTally.response.node),
+			winnerTotal: winnerTally.total,
+			tiebreak,
+			totals,
+			lengths,
+			models,
+			jurors: jurorBreakdown,
+			positionBias: {
+				avgA: aCount > 0 ? aSum / aCount : 0,
+				avgB: bCount > 0 ? bSum / bCount : 0,
+				n: aCount + bCount
+			},
+			config: {
+				tier: tier ?? 'unknown',
+				temperaments: temperaments ?? false,
+				consensusTemperament: consensusTemperament ?? false
+			}
+		};
+		yield { type: 'stats', stats };
 	}
 };

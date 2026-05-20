@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe('votingStrategy.execute', () => {
-	it('emits a text-delta, then complete, then usage', async () => {
+	it('emits text-delta, complete, usage, then stats', async () => {
 		generateTextMock.mockResolvedValue(
 			jurorReply([
 				{ candidate: 'A', score: 5 },
@@ -68,7 +68,7 @@ describe('votingStrategy.execute', () => {
 			]) as never
 		);
 		const events = await collect(votingStrategy.execute(context()));
-		expect(events.map((e) => e.type)).toEqual(['text-delta', 'complete', 'usage']);
+		expect(events.map((e) => e.type)).toEqual(['text-delta', 'complete', 'usage', 'stats']);
 	});
 
 	it('runs a juror per response and crowns the highest aggregate score', async () => {
@@ -272,5 +272,144 @@ describe('votingStrategy.execute', () => {
 		const heading = text.split('\n')[0];
 		expect(heading).toContain('MAGI');
 		expect(heading).not.toContain('MELCHIOR');
+	});
+});
+
+describe('votingStrategy stats event', () => {
+	it('emits a stats event with winner, totals, tiebreak path, and per-juror breakdown', async () => {
+		generateTextMock
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 9 },
+					{ candidate: 'B', score: 5 }
+				]) as never
+			)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 4 },
+					{ candidate: 'B', score: 6 }
+				]) as never
+			)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 3 },
+					{ candidate: 'B', score: 8 }
+				]) as never
+			);
+		const events = await collect(votingStrategy.execute(context({ tier: 'balanced' })));
+		const stats = events.find((e) => e.type === 'stats');
+		if (!stats || stats.type !== 'stats') throw new Error('no stats event emitted');
+
+		expect(stats.stats.strategy).toBe('voting');
+		// BALTHASAR total = 9 (from MELCHIOR's A) + 8 (from CASPAR's B) = 17 → winner.
+		expect(stats.stats.winner).toBe('BALTHASAR');
+		expect(stats.stats.winnerTotal).toBe(17);
+		expect(stats.stats.winnerModel).toBe('gpt-x');
+		expect(stats.stats.tiebreak).toBe('none');
+		expect(stats.stats.totals).toEqual({ MELCHIOR: 7, BALTHASAR: 17, CASPAR: 11 });
+		expect(stats.stats.models).toEqual({
+			MELCHIOR: 'claude-x',
+			BALTHASAR: 'gpt-x',
+			CASPAR: 'gemini-x'
+		});
+		expect(stats.stats.config.tier).toBe('balanced');
+		// Three jurors × two candidates each = 6 score samples in the position-bias pool.
+		expect(stats.stats.positionBias.n).toBe(6);
+		expect(stats.stats.positionBias.avgA).toBeCloseTo((9 + 4 + 3) / 3, 5);
+		expect(stats.stats.positionBias.avgB).toBeCloseTo((5 + 6 + 8) / 3, 5);
+		// Per-juror grid preserves which anonymized slot each peer sat in.
+		expect(stats.stats.jurors).toHaveLength(3);
+		const melchiorRow = stats.stats.jurors.find((j) => j.juror === 'MELCHIOR');
+		expect(melchiorRow?.candidateA).toEqual({ node: 'BALTHASAR', score: 9 });
+		expect(melchiorRow?.candidateB).toEqual({ node: 'CASPAR', score: 5 });
+	});
+
+	it('flags a node-order tiebreak when totals and best scores tie', async () => {
+		// Every juror gives 5/5 — every response totals 10, best is 5 → MELCHIOR
+		// wins by stable-sort node order, not by merit.
+		generateTextMock.mockResolvedValue(
+			jurorReply([
+				{ candidate: 'A', score: 5 },
+				{ candidate: 'B', score: 5 }
+			]) as never
+		);
+		const events = await collect(votingStrategy.execute(context()));
+		const stats = events.find((e) => e.type === 'stats');
+		if (!stats || stats.type !== 'stats') throw new Error('no stats event emitted');
+		expect(stats.stats.tiebreak).toBe('node-order');
+		expect(stats.stats.winner).toBe('MELCHIOR');
+	});
+
+	it('flags a best-score tiebreak when totals tie but one has a higher peak', async () => {
+		// MELCHIOR juror gives BALTHASAR=10, CASPAR=0 (totals MELCHIOR≠ aside).
+		// BALTHASAR juror gives MELCHIOR=5, CASPAR=5.
+		// CASPAR juror gives MELCHIOR=5, BALTHASAR=0.
+		// Totals: MELCHIOR=10, BALTHASAR=10, CASPAR=5. MELCHIOR & BALTHASAR tied,
+		// but BALTHASAR has a 10 (vs MELCHIOR's best 5) → BALTHASAR wins by best score.
+		generateTextMock
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 10 },
+					{ candidate: 'B', score: 0 }
+				]) as never
+			)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 5 },
+					{ candidate: 'B', score: 5 }
+				]) as never
+			)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 5 },
+					{ candidate: 'B', score: 0 }
+				]) as never
+			);
+		const events = await collect(votingStrategy.execute(context()));
+		const stats = events.find((e) => e.type === 'stats');
+		if (!stats || stats.type !== 'stats') throw new Error('no stats event emitted');
+		expect(stats.stats.winner).toBe('BALTHASAR');
+		expect(stats.stats.tiebreak).toBe('best-score');
+	});
+
+	it('emits a walkover stats event when only one node responded', async () => {
+		const events = await collect(
+			votingStrategy.execute(context({ responses: threeResponses.slice(0, 1) }))
+		);
+		const stats = events.find((e) => e.type === 'stats');
+		if (!stats || stats.type !== 'stats') throw new Error('no stats event emitted');
+		expect(stats.stats.tiebreak).toBe('walkover');
+		expect(stats.stats.winner).toBe('MELCHIOR');
+		expect(stats.stats.positionBias.n).toBe(0);
+		expect(stats.stats.jurors).toEqual([]);
+	});
+
+	it('records null scores in the juror grid when a reply parses nothing', async () => {
+		generateTextMock
+			.mockResolvedValueOnce({
+				text: 'no readable scores here',
+				usage: { inputTokens: 1, outputTokens: 1, cachedInputTokens: 0 }
+			} as never)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 6 },
+					{ candidate: 'B', score: 4 }
+				]) as never
+			)
+			.mockResolvedValueOnce(
+				jurorReply([
+					{ candidate: 'A', score: 7 },
+					{ candidate: 'B', score: 3 }
+				]) as never
+			);
+		const events = await collect(votingStrategy.execute(context()));
+		const stats = events.find((e) => e.type === 'stats');
+		if (!stats || stats.type !== 'stats') throw new Error('no stats event emitted');
+		const melchiorRow = stats.stats.jurors.find((j) => j.juror === 'MELCHIOR');
+		expect(melchiorRow?.candidateA.score).toBeNull();
+		expect(melchiorRow?.candidateB?.score).toBeNull();
+		// MELCHIOR's unreadable reply doesn't pollute the position-bias pool —
+		// only the other two jurors' four readable scores count.
+		expect(stats.stats.positionBias.n).toBe(4);
 	});
 });
