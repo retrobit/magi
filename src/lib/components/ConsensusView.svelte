@@ -287,19 +287,30 @@
 				{/if}
 				{#if onconsensuschange}
 					<span class="text-xs text-gray-500">Node</span>
-					<select
-						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
-						value={consensusNode}
-						onchange={handleNodeChange}
-						disabled={disabled || !consensusNodeApplies}
-						title={!consensusNodeApplies
-							? 'Voting tallies all jurors equally — no single consensus node'
-							: undefined}
-					>
-						{#each MAGI_NODE_NAMES as node (node)}
-							<option value={node}>{nodeLabels[node]}</option>
-						{/each}
-					</select>
+					{#if consensusNodeApplies}
+						<select
+							class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+							value={consensusNode}
+							onchange={handleNodeChange}
+							{disabled}
+						>
+							{#each MAGI_NODE_NAMES as node (node)}
+								<option value={node}>{nodeLabels[node]}</option>
+							{/each}
+						</select>
+					{:else}
+						<!-- Voting tallies jurors in code — there's no consensus model
+						     call to assign, so the dropdown shows "None" instead of a
+						     stale selection. The original `consensusNode` state is kept
+						     so it returns when the user switches back to Synthesis. -->
+						<select
+							class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+							disabled
+							title="Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything."
+						>
+							<option>None</option>
+						</select>
+					{/if}
 				{/if}
 				{#if synthesisLabel}
 					<span class="text-xs text-gray-400">{synthesisLabel}</span>

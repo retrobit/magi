@@ -109,7 +109,7 @@ Users can select a tier to control quality vs. cost:
 The consensus engine is pluggable. Available strategies:
 
 - **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusNode` request parameter (defaults to the first node, MELCHIOR).
-- **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier — including free OpenRouter models that don't support structured output. When **Consensus Temperament** is on, each juror scores through its own dispositional lens.
+- **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table followed by the winning response **verbatim**. Voting therefore makes _no_ additional consensus-model call — only the three juror calls — so the Consensus Node dropdown shows "None" and is disabled. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier, including free OpenRouter models that don't support structured output. When **Consensus Temperament** is on, each juror scores through its own dispositional lens.
 
 Future strategies (planned):
 
