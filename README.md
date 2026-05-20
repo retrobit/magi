@@ -50,6 +50,7 @@ graph TD
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
 - **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
 - **All UI settings persist** — Strategy, temperament toggles, generic labels, theme, background, and auto-scroll mode all survive a reload via `localStorage`.
+- **Provider budget readout** — The settings panel shows each paid provider's current spend and remaining credit. OpenRouter reports live usage out of the box; Anthropic, OpenAI, and Google fall back to a clear "unavailable" reason until admin credentials are wired up.
 - **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
 - **Auto-scroll modes** — Off, Follow (pin to the newest streamed text while scrolled to the bottom), or Snap to top (jump each panel to the start of its latest response once that response finishes). Set in the ⚙️ settings menu.
 - **Background variants** — Animated RGB columns, orbs, or off (settings menu).
@@ -136,13 +137,15 @@ cp .env.local.example .env.local
 
 ### Environment Variables
 
-| Variable                       | Required   | Description                                                                                  |
-| ------------------------------ | ---------- | -------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`            | Paid tiers | Anthropic API key for Claude models                                                          |
-| `OPENAI_API_KEY`               | Paid tiers | OpenAI API key for GPT models                                                                |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Paid tiers | Google AI Studio key for Gemini models                                                       |
-| `OPENROUTER_API_KEY`           | Free tier  | OpenRouter API key for free-tier models ([get one here](https://openrouter.ai/keys))         |
-| `MAGI_API_KEY`                 | No         | Set to require Bearer token auth on `/api/magi`. Leave unset when using only the built-in UI |
+| Variable                       | Required   | Description                                                                                                                                                                           |
+| ------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`            | Paid tiers | Anthropic API key for Claude models                                                                                                                                                   |
+| `OPENAI_API_KEY`               | Paid tiers | OpenAI API key for GPT models                                                                                                                                                         |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Paid tiers | Google AI Studio key for Gemini models                                                                                                                                                |
+| `OPENROUTER_API_KEY`           | Free tier  | OpenRouter API key for free-tier models ([get one here](https://openrouter.ai/keys))                                                                                                  |
+| `MAGI_API_KEY`                 | No         | Set to require Bearer token auth on `/api/magi` and `/api/magi/budget`. Leave unset when using only the built-in UI                                                                   |
+| `ANTHROPIC_ADMIN_KEY`          | No         | Anthropic organization admin key. When set, surfaces Anthropic spend in the Budget readout (admin-API integration is in progress; for now it just confirms the env var is configured) |
+| `OPENAI_ADMIN_KEY`             | No         | OpenAI organization admin key. Same shape as `ANTHROPIC_ADMIN_KEY` for the OpenAI side                                                                                                |
 
 ### Development
 
@@ -187,6 +190,43 @@ Returns available models for a given tier. Paid tiers return from the static reg
 	]
 }
 ```
+
+### `GET /api/magi/budget`
+
+Returns each paid provider's current spend and remaining credit, so the UI can render a per-provider readout. OpenRouter is reported live; the other providers degrade gracefully when their admin credentials aren't configured (Anthropic / OpenAI) or no public usage API exists (Google).
+
+**Query parameters:**
+
+| Param   | Required | Values                                  |
+| ------- | -------- | --------------------------------------- |
+| `force` | No       | `1` bypasses the 60-second server cache |
+
+**Headers:** Same `Authorization: Bearer <MAGI_API_KEY>` as `POST /api/magi` when the key is set.
+
+**Response:**
+
+```json
+{
+	"providers": [
+		{
+			"provider": "openrouter",
+			"status": "ok",
+			"label": "Default",
+			"usage": 7.2,
+			"limit": 10,
+			"remaining": 2.8,
+			"isFreeKey": false
+		},
+		{
+			"provider": "anthropic",
+			"status": "unavailable",
+			"reason": "ANTHROPIC_ADMIN_KEY not configured"
+		}
+	]
+}
+```
+
+Each entry's `status` is `ok`, `unavailable`, or `error`. Server-side results are cached for 60 seconds.
 
 ### `POST /api/magi`
 
@@ -311,8 +351,11 @@ src/
 │   └── api/magi/
 │       ├── +server.ts              # SSE orchestration endpoint
 │       ├── route.test.ts
-│       └── models/
-│           ├── +server.ts          # Model discovery endpoint
+│       ├── models/
+│       │   ├── +server.ts          # Model discovery endpoint
+│       │   └── route.test.ts
+│       └── budget/
+│           ├── +server.ts          # Provider budget readout endpoint
 │           └── route.test.ts
 ├── lib/
 │   ├── index.ts                    # Barrel exports
@@ -326,7 +369,11 @@ src/
 │   │   ├── logger.ts               # Structured logging + latency timers
 │   │   ├── logger.test.ts
 │   │   ├── openrouter.ts           # Dynamic model discovery from OpenRouter API
-│   │   └── openrouter.test.ts
+│   │   ├── openrouter.test.ts
+│   │   ├── auth.ts                 # Shared MAGI_API_KEY bearer-token check
+│   │   ├── auth.test.ts
+│   │   ├── budget.ts               # Per-provider spend/limit aggregator (60s cache)
+│   │   └── budget.test.ts
 │   ├── magi/
 │   │   ├── types.ts                # Core types (nodes, tiers, providers, temperaments)
 │   │   ├── types.test.ts
@@ -361,6 +408,7 @@ src/
 │       ├── DebugPanel.svelte       # Dev-only panel (gated by import.meta.env.DEV)
 │       ├── DebugPanel.svelte.test.ts
 │       ├── Markdown.svelte         # Sanitized, syntax-highlighted markdown renderer
+│       ├── BudgetReadout.svelte    # Per-provider spend readout in the settings panel
 │       ├── TokenCount.svelte       # Compact ↑/↓/⚡ token-count formatter
 │       ├── TokenCount.svelte.test.ts
 │       ├── TierSelector.svelte     # Tier toggle

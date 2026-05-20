@@ -21,13 +21,12 @@ import {
 } from '$lib/magi/stream-events';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
-import { env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
 import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { logEvent, startTimer } from '$lib/server/logger';
-import { timingSafeEqual } from 'node:crypto';
+import { checkApiKey } from '$lib/server/auth';
 
 // Validate hardcoded configs once at module load
 validateConfig(DEFAULT_MAGI_CONFIG);
@@ -81,13 +80,8 @@ function buildNodeMessages(
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const requestTimer = startTimer();
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
-	if (env.MAGI_API_KEY) {
-		const authHeader = request.headers.get('authorization');
-		const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-		if (!token || !safeCompare(token, env.MAGI_API_KEY)) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
-	}
+	const authFail = checkApiKey(request);
+	if (authFail) return authFail;
 
 	// Rate limiting (sliding window per IP)
 	if (isRateLimited(getClientAddress())) {
@@ -454,13 +448,3 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	});
 };
-
-function safeCompare(a: string, b: string): boolean {
-	const bufA = Buffer.from(a);
-	const bufB = Buffer.from(b);
-	if (bufA.length !== bufB.length) {
-		timingSafeEqual(bufA, bufA);
-		return false;
-	}
-	return timingSafeEqual(bufA, bufB);
-}

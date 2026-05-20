@@ -4,6 +4,7 @@
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
+	import BudgetReadout from '$lib/components/BudgetReadout.svelte';
 	import DebugPanel, {
 		freshDebugScenario,
 		isDebugScenarioActive,
@@ -1172,6 +1173,9 @@
 				>
 					Off
 				</button>
+			</div>
+			<div class="mt-3">
+				<BudgetReadout active={settingsOpen} />
 			</div>
 		</div>
 	</div>

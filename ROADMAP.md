@@ -13,7 +13,7 @@ Planned features, improvements, and known items for the MAGI project.
 ## Model Management
 
 - **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-05-19.
-- **Provider budget readout** — Surface each paid provider's spend and remaining budget in the UI. OpenRouter is the easiest first cut — `GET /api/v1/key` returns a key's usage and limit; Anthropic, OpenAI, and Google Cloud each expose usage/cost APIs that need admin credentials.
+- **Provider budget readout — Anthropic & OpenAI admin APIs** — The readout already ships with OpenRouter live and a graceful "unavailable" status for the rest. Next step: actually call Anthropic's `/v1/organizations/cost_report` and OpenAI's `/v1/organization/usage/...` when `ANTHROPIC_ADMIN_KEY` / `OPENAI_ADMIN_KEY` are configured, instead of returning the "coming soon" placeholder.
 
 ## Clients
 
