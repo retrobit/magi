@@ -93,7 +93,7 @@
 	</button>
 </div>
 
-<div class="mt-2 flex flex-col gap-2">
+<div class="mt-2 flex flex-col gap-2 pl-3">
 	{#if !loaded && loading}
 		<span class="text-xs text-gray-500">Loading…</span>
 	{:else if error}

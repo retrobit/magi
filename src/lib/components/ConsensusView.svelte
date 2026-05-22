@@ -426,9 +426,13 @@
 			opacity: 0.7;
 		}
 		50% {
+			/* Match the node panels' glow strength (20px blur, -4px spread) so the
+			   consensus reads as bright as the three panels beside it. The red/blue
+			   split keeps the consensus's own left↔right identity; green lives in
+			   the top/bottom gradient bars below. */
 			box-shadow:
-				inset 15px 0 15px -10px #ef4444,
-				inset -15px 0 15px -10px #3b82f6;
+				inset 18px 0 20px -4px #ef4444,
+				inset -18px 0 20px -4px #3b82f6;
 			opacity: 1;
 		}
 	}

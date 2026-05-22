@@ -6,15 +6,19 @@
 		aggregate,
 		type VotingStatRecord
 	} from '$lib/magi/voting-stats';
-	import type { MagiNodeName } from '$lib/magi/types';
+	import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '$lib/magi/types';
 
 	interface Props {
 		/** Bumped by the parent every time a new vote-stats event arrives. */
 		nonce?: number;
+		/** Mirror the rest of the UI: MAGI 1/2/3 vs MELCHIOR/BALTHASAR/CASPAR. */
+		genericLabels?: boolean;
 		onclose: () => void;
 	}
 
-	let { nonce = 0, onclose }: Props = $props();
+	let { nonce = 0, genericLabels = true, onclose }: Props = $props();
+
+	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
 	// Re-read storage whenever the parent signals a new record (or on mount).
 	let records = $state<VotingStatRecord[]>([]);
@@ -79,7 +83,7 @@
 			{#each nodeOrder as node (node)}
 				{@const wins = agg.winsByNode[node] ?? 0}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-20 text-gray-300">{node}</span>
+					<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
 					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
 						<div
 							class="h-full bg-emerald-500/80"
@@ -98,7 +102,7 @@
 			<h3 class="text-xs font-semibold text-gray-400">Wins by model</h3>
 			{#each agg.winsByModel.slice(0, 6) as entry (entry.model + entry.node)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-20 text-gray-300">{entry.node}</span>
+					<span class="w-24 text-gray-300">{nodeLabels[entry.node]}</span>
 					<span class="flex-1 truncate text-gray-400" title={entry.model}>{entry.model}</span>
 					<span class="w-14 text-right font-mono text-gray-400">
 						{entry.wins} ({pct(entry.wins, agg.total)})
@@ -128,8 +132,8 @@
 				>
 			</div>
 			<p class="text-[11px] text-gray-500">
-				A &gt; B suggests jurors favor the first candidate shown — MELCHIOR sits in slot A whenever
-				both other nodes vote.
+				A &gt; B suggests jurors favor the first candidate shown — {nodeLabels.MELCHIOR} sits in slot
+				A whenever both other nodes vote.
 			</p>
 		</section>
 

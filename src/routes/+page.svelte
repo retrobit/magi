@@ -979,20 +979,23 @@
 			{/if}
 		</form>
 
-		<!-- Conversation status bar -->
-		{#if conversation.length > 0}
-			<div
-				class="magi-panel flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
+		<!-- Conversation status bar — always rendered (even before the first
+		     prompt) so submitting a query doesn't reflow the layout. When the
+		     conversation is empty the button is disabled and the figures show
+		     placeholder em-dashes. -->
+		<div
+			class="magi-panel flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
+		>
+			<button
+				type="button"
+				onclick={handleNewConversation}
+				disabled={loading || conversation.length === 0}
+				class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
 			>
-				<button
-					type="button"
-					onclick={handleNewConversation}
-					disabled={loading}
-					class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
-				>
-					<MessageSquarePlus size={12} /> New conversation
-				</button>
-				<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
+				<MessageSquarePlus size={12} /> New conversation
+			</button>
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
+				{#if conversation.length > 0}
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
 					<span class="text-gray-600">·</span>
 					<span class="magi-token-total text-gray-500">
@@ -1009,9 +1012,13 @@
 							{contextWarningLabels.join(', ')} near context limit
 						</span>
 					{/if}
-				</div>
+				{:else}
+					<span class="text-gray-600">0 turns</span>
+					<span class="text-gray-700">·</span>
+					<span class="text-gray-600">— tokens</span>
+				{/if}
 			</div>
-		{/if}
+		</div>
 
 		<!-- Global error -->
 		{#if live.error}
@@ -1241,7 +1248,11 @@
 	></button>
 	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
 		<div class="pointer-events-auto ml-auto w-96 max-w-full">
-			<VotingStatsPanel nonce={votingStatsNonce} onclose={() => (votingStatsOpen = false)} />
+			<VotingStatsPanel
+				nonce={votingStatsNonce}
+				{genericLabels}
+				onclose={() => (votingStatsOpen = false)}
+			/>
 		</div>
 	</div>
 {/if}
