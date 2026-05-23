@@ -997,7 +997,7 @@
 			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
 				{#if conversation.length > 0}
 					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
-					<span class="text-gray-600">·</span>
+					<span class="text-gray-500">·</span>
 					<span class="magi-token-total text-gray-500">
 						<TokenCount
 							input={conversationUsage.input}
@@ -1007,6 +1007,7 @@
 						/>
 					</span>
 					{#if contextWarnings.length > 0}
+						<span class="text-gray-500">·</span>
 						<span class="flex items-center gap-1 text-amber-400">
 							<AlertTriangle size={12} />
 							{contextWarningLabels.join(', ')} near context limit
@@ -1014,8 +1015,8 @@
 					{/if}
 				{:else}
 					<span class="text-gray-600">0 turns</span>
-					<span class="text-gray-700">·</span>
-					<span class="text-gray-600">— tokens</span>
+					<span class="text-gray-600">·</span>
+					<span class="text-gray-600">0 tokens</span>
 				{/if}
 			</div>
 		</div>

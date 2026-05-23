@@ -458,9 +458,9 @@
 		bottom: 0;
 		left: 0;
 		right: 0;
-		height: 6px;
+		height: 3px;
 		background: linear-gradient(to right, #ef4444, #34d399, #3b82f6);
-		filter: blur(6px);
+		filter: blur(4px);
 		pointer-events: none;
 		animation: pulse-top-glow 2s ease-in-out infinite;
 	}
@@ -471,9 +471,9 @@
 		top: 0;
 		left: 0;
 		right: 0;
-		height: 6px;
+		height: 3px;
 		background: linear-gradient(to right, #ef4444, #34d399, #3b82f6);
-		filter: blur(6px);
+		filter: blur(4px);
 		pointer-events: none;
 		animation: pulse-top-glow 2s ease-in-out infinite;
 	}
