@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+	<title>MAGI</title>
+	<!-- One delta (Δ = change/consensus) split into three RGB wedges from its centroid -->
+	<polygon points="18,22.67 18,4 4,32" fill="#ef4444" />
+	<polygon points="18,22.67 18,4 32,32" fill="#3b82f6" />
+	<polygon points="18,22.67 4,32 32,32" fill="#34d399" />
+</svg>
