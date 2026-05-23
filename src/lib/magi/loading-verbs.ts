@@ -20,9 +20,21 @@ export const STRATEGY_VERBS: Record<StrategyName, string[]> = {
 	voting: ['Tallying', 'Scoring', 'Counting', 'Deliberating', 'Judging']
 };
 
-// Eighth-block fill characters — cycling through them fills a single cell from
-// left to right, giving a compact loading shimmer beside the verb.
-export const BLOCK_FRAMES = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
-// One fast tick; the verb advances every VERB_EVERY ticks (≈2s at 125ms).
-export const BLOCK_TICK_MS = 125;
-export const VERB_EVERY = 16;
+// A solid block sweeps left-to-right *through* the verb, replacing one
+// character at a time ("Th█nking" → "Thi█king" → …), à la Claude Code. After it
+// reaches the end it holds the full word for a beat, then the next verb sweeps.
+export const SWEEP_CHAR = '█';
+export const SWEEP_MS = 90;
+// Ticks the full word is held (block gone) before advancing to the next verb.
+export const PAUSE_TICKS = 9;
+
+/** The verb with a block at `sweep`, or the plain word during the trailing pause. */
+export function sweepVerb(word: string, sweep: number): string {
+	if (sweep < word.length) return word.slice(0, sweep) + SWEEP_CHAR + word.slice(sweep + 1);
+	return word;
+}
+
+/** Total ticks for one verb: one per character, then the pause. */
+export function sweepCycleLength(word: string): number {
+	return word.length + PAUSE_TICKS;
+}

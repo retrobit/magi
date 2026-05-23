@@ -25,7 +25,7 @@
 		STRATEGY_DESCRIPTIONS,
 		type StrategyName
 	} from '$lib/magi/consensus';
-	import { STRATEGY_VERBS, BLOCK_FRAMES, BLOCK_TICK_MS, VERB_EVERY } from '$lib/magi/loading-verbs';
+	import { STRATEGY_VERBS, SWEEP_MS, sweepVerb, sweepCycleLength } from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -136,6 +136,10 @@
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
+	// Scroll-viewport height — gives the latest turn block a min-height in snap
+	// mode so its prompt can always reach the top even on a short consensus.
+	let viewportH = $state(0);
+	const snapMinHeight = $derived(scrollMode === 'snap' ? `${viewportH}px` : undefined);
 
 	function onScroll() {
 		if (!scrollEl) return;
@@ -173,21 +177,27 @@
 		return () => cancelAnimationFrame(frame);
 	});
 
-	// Block-fill char + rotating verb while the consensus itself is produced (all
+	// A block sweeps through the verb while the consensus itself is produced (all
 	// nodes have responded). The verb list leans into the active strategy.
 	const consensusVerbs = $derived(STRATEGY_VERBS[strategy]);
 	let cVerbIndex = $state(0);
-	let cBlockFrame = $state(0);
+	let cSweep = $state(0);
+	const consensusLoadingText = $derived(
+		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep)
+	);
 	$effect(() => {
 		if (!loading || !allModelsResponded || text) return;
 		cVerbIndex = 0;
-		cBlockFrame = 0;
-		let tick = 0;
+		cSweep = 0;
 		const id = setInterval(() => {
-			tick += 1;
-			cBlockFrame = tick % BLOCK_FRAMES.length;
-			if (tick % VERB_EVERY === 0) cVerbIndex += 1;
-		}, BLOCK_TICK_MS);
+			const word = consensusVerbs[cVerbIndex % consensusVerbs.length];
+			if (cSweep + 1 >= sweepCycleLength(word)) {
+				cSweep = 0;
+				cVerbIndex += 1;
+			} else {
+				cSweep += 1;
+			}
+		}, SWEEP_MS);
 		return () => clearInterval(id);
 	});
 
@@ -356,7 +366,7 @@
 								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'}"
 							onclick={() => onconsensustemperamentchange(!consensusTemperament)}
 							{disabled}
-							title={consensusTemperament
+							use:tooltip={consensusTemperament
 								? 'Consensus temperament active — synthesizer responds through its dispositional lens'
 								: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
 						>
@@ -375,7 +385,7 @@
 							onclick={() => awarenessApplies && onawarenesschange(!temperamentAwareness)}
 							{disabled}
 							aria-disabled={!awarenessApplies}
-							title={!awarenessApplies
+							use:tooltip={!awarenessApplies
 								? 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
 								: temperamentAwareness
 									? 'Temperament awareness active — synthesizer considers dispositional lenses'
@@ -389,7 +399,12 @@
 			{/if}
 		</div>
 	</div>
-	<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollEl} onscroll={onScroll}>
+	<div
+		class="min-h-0 flex-1 overflow-y-auto"
+		bind:this={scrollEl}
+		bind:clientHeight={viewportH}
+		onscroll={onScroll}
+	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
 				<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
@@ -399,6 +414,7 @@
 						class="flex flex-col gap-1.5 {i > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
+						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.consensus}
@@ -416,6 +432,7 @@
 						class="flex flex-col gap-1.5 {transcript.length > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
+						style:min-height={snapMinHeight}
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 						{#if warning}
@@ -427,12 +444,7 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="text-sm text-gray-500">
-								<span class="font-mono text-gray-400">{BLOCK_FRAMES[cBlockFrame]}</span>
-								<span class="animate-pulse"
-									>{consensusVerbs[cVerbIndex % consensusVerbs.length]}…</span
-								>
-							</p>
+							<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
 						{:else if text}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />

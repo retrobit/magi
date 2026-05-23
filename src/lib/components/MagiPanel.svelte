@@ -22,9 +22,9 @@
 	import {
 		GENERIC_VERBS,
 		TEMPERAMENT_VERBS,
-		BLOCK_FRAMES,
-		BLOCK_TICK_MS,
-		VERB_EVERY
+		SWEEP_MS,
+		sweepVerb,
+		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
@@ -120,6 +120,11 @@
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
+	// Scroll-viewport height — used to give the latest turn block a min-height in
+	// snap mode so its prompt can always reach the top, even when the response is
+	// shorter than the panel.
+	let viewportH = $state(0);
+	const snapMinHeight = $derived(scrollMode === 'snap' ? `${viewportH}px` : undefined);
 
 	function onScroll() {
 		if (!scrollEl) return;
@@ -159,22 +164,26 @@
 		return () => cancelAnimationFrame(frame);
 	});
 
-	// Loading indicator while the node waits for its first token: a block char
-	// that fills left-to-right on a fast tick, beside a rotating verb (≈2s). The
-	// verb list leans into the node's temperament when one is set, else neutral.
+	// Loading indicator while the node waits for its first token: a block sweeps
+	// through the verb left-to-right, then the next verb sweeps. The verb list
+	// leans into the node's temperament when one is set, else a neutral set.
 	const loadingVerbs = $derived(temperament ? TEMPERAMENT_VERBS[temperament] : GENERIC_VERBS);
 	let verbIndex = $state(0);
-	let blockFrame = $state(0);
+	let sweep = $state(0);
+	const loadingText = $derived(sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep));
 	$effect(() => {
 		if (status !== 'pending' || text) return;
 		verbIndex = 0;
-		blockFrame = 0;
-		let tick = 0;
+		sweep = 0;
 		const id = setInterval(() => {
-			tick += 1;
-			blockFrame = tick % BLOCK_FRAMES.length;
-			if (tick % VERB_EVERY === 0) verbIndex += 1;
-		}, BLOCK_TICK_MS);
+			const word = loadingVerbs[verbIndex % loadingVerbs.length];
+			if (sweep + 1 >= sweepCycleLength(word)) {
+				sweep = 0;
+				verbIndex += 1;
+			} else {
+				sweep += 1;
+			}
+		}, SWEEP_MS);
 		return () => clearInterval(id);
 	});
 
@@ -410,7 +419,12 @@
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
 	</div>
-	<div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollEl} onscroll={onScroll}>
+	<div
+		class="min-h-0 flex-1 overflow-y-auto"
+		bind:this={scrollEl}
+		bind:clientHeight={viewportH}
+		onscroll={onScroll}
+	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
 				<p class="text-sm text-gray-600">Awaiting query...</p>
@@ -420,6 +434,7 @@
 						class="flex flex-col gap-1.5 {i > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
+						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.error}
@@ -439,6 +454,7 @@
 						class="flex flex-col gap-1.5 {transcript.length > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
+						style:min-height={snapMinHeight}
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 						{#if status === 'error'}
@@ -452,10 +468,7 @@
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">Empty response</p>
 						{:else}
-							<p class="text-sm text-gray-500">
-								<span class="font-mono text-gray-400">{BLOCK_FRAMES[blockFrame]}</span>
-								<span class="animate-pulse">{loadingVerbs[verbIndex % loadingVerbs.length]}…</span>
-							</p>
+							<p class="font-mono text-sm text-gray-500">{loadingText}…</p>
 						{/if}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>
