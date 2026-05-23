@@ -7,6 +7,7 @@
 	import BudgetReadout from '$lib/components/BudgetReadout.svelte';
 	import VotingStatsPanel from '$lib/components/VotingStatsPanel.svelte';
 	import { appendVotingStat } from '$lib/magi/voting-stats';
+	import { tooltip } from '$lib/actions/tooltip';
 	import DebugPanel, {
 		freshDebugScenario,
 		isDebugScenarioActive,
@@ -912,9 +913,9 @@
 					class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
 						? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 						: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-					title={temperaments
-						? 'Temperaments active — each node responds through its dispositional lens'
-						: 'Enable temperaments — give each MAGI node a distinct dispositional personality'}
+					use:tooltip={temperaments
+						? 'Temperaments active — each MAGI node answers through its own dispositional lens (Rationalist, Caretaker, Individualist). Click to turn off.'
+						: 'Enable temperaments — give each MAGI node a distinct personality: MELCHIOR Rationalist, BALTHASAR Caretaker, CASPAR Individualist. Click to turn on.'}
 				>
 					<Brain size={12} />
 					{temperaments ? 'ON' : 'OFF'}

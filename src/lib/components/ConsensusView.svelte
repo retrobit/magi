@@ -25,7 +25,8 @@
 		STRATEGY_DESCRIPTIONS,
 		type StrategyName
 	} from '$lib/magi/consensus';
-	import { STRATEGY_VERBS } from '$lib/magi/loading-verbs';
+	import { STRATEGY_VERBS, BLOCK_FRAMES, BLOCK_TICK_MS, VERB_EVERY } from '$lib/magi/loading-verbs';
+	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
@@ -161,22 +162,32 @@
 		const content = contentEl;
 		if (!el || !content) return;
 		const frame = requestAnimationFrame(() => {
+			// Target the prompt line (first child), not the block, so the divider
+			// and its padding scroll off above and the prompt sits at the very top.
 			const block = content.lastElementChild;
-			if (block) {
-				el.scrollTop += block.getBoundingClientRect().top - el.getBoundingClientRect().top;
+			const target = block?.firstElementChild ?? block;
+			if (target) {
+				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top;
 			}
 		});
 		return () => cancelAnimationFrame(frame);
 	});
 
-	// Rotating loading verb while the consensus itself is being produced (all
-	// nodes have responded). The list leans into the active strategy.
+	// Block-fill char + rotating verb while the consensus itself is produced (all
+	// nodes have responded). The verb list leans into the active strategy.
 	const consensusVerbs = $derived(STRATEGY_VERBS[strategy]);
 	let cVerbIndex = $state(0);
+	let cBlockFrame = $state(0);
 	$effect(() => {
 		if (!loading || !allModelsResponded || text) return;
 		cVerbIndex = 0;
-		const id = setInterval(() => (cVerbIndex += 1), 2000);
+		cBlockFrame = 0;
+		let tick = 0;
+		const id = setInterval(() => {
+			tick += 1;
+			cBlockFrame = tick % BLOCK_FRAMES.length;
+			if (tick % VERB_EVERY === 0) cVerbIndex += 1;
+		}, BLOCK_TICK_MS);
 		return () => clearInterval(id);
 	});
 
@@ -222,7 +233,7 @@
 				{#if consensusTemperament && consensusNodeApplies}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
-						title={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
+						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
 				{/if}
@@ -292,7 +303,7 @@
 						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={strategy}
 						onchange={handleStrategyChange}
-						title={STRATEGY_DESCRIPTIONS[strategy]}
+						use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
 						{disabled}
 					>
 						{#each STRATEGY_NAMES as s (s)}
@@ -416,8 +427,11 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="animate-pulse text-sm text-gray-500">
-								{consensusVerbs[cVerbIndex % consensusVerbs.length]}…
+							<p class="text-sm text-gray-500">
+								<span class="font-mono text-gray-400">{BLOCK_FRAMES[cBlockFrame]}</span>
+								<span class="animate-pulse"
+									>{consensusVerbs[cVerbIndex % consensusVerbs.length]}…</span
+								>
 							</p>
 						{:else if text}
 							<div class="prose prose-sm max-w-none prose-invert">

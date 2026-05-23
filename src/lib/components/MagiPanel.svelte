@@ -19,7 +19,14 @@
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import { GENERIC_VERBS, TEMPERAMENT_VERBS } from '$lib/magi/loading-verbs';
+	import {
+		GENERIC_VERBS,
+		TEMPERAMENT_VERBS,
+		BLOCK_FRAMES,
+		BLOCK_TICK_MS,
+		VERB_EVERY
+	} from '$lib/magi/loading-verbs';
+	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import {
@@ -141,22 +148,33 @@
 		const content = contentEl;
 		if (!el || !content) return;
 		const frame = requestAnimationFrame(() => {
+			// Target the prompt line (first child), not the block, so the divider
+			// and its padding scroll off above and the prompt sits at the very top.
 			const block = content.lastElementChild;
-			if (block) {
-				el.scrollTop += block.getBoundingClientRect().top - el.getBoundingClientRect().top;
+			const target = block?.firstElementChild ?? block;
+			if (target) {
+				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top;
 			}
 		});
 		return () => cancelAnimationFrame(frame);
 	});
 
-	// Rotating loading verb shown while the node waits for its first token. The
-	// list leans into the node's temperament when one is set, else a neutral set.
+	// Loading indicator while the node waits for its first token: a block char
+	// that fills left-to-right on a fast tick, beside a rotating verb (≈2s). The
+	// verb list leans into the node's temperament when one is set, else neutral.
 	const loadingVerbs = $derived(temperament ? TEMPERAMENT_VERBS[temperament] : GENERIC_VERBS);
 	let verbIndex = $state(0);
+	let blockFrame = $state(0);
 	$effect(() => {
 		if (status !== 'pending' || text) return;
 		verbIndex = 0;
-		const id = setInterval(() => (verbIndex += 1), 2000);
+		blockFrame = 0;
+		let tick = 0;
+		const id = setInterval(() => {
+			tick += 1;
+			blockFrame = tick % BLOCK_FRAMES.length;
+			if (tick % VERB_EVERY === 0) verbIndex += 1;
+		}, BLOCK_TICK_MS);
 		return () => clearInterval(id);
 	});
 
@@ -258,7 +276,7 @@
 				{#if temperament}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
-						title={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
+						use:tooltip={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
 			</div>
@@ -434,8 +452,9 @@
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">Empty response</p>
 						{:else}
-							<p class="animate-pulse text-sm text-gray-500">
-								{loadingVerbs[verbIndex % loadingVerbs.length]}…
+							<p class="text-sm text-gray-500">
+								<span class="font-mono text-gray-400">{BLOCK_FRAMES[blockFrame]}</span>
+								<span class="animate-pulse">{loadingVerbs[verbIndex % loadingVerbs.length]}…</span>
 							</p>
 						{/if}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}

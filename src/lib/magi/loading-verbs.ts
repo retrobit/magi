@@ -19,3 +19,10 @@ export const STRATEGY_VERBS: Record<StrategyName, string[]> = {
 	synthesis: ['Synthesizing', 'Reconciling', 'Weighing', 'Distilling', 'Composing'],
 	voting: ['Tallying', 'Scoring', 'Counting', 'Deliberating', 'Judging']
 };
+
+// Eighth-block fill characters — cycling through them fills a single cell from
+// left to right, giving a compact loading shimmer beside the verb.
+export const BLOCK_FRAMES = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
+// One fast tick; the verb advances every VERB_EVERY ticks (≈2s at 125ms).
+export const BLOCK_TICK_MS = 125;
+export const VERB_EVERY = 16;
