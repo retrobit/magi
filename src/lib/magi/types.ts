@@ -38,6 +38,17 @@ export const TEMPERAMENT_LABELS: Record<TemperamentName, string> = {
 	individualist: 'Individualist'
 };
 
+// Hover-explainer text for a temperament badge: the guiding question plus a
+// one-line gloss, so users learn the system without consulting the README.
+export const TEMPERAMENT_TOOLTIPS: Record<TemperamentName, string> = {
+	rationalist:
+		'Rationalist — “What do the facts say?” Cold logic and empirical reasoning; data above all.',
+	caretaker:
+		'Caretaker — “Who does this affect, and how?” Empathy-first; weighs human cost and wellbeing.',
+	individualist:
+		'Individualist — “What feels true?” Bold conviction and authenticity; the take no one else would give.'
+};
+
 export const NODE_TEMPERAMENTS: Record<MagiNodeName, TemperamentName> = {
 	MELCHIOR: 'rationalist',
 	BALTHASAR: 'caretaker',

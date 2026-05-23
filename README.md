@@ -361,8 +361,6 @@ src/
 │           └── route.test.ts
 ├── lib/
 │   ├── index.ts                    # Barrel exports
-│   ├── assets/
-│   │   └── favicon.svg             # App icon
 │   ├── server/
 │   │   ├── rate-limit.ts           # Per-IP sliding window rate limiter
 │   │   ├── rate-limit.test.ts

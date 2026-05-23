@@ -21,6 +21,7 @@ export function getAvailableStrategies(): { name: StrategyName; description: str
 export {
 	STRATEGY_NAMES,
 	STRATEGY_LABELS,
+	STRATEGY_DESCRIPTIONS,
 	STRATEGY_PENDING_LABELS,
 	DEFAULT_STRATEGY,
 	type ConsensusStrategy,

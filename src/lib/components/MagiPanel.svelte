@@ -13,11 +13,13 @@
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
 		TEMPERAMENT_LABELS,
+		TEMPERAMENT_TOOLTIPS,
 		contextUsageClass,
 		formatTokenCount,
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
+	import { GENERIC_VERBS, TEMPERAMENT_VERBS } from '$lib/magi/loading-verbs';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import {
@@ -128,11 +130,13 @@
 		return () => observer.disconnect();
 	});
 
-	// Snap mode: when this node's response finishes, jump so the latest turn
-	// block sits at the top of the panel — a clean reading start rather than
-	// chasing the streaming tail.
+	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
+	// the new turn block sits at the top of the panel — the blank line above the
+	// prompt lands at the very top, and the response then streams in below it.
+	// Triggering on submit (not on completion) means the reader's eye is parked
+	// at the new prompt before any tokens arrive.
 	$effect(() => {
-		if (scrollMode !== 'snap' || (status !== 'success' && status !== 'error')) return;
+		if (scrollMode !== 'snap' || !liveQuery) return;
 		const el = scrollEl;
 		const content = contentEl;
 		if (!el || !content) return;
@@ -143,6 +147,17 @@
 			}
 		});
 		return () => cancelAnimationFrame(frame);
+	});
+
+	// Rotating loading verb shown while the node waits for its first token. The
+	// list leans into the node's temperament when one is set, else a neutral set.
+	const loadingVerbs = $derived(temperament ? TEMPERAMENT_VERBS[temperament] : GENERIC_VERBS);
+	let verbIndex = $state(0);
+	$effect(() => {
+		if (status !== 'pending' || text) return;
+		verbIndex = 0;
+		const id = setInterval(() => (verbIndex += 1), 2000);
+		return () => clearInterval(id);
 	});
 
 	const showRouterProvider = $derived(gateway ? isRouter(gateway as GatewayName) : false);
@@ -243,7 +258,7 @@
 				{#if temperament}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
-						>{TEMPERAMENT_LABELS[temperament]}</span
+						title={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
 			</div>
@@ -419,7 +434,9 @@
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">Empty response</p>
 						{:else}
-							<p class="text-sm text-gray-500">Thinking...</p>
+							<p class="animate-pulse text-sm text-gray-500">
+								{loadingVerbs[verbIndex % loadingVerbs.length]}…
+							</p>
 						{/if}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>

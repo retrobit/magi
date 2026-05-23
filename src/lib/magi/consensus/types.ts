@@ -78,6 +78,15 @@ export const STRATEGY_LABELS: Record<StrategyName, string> = {
 	voting: 'Structured Voting'
 };
 
+// Hover-explainer text for each strategy in the dropdown, so a first-time user
+// can tell them apart without leaving for the README.
+export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
+	synthesis:
+		'A consensus model reads all three responses and writes one unified answer — merging agreements, resolving conflicts, and flagging uncertainty.',
+	voting:
+		'Each model scores its peers’ answers (anonymized) 0–10. The highest-scoring response wins and is shown verbatim with a tally — no consensus model writes anything.'
+};
+
 /** Text shown in the consensus panel while a strategy is still running. */
 export const STRATEGY_PENDING_LABELS: Record<StrategyName, string> = {
 	synthesis: 'Synthesizing consensus…',

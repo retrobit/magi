@@ -12,6 +12,7 @@
 		NODE_LABELS_GENERIC,
 		NODE_TEMPERAMENTS,
 		TEMPERAMENT_LABELS,
+		TEMPERAMENT_TOOLTIPS,
 		CONSENSUS_GRADIENT,
 		contextUsageClass,
 		formatTokenCount,
@@ -21,9 +22,10 @@
 	import {
 		STRATEGY_NAMES,
 		STRATEGY_LABELS,
-		STRATEGY_PENDING_LABELS,
+		STRATEGY_DESCRIPTIONS,
 		type StrategyName
 	} from '$lib/magi/consensus';
+	import { STRATEGY_VERBS } from '$lib/magi/loading-verbs';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
@@ -150,10 +152,11 @@
 		return () => observer.disconnect();
 	});
 
-	// Snap mode: once the consensus finishes, jump so the latest turn block sits
-	// at the top of the panel — a clean reading start rather than the tail.
+	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
+	// the new turn block sits at the top of the panel — the blank line above the
+	// prompt lands at the very top, and the consensus then streams in below it.
 	$effect(() => {
-		if (scrollMode !== 'snap' || !fullText) return;
+		if (scrollMode !== 'snap' || !liveQuery) return;
 		const el = scrollEl;
 		const content = contentEl;
 		if (!el || !content) return;
@@ -164,6 +167,17 @@
 			}
 		});
 		return () => cancelAnimationFrame(frame);
+	});
+
+	// Rotating loading verb while the consensus itself is being produced (all
+	// nodes have responded). The list leans into the active strategy.
+	const consensusVerbs = $derived(STRATEGY_VERBS[strategy]);
+	let cVerbIndex = $state(0);
+	$effect(() => {
+		if (!loading || !allModelsResponded || text) return;
+		cVerbIndex = 0;
+		const id = setInterval(() => (cVerbIndex += 1), 2000);
+		return () => clearInterval(id);
 	});
 
 	const gradientStyle = CONSENSUS_GRADIENT;
@@ -208,6 +222,7 @@
 				{#if consensusTemperament && consensusNodeApplies}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
+						title={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
 				{/if}
@@ -277,10 +292,11 @@
 						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={strategy}
 						onchange={handleStrategyChange}
+						title={STRATEGY_DESCRIPTIONS[strategy]}
 						{disabled}
 					>
 						{#each STRATEGY_NAMES as s (s)}
-							<option value={s}>{STRATEGY_LABELS[s]}</option>
+							<option value={s} title={STRATEGY_DESCRIPTIONS[s]}>{STRATEGY_LABELS[s]}</option>
 						{/each}
 					</select>
 					<span class="text-xs text-gray-700">·</span>
@@ -400,7 +416,9 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="animate-pulse text-sm text-gray-500">{STRATEGY_PENDING_LABELS[strategy]}</p>
+							<p class="animate-pulse text-sm text-gray-500">
+								{consensusVerbs[cVerbIndex % consensusVerbs.length]}…
+							</p>
 						{:else if text}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
