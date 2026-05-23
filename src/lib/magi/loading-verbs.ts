@@ -24,7 +24,7 @@ export const STRATEGY_VERBS: Record<StrategyName, string[]> = {
 // character at a time ("Th█nking" → "Thi█king" → …), à la Claude Code. After it
 // reaches the end it holds the full word for a beat, then the next verb sweeps.
 export const SWEEP_CHAR = '█';
-export const SWEEP_MS = 90;
+export const SWEEP_MS = 70;
 // Ticks the full word is held (block gone) before advancing to the next verb.
 export const PAUSE_TICKS = 9;
 

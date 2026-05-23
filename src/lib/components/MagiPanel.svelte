@@ -154,11 +154,12 @@
 		if (!el || !content) return;
 		const frame = requestAnimationFrame(() => {
 			// Target the prompt line (first child), not the block, so the divider
-			// and its padding scroll off above and the prompt sits at the very top.
+			// and its padding scroll off above. Leave a few px of breathing room
+			// above the prompt rather than pinning it flush to the top edge.
 			const block = content.lastElementChild;
 			const target = block?.firstElementChild ?? block;
 			if (target) {
-				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top;
+				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
 			}
 		});
 		return () => cancelAnimationFrame(frame);
