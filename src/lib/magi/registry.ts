@@ -44,7 +44,7 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'openai',
 		tier: 'frontier',
 		displayName: 'GPT-5.5',
-		contextLength: 1_000_000
+		contextLength: 1_050_000
 	},
 	{
 		id: 'gpt-5.4',
@@ -52,7 +52,7 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'openai',
 		tier: 'balanced',
 		displayName: 'GPT-5.4',
-		contextLength: 1_000_000
+		contextLength: 1_050_000
 	},
 	{
 		id: 'gpt-5.4-mini',
@@ -60,7 +60,7 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'openai',
 		tier: 'budget',
 		displayName: 'GPT-5.4 Mini',
-		contextLength: 1_000_000
+		contextLength: 400_000
 	},
 	// Google (direct)
 	{
@@ -69,23 +69,23 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		provider: 'google',
 		tier: 'frontier',
 		displayName: 'Gemini 2.5 Pro',
-		contextLength: 1_000_000
+		contextLength: 1_048_576
 	},
 	{
-		id: 'gemini-2.5-flash',
+		id: 'gemini-3.5-flash',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'balanced',
-		displayName: 'Gemini 2.5 Flash',
-		contextLength: 1_000_000
+		displayName: 'Gemini 3.5 Flash',
+		contextLength: 1_048_576
 	},
 	{
-		id: 'gemini-2.5-flash-lite',
+		id: 'gemini-3.1-flash-lite',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'budget',
-		displayName: 'Gemini 2.5 Flash Lite',
-		contextLength: 1_000_000
+		displayName: 'Gemini 3.1 Flash Lite',
+		contextLength: 1_048_576
 	}
 ];
 
