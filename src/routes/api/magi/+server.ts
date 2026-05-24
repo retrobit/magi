@@ -422,40 +422,45 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								cachedInputTokens: event.cachedInputTokens
 							});
 							break;
-						case 'stats': {
+						case 'run-stats': {
 							const s = event.stats;
-							// Flatten the nested per-juror grid into greppable key=value
-							// lines (`MELCHIOR_A=BALTHASAR:7`) so a tail of dev logs reads
-							// cleanly without needing a JSON parser.
-							const jurorPairs = s.jurors.flatMap((j) => {
-								const out: string[] = [];
-								out.push(`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`);
-								if (j.candidateB) {
-									out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
-								}
-								return out;
-							});
-							logEvent('info', 'vote.complete', {
-								strategy: s.strategy,
-								tier: s.config.tier,
-								temperaments: s.config.temperaments,
-								consensusTemperament: s.config.consensusTemperament,
-								winner: s.winner,
-								winnerModel: s.winnerModel,
-								winnerTotal: s.winnerTotal,
-								tiebreak: s.tiebreak,
-								totals: Object.entries(s.totals)
-									.map(([n, t]) => `${n}:${t}`)
-									.join(','),
-								lengths: Object.entries(s.lengths)
-									.map(([n, l]) => `${n}:${l}`)
-									.join(','),
-								avgA: s.positionBias.avgA.toFixed(2),
-								avgB: s.positionBias.avgB.toFixed(2),
-								biasN: s.positionBias.n,
-								jurors: jurorPairs.join(',')
-							});
-							send('vote-stats', s);
+							const v = s.voting;
+							// Only voting runs carry the rich winner/juror metrics worth a
+							// dedicated log line — synthesis already logged consensus.complete.
+							if (v) {
+								// Flatten the nested per-juror grid into greppable key=value
+								// lines (`MELCHIOR_A=BALTHASAR:7`) so a tail of dev logs reads
+								// cleanly without needing a JSON parser.
+								const jurorPairs = v.jurors.flatMap((j) => {
+									const out: string[] = [];
+									out.push(`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`);
+									if (j.candidateB) {
+										out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
+									}
+									return out;
+								});
+								logEvent('info', 'vote.complete', {
+									strategy: s.strategy,
+									tier: s.tier,
+									temperaments: s.temperaments,
+									consensusTemperament: s.consensusTemperament,
+									winner: v.winner,
+									winnerModel: v.winnerModel,
+									winnerTotal: v.winnerTotal,
+									tiebreak: v.tiebreak,
+									totals: Object.entries(v.totals)
+										.map(([n, t]) => `${n}:${t}`)
+										.join(','),
+									lengths: Object.entries(v.lengths)
+										.map(([n, l]) => `${n}:${l}`)
+										.join(','),
+									avgA: v.positionBias.avgA.toFixed(2),
+									avgB: v.positionBias.avgB.toFixed(2),
+									biasN: v.positionBias.n,
+									jurors: jurorPairs.join(',')
+								});
+							}
+							send('run-stats', s);
 							break;
 						}
 					}

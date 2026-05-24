@@ -69,8 +69,31 @@ describe('synthesisStrategy.execute', () => {
 			{ type: 'text-delta', text: 'Hello' },
 			{ type: 'text-delta', text: ' world' },
 			{ type: 'complete', fullText: 'Hello world' },
-			{ type: 'usage', inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 }
+			{ type: 'usage', inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 },
+			{
+				type: 'run-stats',
+				stats: {
+					strategy: 'synthesis',
+					tier: 'unknown',
+					temperaments: false,
+					consensusTemperament: false,
+					nodes: {
+						MELCHIOR: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
+						BALTHASAR: { gateway: 'openai', provider: 'openai', model: 'gpt-x' },
+						CASPAR: { gateway: 'google', provider: 'google', model: 'gemini-x' }
+					}
+				}
+			}
 		]);
+	});
+
+	it('emits a run-stats event with no voting block (synthesis crowns no winner)', async () => {
+		const events = await collect(synthesisStrategy.execute(baseContext({ tier: 'frontier' })));
+		const e = events.find((ev) => ev.type === 'run-stats');
+		if (!e || e.type !== 'run-stats') throw new Error('no run-stats event emitted');
+		expect(e.stats.strategy).toBe('synthesis');
+		expect(e.stats.tier).toBe('frontier');
+		expect(e.stats.voting).toBeUndefined();
 	});
 
 	it('defaults missing usage figures to zero', async () => {
@@ -84,7 +107,7 @@ describe('synthesisStrategy.execute', () => {
 				}) as never
 		);
 		const events = await collect(synthesisStrategy.execute(baseContext()));
-		expect(events.at(-1)).toEqual({
+		expect(events.find((e) => e.type === 'usage')).toEqual({
 			type: 'usage',
 			inputTokens: 0,
 			outputTokens: 0,

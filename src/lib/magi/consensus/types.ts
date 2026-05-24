@@ -12,8 +12,9 @@ export interface VotingJurorBreakdown {
 	candidateB?: { node: MagiNodeName; score: number | null };
 }
 
+/** Voting-only metrics — the rich juror/position/tiebreak signal. Lives under
+ *  `RunStats.voting`; absent for synthesis runs (which crown no winner). */
 export interface VotingStats {
-	strategy: 'voting';
 	winner: MagiNodeName;
 	winnerModel: string;
 	winnerTotal: number;
@@ -28,19 +29,50 @@ export interface VotingStats {
 	jurors: VotingJurorBreakdown[];
 	/** Average score given to Candidate A across all jurors — vs Candidate B. */
 	positionBias: { avgA: number; avgB: number; n: number };
-	/** Active configuration when the vote ran. */
-	config: {
-		tier: string;
-		temperaments: boolean;
-		consensusTemperament: boolean;
-	};
+}
+
+/** Where a single node's response came from — the axes the stats panel breaks
+ *  usage (and voting wins) down by. */
+export interface NodeIdentity {
+	gateway: GatewayName;
+	provider: string;
+	model: string;
+}
+
+/** One consensus run, regardless of strategy. Every run emits exactly one of
+ *  these; voting runs additionally fill in `voting`. This is the unit the stats
+ *  panel aggregates over. */
+export interface RunStats {
+	strategy: StrategyName;
+	/** Active configuration when the run executed. */
+	tier: string;
+	temperaments: boolean;
+	consensusTemperament: boolean;
+	/** Identity of each node that responded this run — drives usage breakdowns. */
+	nodes: Partial<Record<MagiNodeName, NodeIdentity>>;
+	/** Voting-only rich metrics. Absent for synthesis. */
+	voting?: VotingStats;
 }
 
 export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
 	| { type: 'complete'; fullText: string }
 	| { type: 'usage'; inputTokens: number; outputTokens: number; cachedInputTokens: number }
-	| { type: 'stats'; stats: VotingStats };
+	| { type: 'run-stats'; stats: RunStats };
+
+/** Assemble the per-node identity map a `RunStats` carries, pairing each
+ *  responding node's gateway/provider with the model it was assigned. */
+export function nodeIdentities(
+	responses: MagiResponse[],
+	assignments: readonly NodeAssignment[]
+): Partial<Record<MagiNodeName, NodeIdentity>> {
+	const out: Partial<Record<MagiNodeName, NodeIdentity>> = {};
+	for (const r of responses) {
+		const model = assignments.find((a) => a.node === r.node)?.modelId ?? 'unknown';
+		out[r.node] = { gateway: r.gateway, provider: r.provider, model };
+	}
+	return out;
+}
 
 // A prior consensus turn — the consensus node's own thread across the conversation.
 export interface ConsensusHistoryTurn {

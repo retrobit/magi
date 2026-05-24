@@ -1,10 +1,11 @@
 import { generateText } from 'ai';
-import type {
-	ConsensusStrategy,
-	ConsensusContext,
-	ConsensusEvent,
-	VotingStats,
-	VotingJurorBreakdown
+import {
+	nodeIdentities,
+	type ConsensusStrategy,
+	type ConsensusContext,
+	type ConsensusEvent,
+	type VotingStats,
+	type VotingJurorBreakdown
 } from './types';
 import { NODE_LABELS, NODE_LABELS_GENERIC, NODE_TEMPERAMENTS } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
@@ -136,22 +137,23 @@ export const votingStrategy: ConsensusStrategy = {
 					responses.map((r) => [r.node, modelOf(r.node)])
 				) as Record<MagiNodeName, string>;
 				yield {
-					type: 'stats',
+					type: 'run-stats',
 					stats: {
 						strategy: 'voting',
-						winner: sole.node,
-						winnerModel: modelOf(sole.node),
-						winnerTotal: 0,
-						tiebreak: 'walkover',
-						totals,
-						lengths,
-						models,
-						jurors: [],
-						positionBias: { avgA: 0, avgB: 0, n: 0 },
-						config: {
-							tier: tier ?? 'unknown',
-							temperaments: temperaments ?? false,
-							consensusTemperament: consensusTemperament ?? false
+						tier: tier ?? 'unknown',
+						temperaments: temperaments ?? false,
+						consensusTemperament: consensusTemperament ?? false,
+						nodes: nodeIdentities(responses, nodeAssignments),
+						voting: {
+							winner: sole.node,
+							winnerModel: modelOf(sole.node),
+							winnerTotal: 0,
+							tiebreak: 'walkover',
+							totals,
+							lengths,
+							models,
+							jurors: [],
+							positionBias: { avgA: 0, avgB: 0, n: 0 }
 						}
 					}
 				};
@@ -288,8 +290,7 @@ export const votingStrategy: ConsensusStrategy = {
 			string
 		>;
 
-		const stats: VotingStats = {
-			strategy: 'voting',
+		const voting: VotingStats = {
 			winner: winnerTally.response.node,
 			winnerModel: modelOf(winnerTally.response.node),
 			winnerTotal: winnerTally.total,
@@ -302,13 +303,18 @@ export const votingStrategy: ConsensusStrategy = {
 				avgA: aCount > 0 ? aSum / aCount : 0,
 				avgB: bCount > 0 ? bSum / bCount : 0,
 				n: aCount + bCount
-			},
-			config: {
-				tier: tier ?? 'unknown',
-				temperaments: temperaments ?? false,
-				consensusTemperament: consensusTemperament ?? false
 			}
 		};
-		yield { type: 'stats', stats };
+		yield {
+			type: 'run-stats',
+			stats: {
+				strategy: 'voting',
+				tier: tier ?? 'unknown',
+				temperaments: temperaments ?? false,
+				consensusTemperament: consensusTemperament ?? false,
+				nodes: nodeIdentities(responses, nodeAssignments),
+				voting
+			}
+		};
 	}
 };

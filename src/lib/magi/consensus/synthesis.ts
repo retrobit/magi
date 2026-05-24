@@ -1,5 +1,10 @@
 import { streamText, type ModelMessage } from 'ai';
-import type { ConsensusStrategy, ConsensusContext, ConsensusEvent } from './types';
+import {
+	nodeIdentities,
+	type ConsensusStrategy,
+	type ConsensusContext,
+	type ConsensusEvent
+} from './types';
 import {
 	NODE_TEMPERAMENTS,
 	NODE_LABELS,
@@ -25,7 +30,8 @@ export const synthesisStrategy: ConsensusStrategy = {
 			consensusTemperament,
 			temperaments,
 			genericLabels,
-			signal
+			signal,
+			tier
 		} = ctx;
 
 		const nodeLabels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
@@ -109,6 +115,18 @@ Do NOT simply concatenate or summarize the responses. Produce a unified answer t
 			inputTokens: usage.inputTokens ?? 0,
 			outputTokens: usage.outputTokens ?? 0,
 			cachedInputTokens: usage.cachedInputTokens ?? 0
+		};
+		// Synthesis crowns no winner, so it contributes usage axes only — no
+		// `voting` block. Lets the stats panel count synthesis runs alongside votes.
+		yield {
+			type: 'run-stats',
+			stats: {
+				strategy: 'synthesis',
+				tier: tier ?? 'unknown',
+				temperaments: temperaments ?? false,
+				consensusTemperament: consensusTemperament ?? false,
+				nodes: nodeIdentities(responses, nodeAssignments)
+			}
 		};
 	}
 };

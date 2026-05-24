@@ -5,8 +5,8 @@
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import BudgetReadout from '$lib/components/BudgetReadout.svelte';
-	import VotingStatsPanel from '$lib/components/VotingStatsPanel.svelte';
-	import { appendVotingStat } from '$lib/magi/voting-stats';
+	import StatsPanel from '$lib/components/StatsPanel.svelte';
+	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
 	import DebugPanel, {
 		freshDebugScenario,
@@ -110,10 +110,10 @@
 	let scrollMode = $state<ScrollMode>('follow');
 	let debugOpen = $state(false);
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
-	let votingStatsOpen = $state(false);
-	// Bumped each time a fresh `vote-stats` event lands, so the panel re-reads
+	let statsOpen = $state(false);
+	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
-	let votingStatsNonce = $state(0);
+	let statsNonce = $state(0);
 
 	// Multi-turn conversation — completed turns for the active tier, plus the
 	// in-flight turn's query and streaming token usage.
@@ -813,13 +813,11 @@
 		'consensus-usage': ({ inputTokens, outputTokens, cachedInputTokens }) => {
 			liveConsensusUsage = { inputTokens, outputTokens, cachedTokens: cachedInputTokens };
 		},
-		'vote-stats': (data) => {
-			// Dev-only telemetry — accumulates voting outcomes so the 📊 panel can
-			// surface patterns (wins by model, position bias, tiebreak rates).
-			if (import.meta.env.DEV) {
-				appendVotingStat(data);
-				votingStatsNonce += 1;
-			}
+		'run-stats': (data) => {
+			// Per-run telemetry — accumulates usage axes for every run plus voting
+			// metrics, so the 📊 STATS panel can surface long-running patterns.
+			appendRunStat(data);
+			statsNonce += 1;
 		},
 		error: ({ message }) => {
 			live.error = message;
@@ -860,32 +858,32 @@
 						onclick={() => {
 							debugOpen = !debugOpen;
 							settingsOpen = false;
-							votingStatsOpen = false;
+							statsOpen = false;
 						}}
 						title="Debug panel (dev only)"
 					>
 						<Bug size={16} />
 					</button>
-					<button
-						type="button"
-						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-emerald-400"
-						onclick={() => {
-							votingStatsOpen = !votingStatsOpen;
-							debugOpen = false;
-							settingsOpen = false;
-						}}
-						title="Voting stats (dev only)"
-					>
-						<BarChart3 size={16} />
-					</button>
 				{/if}
+				<button
+					type="button"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-emerald-400"
+					onclick={() => {
+						statsOpen = !statsOpen;
+						debugOpen = false;
+						settingsOpen = false;
+					}}
+					title="Stats"
+				>
+					<BarChart3 size={16} />
+				</button>
 				<button
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
 					onclick={() => {
 						settingsOpen = !settingsOpen;
 						debugOpen = false;
-						votingStatsOpen = false;
+						statsOpen = false;
 					}}
 					title="Settings"
 				>
@@ -1242,19 +1240,15 @@
 	</div>
 {/if}
 
-{#if votingStatsOpen && import.meta.env.DEV}
+{#if statsOpen}
 	<button
 		class="fixed inset-0 z-40 cursor-default"
-		onclick={() => (votingStatsOpen = false)}
-		aria-label="Close voting stats"
+		onclick={() => (statsOpen = false)}
+		aria-label="Close stats"
 	></button>
 	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
 		<div class="pointer-events-auto ml-auto w-96 max-w-full">
-			<VotingStatsPanel
-				nonce={votingStatsNonce}
-				{genericLabels}
-				onclose={() => (votingStatsOpen = false)}
-			/>
+			<StatsPanel nonce={statsNonce} {genericLabels} onclose={() => (statsOpen = false)} />
 		</div>
 	</div>
 {/if}

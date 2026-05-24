@@ -8,7 +8,6 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## UI / UX
 
-- **Promote the stats panel out of dev mode** — The 📊 panel is currently `import.meta.env.DEV`-gated and only covers voting. Surface it for every user, label the button "STATS", and broaden the breakdowns: wins/usage by **gateway**, **provider**, **model**, **node**, and **strategy** (including the existing Structured Voting breakdown).
 - **UI/UX overhaul — re-evaluate color use, geometric background, splash** — At the very least, audit the current use/overuse of color across the UI. The RGB-per-node identity is core, but everything _around_ it (buttons, accents, hover states, secondary chrome) should defer to it instead of competing. A primarily-blue accent scheme, for example, would clash with CASPAR's blue and dilute the three-MAGI signal — any new dominant hue has to be chosen with the RGB triad in mind. Likely direction: lead with neutral grays as the primary palette and reserve color almost entirely for the node identifiers themselves. Also: replace the aurora orbs / RGB columns with something more geometric (grids, hex meshes, isometric tiles) or pattern-based, and consider an animated ASCII intro / splash page that establishes the three-MAGI identity before the main UI hydrates. This is a larger redesign pass than the individual UI polish items above — break into a separate design exploration before committing to a direction. Update [[feedback-ui-design]] when the new direction lands.
 
 ## Infrastructure
