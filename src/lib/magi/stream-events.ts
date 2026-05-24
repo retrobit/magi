@@ -1,4 +1,4 @@
-import type { GatewayName, MagiNodeName, MagiResponse } from './types';
+import type { DebateRoundEntry, GatewayName, MagiNodeName, MagiResponse } from './types';
 import type { MagiConfig } from './config';
 import type { RunStats } from './consensus/types';
 
@@ -24,6 +24,8 @@ export interface StreamEventPayloads {
 	/** Per-run stats for the stats panel — usage axes for every run, plus the
 	 *  rich voting metrics when the run used Structured Voting. */
 	'run-stats': RunStats;
+	/** A debater's revised answer for one round — routed into that node's panel. */
+	'node-round': { node: MagiNodeName; entry: DebateRoundEntry };
 	error: { message: string };
 }
 

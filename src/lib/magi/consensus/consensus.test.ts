@@ -13,12 +13,18 @@ describe('getStrategy', () => {
 		expect(strategy).toBeDefined();
 		expect(strategy.name).toBe('voting');
 	});
+
+	it('returns the debate strategy', () => {
+		const strategy = getStrategy('debate');
+		expect(strategy).toBeDefined();
+		expect(strategy.name).toBe('debate');
+	});
 });
 
 describe('getAvailableStrategies', () => {
 	it('returns every registered strategy with a description', () => {
 		const strategies = getAvailableStrategies();
-		expect(strategies.map((s) => s.name)).toEqual(['synthesis', 'voting']);
+		expect(strategies.map((s) => s.name)).toEqual(['synthesis', 'voting', 'debate']);
 		for (const strategy of strategies) {
 			expect(strategy.description).toEqual(expect.any(String));
 		}

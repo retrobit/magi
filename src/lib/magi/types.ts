@@ -67,6 +67,16 @@ export interface MagiResponse {
 	text: string;
 }
 
+/** One debate round as surfaced in a node panel — the trimmed inputs the node
+ *  was reacting to and the revised answer it produced. */
+export interface DebateRoundEntry {
+	round: number;
+	/** Trimmed display inputs: this node's prior answer + its anonymized peers'. */
+	prompt: string;
+	/** The node's revised answer that round. */
+	response: string;
+}
+
 export interface AvailableModel {
 	id: string;
 	gateway: GatewayName;
@@ -122,6 +132,9 @@ export interface ConversationTurn {
 	consensusNode: MagiNodeName;
 	nodeUsage: Partial<Record<MagiNodeName, TurnUsage>>;
 	consensusUsage?: TurnUsage;
+	/** Debate rounds per node (Multi-Round Debate only) — kept so the round-by-round
+	 *  detail survives in the transcript after the turn completes. */
+	debateRounds?: Partial<Record<MagiNodeName, DebateRoundEntry[]>>;
 }
 
 /** A completed turn as rendered in a single node panel's transcript. */
@@ -132,6 +145,8 @@ export interface NodeTranscriptEntry {
 	inputTokens: number;
 	outputTokens: number;
 	cachedTokens: number;
+	/** This node's debate rounds for the turn, if any. */
+	debateRounds?: DebateRoundEntry[];
 }
 
 /** A completed turn as rendered in the consensus transcript. */

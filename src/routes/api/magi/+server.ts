@@ -389,6 +389,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					consensusNodeIndex,
 					consensusTemperament: useConsensusTemperament ?? false,
 					temperaments: useAwareness ?? false,
+					nodeTemperaments: useTemperaments ?? false,
 					genericLabels: useGenericLabels ?? true,
 					signal: abortController.signal,
 					tier
@@ -463,6 +464,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							send('run-stats', s);
 							break;
 						}
+						case 'node-round':
+							send('node-round', { node: event.node, entry: event.entry });
+							break;
 					}
 				}
 				logEvent('info', 'request.complete', { elapsedMs: requestTimer() });

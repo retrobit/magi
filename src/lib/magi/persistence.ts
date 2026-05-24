@@ -73,6 +73,12 @@ const persistedSettingsSchema = z.object({
 	scrollMode: z.enum(['off', 'follow', 'snap'])
 });
 
+const debateRoundSchema = z.object({
+	round: z.number(),
+	prompt: z.string(),
+	response: z.string()
+});
+
 const conversationTurnSchema = z.object({
 	query: z.string(),
 	nodeResponses: nodeStringRecord,
@@ -80,7 +86,8 @@ const conversationTurnSchema = z.object({
 	consensus: z.string(),
 	consensusNode: z.enum(MAGI_NODE_NAMES),
 	nodeUsage: z.record(z.string(), turnUsageSchema),
-	consensusUsage: turnUsageSchema.optional()
+	consensusUsage: turnUsageSchema.optional(),
+	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional()
 });
 
 function storageAvailable(): boolean {

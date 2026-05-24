@@ -17,7 +17,8 @@ export const TEMPERAMENT_VERBS: Record<TemperamentName, string[]> = {
 
 export const STRATEGY_VERBS: Record<StrategyName, string[]> = {
 	synthesis: ['Synthesizing', 'Reconciling', 'Weighing', 'Distilling', 'Composing'],
-	voting: ['Tallying', 'Scoring', 'Counting', 'Deliberating', 'Judging']
+	voting: ['Tallying', 'Scoring', 'Counting', 'Deliberating', 'Judging'],
+	debate: ['Debating', 'Arguing', 'Deliberating', 'Rebutting', 'Converging']
 };
 
 // A solid block sweeps left-to-right *through* the verb, replacing one

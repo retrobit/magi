@@ -1,5 +1,5 @@
 import type { LanguageModel } from 'ai';
-import type { MagiResponse, GatewayName, MagiNodeName } from '../types';
+import type { MagiResponse, GatewayName, MagiNodeName, DebateRoundEntry } from '../types';
 import type { NodeAssignment } from '../config';
 
 /** Per-juror breakdown of which anonymized candidate got which score. */
@@ -58,7 +58,10 @@ export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
 	| { type: 'complete'; fullText: string }
 	| { type: 'usage'; inputTokens: number; outputTokens: number; cachedInputTokens: number }
-	| { type: 'run-stats'; stats: RunStats };
+	| { type: 'run-stats'; stats: RunStats }
+	// Per-node, per-round debate activity — surfaced in the node panels, not the
+	// consensus stream. Only the debate strategy emits these.
+	| { type: 'node-round'; node: MagiNodeName; entry: DebateRoundEntry };
 
 /** Assemble the per-node identity map a `RunStats` carries, pairing each
  *  responding node's gateway/provider with the model it was assigned. */
@@ -89,6 +92,9 @@ export interface ConsensusContext {
 	consensusNodeIndex: number;
 	consensusTemperament?: boolean;
 	temperaments?: boolean;
+	/** Whether the MAGI answered in-character (the main Temperaments toggle). Debate
+	 *  uses this to decide if the debaters argue through their dispositional lens. */
+	nodeTemperaments?: boolean;
 	genericLabels?: boolean;
 	signal?: AbortSignal;
 	/** Tier label for stats annotation (purely informational; strategies don't branch on it). */
@@ -101,13 +107,20 @@ export interface ConsensusStrategy {
 	execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent>;
 }
 
-export const STRATEGY_NAMES = ['synthesis', 'voting'] as const;
+// Ordered as shown in the strategy picker — cheapest first, flagship last.
+export const STRATEGY_NAMES = ['synthesis', 'voting', 'debate'] as const;
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
+// The cheap, fast strategy loads by default. Debate is the headline option but
+// is opt-in because it is the most expensive by every metric.
 export const DEFAULT_STRATEGY: StrategyName = 'synthesis';
+// The flagship strategy — the fullest expression of the three-MAGI system, given
+// headline treatment in the picker (badge + RGB-triad accent).
+export const FLAGSHIP_STRATEGY: StrategyName = 'debate';
 
 export const STRATEGY_LABELS: Record<StrategyName, string> = {
 	synthesis: 'Synthesis',
-	voting: 'Structured Voting'
+	voting: 'Structured Voting',
+	debate: 'Multi-Round Debate'
 };
 
 // Hover-explainer text for each strategy in the dropdown, so a first-time user
@@ -116,11 +129,22 @@ export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
 	synthesis:
 		'A consensus model reads all three responses and writes one unified answer — merging agreements, resolving conflicts, and flagging uncertainty.',
 	voting:
-		'Each model scores its peers’ answers (anonymized) 0–10. The highest-scoring response wins and is shown verbatim with a tally — no consensus model writes anything.'
+		'Each model scores its peers’ answers (anonymized) 0–10. The highest-scoring response wins and is shown verbatim with a tally — no consensus model writes anything.',
+	debate:
+		'The full MAGI protocol: all three models read each other’s answers and revise across multiple rounds until they converge, then one synthesizes the final word. The most thorough — and the most expensive.'
+};
+
+/** Relative cost/thoroughness, 1–3, shown as a dot meter in the picker. Abstract
+ *  on purpose — the true call count shifts with node count and early-stop. */
+export const STRATEGY_INTENSITY: Record<StrategyName, 1 | 2 | 3> = {
+	synthesis: 1,
+	voting: 2,
+	debate: 3
 };
 
 /** Text shown in the consensus panel while a strategy is still running. */
 export const STRATEGY_PENDING_LABELS: Record<StrategyName, string> = {
 	synthesis: 'Synthesizing consensus…',
-	voting: 'Tallying votes…'
+	voting: 'Tallying votes…',
+	debate: 'Deliberating…'
 };
