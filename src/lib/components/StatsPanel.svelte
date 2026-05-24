@@ -98,7 +98,7 @@
 							style="width: {agg.total > 0 ? ((count / agg.total) * 100).toFixed(1) : 0}%"
 						></div>
 					</div>
-					<span class="w-14 text-right font-mono text-gray-400">
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
 						{count} ({pct(count, agg.total)})
 					</span>
 				</div>
@@ -117,7 +117,9 @@
 							style="width: {(e.count / agg.usageByGateway[0].count) * 100}%"
 						></div>
 					</div>
-					<span class="w-10 text-right font-mono text-gray-400">{e.count}</span>
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+						>{e.count}</span
+					>
 				</div>
 			{/each}
 		</section>
@@ -134,7 +136,9 @@
 							style="width: {(e.count / agg.usageByProvider[0].count) * 100}%"
 						></div>
 					</div>
-					<span class="w-10 text-right font-mono text-gray-400">{e.count}</span>
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+						>{e.count}</span
+					>
 				</div>
 			{/each}
 		</section>
@@ -145,7 +149,9 @@
 			{#each topN(agg.usageByModel) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
 					<span class="flex-1 truncate text-gray-400" title={e.key}>{e.key}</span>
-					<span class="w-10 text-right font-mono text-gray-400">{e.count}</span>
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+						>{e.count}</span
+					>
 				</div>
 			{/each}
 			{#if agg.usageByModel.length > 6}
@@ -160,7 +166,7 @@
 				{@const count = agg.usageByNode[node] ?? 0}
 				<div class="flex items-center justify-between text-xs">
 					<span class="text-gray-300">{nodeLabels[node]}</span>
-					<span class="font-mono text-gray-400">{count}</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">{count}</span>
 				</div>
 			{/each}
 		</section>
@@ -188,7 +194,7 @@
 								style="width: {v.total > 0 ? ((wins / v.total) * 100).toFixed(1) : 0}%"
 							></div>
 						</div>
-						<span class="w-14 text-right font-mono text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
 							{wins} ({pct(wins, v.total)})
 						</span>
 					</div>
@@ -202,7 +208,7 @@
 					<div class="flex items-center gap-2 text-xs">
 						<span class="w-24 text-gray-300">{nodeLabels[entry.node]}</span>
 						<span class="flex-1 truncate text-gray-400" title={entry.model}>{entry.model}</span>
-						<span class="w-14 text-right font-mono text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
 							{entry.wins} ({pct(entry.wins, v.total)})
 						</span>
 					</div>
@@ -218,7 +224,9 @@
 				{#each v.winsByGateway as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
 						<span class="text-gray-300">{e.label}</span>
-						<span class="font-mono text-gray-400">{e.count} ({pct(e.count, v.total)})</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+							>{e.count} ({pct(e.count, v.total)})</span
+						>
 					</div>
 				{/each}
 			</section>
@@ -227,7 +235,9 @@
 				{#each v.winsByProvider as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
 						<span class="text-gray-300">{e.label}</span>
-						<span class="font-mono text-gray-400">{e.count} ({pct(e.count, v.total)})</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+							>{e.count} ({pct(e.count, v.total)})</span
+						>
 					</div>
 				{/each}
 			</section>
@@ -261,13 +271,13 @@
 				<div class="flex flex-col gap-0.5 text-xs">
 					<div class="flex justify-between">
 						<span class="text-gray-300">Decisive</span>
-						<span class="font-mono text-gray-400">
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
 							{v.tiebreakDistribution.none} ({pct(v.tiebreakDistribution.none, v.total)})
 						</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-300">Best-score tiebreak</span>
-						<span class="font-mono text-gray-400">
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
 							{v.tiebreakDistribution['best-score']} ({pct(
 								v.tiebreakDistribution['best-score'],
 								v.total
@@ -276,7 +286,7 @@
 					</div>
 					<div class="flex justify-between">
 						<span class="text-gray-300">Node-order tiebreak</span>
-						<span class="font-mono text-gray-400">
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
 							{v.tiebreakDistribution['node-order']} ({pct(
 								v.tiebreakDistribution['node-order'],
 								v.total
@@ -286,7 +296,7 @@
 					{#if v.tiebreakDistribution.walkover > 0}
 						<div class="flex justify-between">
 							<span class="text-gray-300">Walkover</span>
-							<span class="font-mono text-gray-400">
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
 								{v.tiebreakDistribution.walkover} ({pct(v.tiebreakDistribution.walkover, v.total)})
 							</span>
 						</div>
@@ -299,13 +309,25 @@
 				<h3 class="text-xs font-semibold text-gray-400">Avg response length (chars)</h3>
 				<div class="flex justify-between text-xs">
 					<span class="text-gray-300">Winners</span>
-					<span class="font-mono text-gray-400">{Math.round(v.winnerAvgLength)}</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+						>{Math.round(v.winnerAvgLength)}</span
+					>
 				</div>
 				<div class="flex justify-between text-xs">
 					<span class="text-gray-300">Losers</span>
-					<span class="font-mono text-gray-400">{Math.round(v.loserAvgLength)}</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+						>{Math.round(v.loserAvgLength)}</span
+					>
 				</div>
 			</section>
 		{/if}
 	{/if}
 </div>
+
+<style>
+	/* Indent each section's rows under their heading so the breakdowns read as a
+	   nested list rather than a flat column. */
+	section > :global(:not(h3)) {
+		padding-left: 0.75rem;
+	}
+</style>
