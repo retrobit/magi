@@ -87,6 +87,7 @@ const conversationTurnSchema = z.object({
 	consensusNode: z.enum(MAGI_NODE_NAMES),
 	nodeUsage: z.record(z.string(), turnUsageSchema),
 	consensusUsage: turnUsageSchema.optional(),
+	strategy: z.string().optional(),
 	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional()
 });
 

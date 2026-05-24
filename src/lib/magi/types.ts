@@ -132,6 +132,8 @@ export interface ConversationTurn {
 	consensusNode: MagiNodeName;
 	nodeUsage: Partial<Record<MagiNodeName, TurnUsage>>;
 	consensusUsage?: TurnUsage;
+	/** Which consensus strategy produced this turn — drives the debate banner etc. */
+	strategy?: string;
 	/** Debate rounds per node (Multi-Round Debate only) — kept so the round-by-round
 	 *  detail survives in the transcript after the turn completes. */
 	debateRounds?: Partial<Record<MagiNodeName, DebateRoundEntry[]>>;
@@ -156,6 +158,8 @@ export interface ConsensusTranscriptEntry {
 	inputTokens: number;
 	outputTokens: number;
 	cachedTokens: number;
+	/** Strategy that produced this turn — shows the debate banner in the transcript. */
+	strategy?: string;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {

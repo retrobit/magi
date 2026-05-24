@@ -131,6 +131,12 @@
 	// both the Node dropdown and the consensus-temperament badge are inert.
 	const consensusNodeApplies = $derived(strategy !== 'voting');
 
+	// A consensus exists if it's streaming live or was committed to the transcript.
+	// Lets the header's done-check (and the debate banner) survive the live-state
+	// reset that fires when a turn commits.
+	const lastTurnConsensus = $derived(!!transcript[transcript.length - 1]?.consensus);
+	const hasConsensus = $derived(text !== '' || lastTurnConsensus);
+
 	// A finished debate earns a headline banner — the rounds are done and a final
 	// synthesis is on screen. Gradient-clipped text reuses the three-MAGI triad.
 	const debateComplete = $derived(strategy === 'debate' && !loading && text !== '');
@@ -249,6 +255,19 @@
 	{/if}
 {/snippet}
 
+<!-- Headline banner crowning a completed multi-round debate. -->
+{#snippet debateBanner()}
+	<div class="flex flex-col gap-1">
+		<div class="flex items-center gap-2">
+			<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
+				Consensus reached
+			</span>
+			<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
+		</div>
+		<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
+	</div>
+{/snippet}
+
 <div
 	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
 		? 'min-h-0'
@@ -316,7 +335,7 @@
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 				{:else if loading}
 					<LoaderCircle size={14} class="animate-spin text-yellow-400" />
-				{:else if text}
+				{:else if hasConsensus}
 					<div class="flex items-center gap-2">
 						{#if fullText}
 							<button
@@ -451,6 +470,7 @@
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.consensus}
+							{#if turn.strategy === 'debate'}{@render debateBanner()}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
@@ -479,18 +499,7 @@
 						{:else if loading && !text}
 							<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
 						{:else if text}
-							{#if debateComplete}
-								<!-- Headline banner crowning a completed multi-round debate. -->
-								<div class="flex flex-col gap-1">
-									<div class="flex items-center gap-2">
-										<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
-											Consensus reached
-										</span>
-										<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
-									</div>
-									<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
-								</div>
-							{/if}
+							{#if debateComplete}{@render debateBanner()}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>

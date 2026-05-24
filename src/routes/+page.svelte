@@ -336,7 +336,8 @@
 			consensus: turn.consensus,
 			inputTokens: turn.consensusUsage?.inputTokens ?? 0,
 			outputTokens: turn.consensusUsage?.outputTokens ?? 0,
-			cachedTokens: turn.consensusUsage?.cachedTokens ?? 0
+			cachedTokens: turn.consensusUsage?.cachedTokens ?? 0,
+			strategy: turn.strategy
 		}))
 	);
 
@@ -709,6 +710,7 @@
 				consensusNode,
 				nodeUsage: { ...liveNodeUsage },
 				consensusUsage: liveConsensusUsage,
+				strategy,
 				debateRounds: { ...live.debateRounds }
 			}
 		];
