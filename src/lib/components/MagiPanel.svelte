@@ -5,6 +5,7 @@
 		TemperamentName,
 		AvailableModel,
 		NodeTranscriptEntry,
+		DebateRoundEntry,
 		ScrollMode
 	} from '$lib/magi/types';
 	import {
@@ -37,6 +38,9 @@
 		CircleHelp,
 		Copy,
 		Check,
+		ChevronRight,
+		ChevronsUpDown,
+		ChevronsDownUp,
 		X
 	} from 'lucide-svelte';
 
@@ -57,6 +61,13 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
+		/** Live debate rounds for this node (Multi-Round Debate only). */
+		debateRounds?: DebateRoundEntry[];
+		/** Collapsed to just the header (focus accordion). */
+		collapsed?: boolean;
+		/** This zone is the one currently expanded/focused. */
+		focused?: boolean;
+		onfocustoggle?: () => void;
 		transcript?: NodeTranscriptEntry[];
 		liveQuery?: string;
 		liveInput?: number;
@@ -84,6 +95,10 @@
 		text,
 		error,
 		status,
+		debateRounds = [],
+		collapsed = false,
+		focused = false,
+		onfocustoggle,
 		transcript = [],
 		liveQuery = '',
 		liveInput = 0,
@@ -158,6 +173,25 @@
 			// above the prompt rather than pinning it flush to the top edge.
 			const block = content.lastElementChild;
 			const target = block?.firstElementChild ?? block;
+			if (target) {
+				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+			}
+		});
+		return () => cancelAnimationFrame(frame);
+	});
+
+	// Snap mode: each new debate round is a fresh sub-response, so jump to the
+	// latest round card the moment it lands. Tied to the node-round count (the
+	// per-round events) rather than liveQuery, which only changes on submit.
+	$effect(() => {
+		const count = debateRounds.length;
+		if (scrollMode !== 'snap' || count === 0) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const frame = requestAnimationFrame(() => {
+			const rounds = content.querySelectorAll('.magi-round');
+			const target = rounds[rounds.length - 1];
 			if (target) {
 				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
 			}
@@ -267,11 +301,49 @@
 	{/if}
 {/snippet}
 
+{#snippet roundList(rounds: DebateRoundEntry[], live: boolean)}
+	{#if rounds.length > 0}
+		<div class="flex flex-col gap-2">
+			{#each rounds as r, idx (r.round)}
+				<div
+					class="magi-round flex flex-col gap-1 rounded-md border border-gray-800 bg-gray-900/40 p-2"
+					style:min-height={live && scrollMode === 'snap' && idx === rounds.length - 1
+						? snapMinHeight
+						: undefined}
+				>
+					<span class="text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
+						Round {r.round}
+					</span>
+					<div class="prose prose-sm max-w-none prose-invert">
+						<Markdown source={r.response} />
+					</div>
+					<details class="group">
+						<summary
+							class="flex cursor-pointer items-center gap-1 text-[11px] font-medium text-gray-500 select-none hover:text-gray-300"
+						>
+							<ChevronRight size={11} class="transition-transform group-open:rotate-90" />
+							Inputs this round
+						</summary>
+						<!-- Quoted, tinted block so the debate inputs read as a distinct aside,
+						     not a continuation of the round's answer. -->
+						<div
+							class="mt-1 ml-1.5 rounded border-l-2 border-gray-700 bg-gray-950/60 py-1 pr-1 pl-2 opacity-80"
+						>
+							<div class="prose prose-sm max-w-none text-gray-400 prose-invert">
+								<Markdown source={r.prompt} />
+							</div>
+						</div>
+					</details>
+				</div>
+			{/each}
+		</div>
+	{/if}
+{/snippet}
+
 <div
-	class="magi-panel flex max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {status ===
-	'pending'
-		? 'pulse-glow'
-		: ''}"
+	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
+		? 'min-h-0'
+		: 'min-h-72'} {status === 'pending' ? 'pulse-glow' : ''}"
 	style:--node-color={NODE_HEX_COLORS[name]}
 >
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
@@ -291,6 +363,21 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
+				{#if onfocustoggle}
+					<button
+						type="button"
+						class="text-gray-500 transition-colors hover:text-white"
+						onclick={() => onfocustoggle?.()}
+						title={focused ? 'Collapse — show all panels' : 'Expand this panel'}
+						aria-label={focused ? 'Collapse panel' : 'Expand panel'}
+					>
+						{#if focused}
+							<ChevronsDownUp size={14} />
+						{:else}
+							<ChevronsUpDown size={14} />
+						{/if}
+					</button>
+				{/if}
 				{#if showTokens || showContext}
 					<span class="group flex items-center gap-1 font-mono text-[10px] text-gray-500">
 						{#if showTokens}
@@ -422,6 +509,7 @@
 	</div>
 	<div
 		class="min-h-0 flex-1 overflow-y-auto"
+		class:hidden={collapsed}
 		bind:this={scrollEl}
 		bind:clientHeight={viewportH}
 		onscroll={onScroll}
@@ -447,6 +535,7 @@
 						{:else}
 							<p class="text-sm text-gray-600">No response</p>
 						{/if}
+						{@render roundList(turn.debateRounds ?? [], false)}
 						{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
 					</div>
 				{/each}
@@ -455,7 +544,7 @@
 						class="flex flex-col gap-1.5 {transcript.length > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
-						style:min-height={snapMinHeight}
+						style:min-height={debateRounds.length > 0 ? undefined : snapMinHeight}
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 						{#if status === 'error'}
@@ -471,6 +560,7 @@
 						{:else}
 							<p class="font-mono text-sm text-gray-500">{loadingText}…</p>
 						{/if}
+						{@render roundList(debateRounds, true)}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>
 				{/if}

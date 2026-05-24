@@ -31,6 +31,7 @@
 		type TurnUsage,
 		type NodeTranscriptEntry,
 		type ConsensusTranscriptEntry,
+		type DebateRoundEntry,
 		type ScrollMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
@@ -107,7 +108,17 @@
 	let temperamentAwareness = $state(false);
 	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
-	let scrollMode = $state<ScrollMode>('follow');
+	let scrollMode = $state<ScrollMode>('snap');
+	// Focus accordion between the node row and the consensus. Clicking a zone's
+	// chevron expands it and collapses the other to its header; clicking the
+	// focused zone again returns to the balanced split. Default leads with the
+	// consensus (the answer).
+	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('consensus');
+	const nodesCollapsed = $derived(layoutFocus === 'consensus');
+	const consensusCollapsed = $derived(layoutFocus === 'nodes');
+	const focusNodes = () => (layoutFocus = layoutFocus === 'nodes' ? 'balanced' : 'nodes');
+	const focusConsensus = () =>
+		(layoutFocus = layoutFocus === 'consensus' ? 'balanced' : 'consensus');
 	let debugOpen = $state(false);
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	let statsOpen = $state(false);
@@ -139,6 +150,8 @@
 		responses: MagiResponse[];
 		modelStreams: Record<MagiNodeName, string>;
 		modelErrors: MagiModelError[];
+		// Debate rounds surfaced per node — appended live as each round resolves.
+		debateRounds: Record<MagiNodeName, DebateRoundEntry[]>;
 		consensusStream: string;
 		consensusFinal: string;
 		consensusWarning: string;
@@ -151,6 +164,7 @@
 			responses: [],
 			modelStreams: { MELCHIOR: '', BALTHASAR: '', CASPAR: '' },
 			modelErrors: [],
+			debateRounds: { MELCHIOR: [], BALTHASAR: [], CASPAR: [] },
 			consensusStream: '',
 			consensusFinal: '',
 			consensusWarning: '',
@@ -310,7 +324,8 @@
 				error: turn.nodeErrors[node] ?? '',
 				inputTokens: u?.inputTokens ?? 0,
 				outputTokens: u?.outputTokens ?? 0,
-				cachedTokens: u?.cachedTokens ?? 0
+				cachedTokens: u?.cachedTokens ?? 0,
+				debateRounds: turn.debateRounds?.[node] ?? []
 			};
 		});
 	}
@@ -330,6 +345,14 @@
 		if (responseMap.get(node)) return 'success';
 		if (loading && !live.streamDone) return 'pending';
 		if (loading && live.streamDone) return 'unknown';
+		// Turn finished and live state was cleared — keep the last turn's outcome so
+		// the checkmark persists instead of reverting to idle. Long debates make the
+		// reset-to-idle especially noticeable.
+		if (conversation.length > 0) {
+			const last = conversation[conversation.length - 1];
+			if (last.nodeErrors[node]) return 'error';
+			if (last.nodeResponses[node]) return 'success';
+		}
 		return 'idle';
 	}
 
@@ -685,7 +708,8 @@
 				consensus: live.consensusFinal || live.consensusStream,
 				consensusNode,
 				nodeUsage: { ...liveNodeUsage },
-				consensusUsage: liveConsensusUsage
+				consensusUsage: liveConsensusUsage,
+				debateRounds: { ...live.debateRounds }
 			}
 		];
 		// Live-turn state now belongs to the committed turn — reset it.
@@ -790,6 +814,9 @@
 		},
 		'model-chunk': ({ node, text }) => {
 			if (node in live.modelStreams) live.modelStreams[node] += text;
+		},
+		'node-round': ({ node, entry }) => {
+			if (node in live.debateRounds) live.debateRounds[node] = [...live.debateRounds[node], entry];
 		},
 		'model-response': (data) => {
 			live.responses = [...live.responses, data];
@@ -1032,7 +1059,9 @@
 
 		<!-- Three MAGI panels -->
 		<div
-			class="grid flex-2 grid-cols-1 gap-2 md:min-h-0 md:flex-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:overflow-hidden"
+			class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] {nodesCollapsed
+				? 'shrink-0'
+				: 'flex-2 md:min-h-0 md:flex-1 md:overflow-hidden'}"
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
@@ -1064,6 +1093,10 @@
 					contextUsed={latestNodeInput(assignment.node)}
 					contextWindow={modelContextWindow(assignment.modelId)}
 					text={responseMap.get(assignment.node)?.text ?? live.modelStreams[assignment.node]}
+					debateRounds={live.debateRounds[assignment.node]}
+					collapsed={nodesCollapsed}
+					focused={layoutFocus === 'nodes'}
+					onfocustoggle={focusNodes}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
@@ -1078,7 +1111,7 @@
 		</div>
 
 		<!-- Consensus -->
-		<div class="flex-1 md:min-h-0">
+		<div class={consensusCollapsed ? 'shrink-0' : 'flex-1 md:min-h-0'}>
 			<ConsensusView
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
@@ -1105,6 +1138,9 @@
 				{genericLabels}
 				{scrollMode}
 				disabled={loading}
+				collapsed={consensusCollapsed}
+				focused={layoutFocus === 'consensus'}
+				onfocustoggle={focusConsensus}
 				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
@@ -1186,20 +1222,20 @@
 			<span class="mt-3 text-xs font-medium text-gray-400">Auto-scroll</span>
 			<div class="mt-2 flex flex-col gap-1">
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
-						? 'bg-gray-600 text-white'
-						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
-					onclick={() => (scrollMode = 'follow')}
-				>
-					Follow
-				</button>
-				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
 						? 'bg-gray-600 text-white'
 						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
 					onclick={() => (scrollMode = 'snap')}
 				>
 					Snap to top
+				</button>
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
+						? 'bg-gray-600 text-white'
+						: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					onclick={() => (scrollMode = 'follow')}
+				>
+					Follow
 				</button>
 				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'

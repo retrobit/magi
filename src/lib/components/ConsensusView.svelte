@@ -19,17 +19,22 @@
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import {
-		STRATEGY_NAMES,
-		STRATEGY_LABELS,
-		STRATEGY_DESCRIPTIONS,
-		type StrategyName
-	} from '$lib/magi/consensus';
+	import { type StrategyName } from '$lib/magi/consensus';
 	import { STRATEGY_VERBS, SWEEP_MS, sweepVerb, sweepCycleLength } from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
+	import StrategyPicker from './StrategyPicker.svelte';
 	import TokenCount from './TokenCount.svelte';
-	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
+	import {
+		Copy,
+		Check,
+		LoaderCircle,
+		CircleCheck,
+		AlertTriangle,
+		Brain,
+		ChevronsUpDown,
+		ChevronsDownUp
+	} from 'lucide-svelte';
 
 	let copied = $state(false);
 	function copyConsensus() {
@@ -68,6 +73,11 @@
 		onconsensuschange?: (node: MagiNodeName) => void;
 		onconsensustemperamentchange?: (value: boolean) => void;
 		onawarenesschange?: (value: boolean) => void;
+		/** Collapsed to just the header (focus accordion). */
+		collapsed?: boolean;
+		/** This zone is the one currently expanded/focused. */
+		focused?: boolean;
+		onfocustoggle?: () => void;
 	}
 
 	let {
@@ -99,18 +109,32 @@
 		onstrategychange,
 		onconsensuschange,
 		onconsensustemperamentchange,
-		onawarenesschange
+		onawarenesschange,
+		collapsed = false,
+		focused = false,
+		onfocustoggle
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
-	// Temperament awareness shapes only the synthesis writer — voting jurors
-	// already score through their own lens — so the toggle is inert for voting.
-	const awarenessApplies = $derived(strategy !== 'voting');
+	// Temperament awareness only shapes the Synthesis writer. Voting jurors already
+	// score through their own lens, and the Debate synthesizer is a neutral scribe
+	// (the lenses live in the debaters) — so the toggle is inert for both.
+	const awarenessApplies = $derived(strategy === 'synthesis');
+
+	// Consensus temperament lenses the consensus mechanism's participants — the
+	// synthesizer (Synthesis) or jurors (Voting). Debate's synthesizer is neutral
+	// and its debaters follow the main Temperaments toggle, so it's inert here.
+	const consensusTempApplies = $derived(strategy !== 'debate');
 
 	// Voting tallies all jurors equally; there's no single consensus node, so
 	// both the Node dropdown and the consensus-temperament badge are inert.
 	const consensusNodeApplies = $derived(strategy !== 'voting');
+
+	// A finished debate earns a headline banner — the rounds are done and a final
+	// synthesis is on screen. Gradient-clipped text reuses the three-MAGI triad.
+	const debateComplete = $derived(strategy === 'debate' && !loading && text !== '');
+	const gradientText = `${CONSENSUS_GRADIENT}; -webkit-background-clip: text; background-clip: text; color: transparent;`;
 
 	// Live loading-progress summary — how many of the MAGI have settled so far.
 	const waitingLabel = $derived.by(() => {
@@ -211,11 +235,6 @@
 			: `${getProviderLabel(consensusProvider)} ${consensusModelDisplayName}`;
 	});
 
-	function handleStrategyChange(e: Event) {
-		const s = (e.target as HTMLSelectElement).value as StrategyName;
-		onstrategychange?.(s);
-	}
-
 	function handleNodeChange(e: Event) {
 		const node = (e.target as HTMLSelectElement).value as MagiNodeName;
 		onconsensuschange?.(node);
@@ -231,17 +250,16 @@
 {/snippet}
 
 <div
-	class="magi-panel flex h-full max-h-[70vh] min-h-72 flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {loading &&
-	allModelsResponded
-		? 'pulse-consensus'
-		: ''}"
+	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
+		? 'min-h-0'
+		: 'min-h-72'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
-				{#if consensusTemperament && consensusNodeApplies}
+				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
@@ -250,6 +268,21 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
+				{#if onfocustoggle}
+					<button
+						type="button"
+						class="text-gray-500 transition-colors hover:text-white"
+						onclick={() => onfocustoggle?.()}
+						title={focused ? 'Collapse — show all panels' : 'Expand consensus'}
+						aria-label={focused ? 'Collapse consensus' : 'Expand consensus'}
+					>
+						{#if focused}
+							<ChevronsDownUp size={14} />
+						{:else}
+							<ChevronsUpDown size={14} />
+						{/if}
+					</button>
+				{/if}
 				{#if showTokens || showContext}
 					<span class="group flex items-center gap-1 font-mono text-[10px] text-gray-500">
 						{#if showTokens}
@@ -310,17 +343,7 @@
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 				{#if onstrategychange}
 					<span class="text-xs text-gray-500">Strategy</span>
-					<select
-						class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
-						value={strategy}
-						onchange={handleStrategyChange}
-						use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
-						{disabled}
-					>
-						{#each STRATEGY_NAMES as s (s)}
-							<option value={s} title={STRATEGY_DESCRIPTIONS[s]}>{STRATEGY_LABELS[s]}</option>
-						{/each}
-					</select>
+					<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
 					<span class="text-xs text-gray-700">·</span>
 				{/if}
 				{#if onconsensuschange}
@@ -364,12 +387,18 @@
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
 								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'}"
-							onclick={() => onconsensustemperamentchange(!consensusTemperament)}
+								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} {consensusTempApplies
+								? ''
+								: 'cursor-not-allowed opacity-40'}"
+							onclick={() =>
+								consensusTempApplies && onconsensustemperamentchange(!consensusTemperament)}
 							{disabled}
-							use:tooltip={consensusTemperament
-								? 'Consensus temperament active — synthesizer responds through its dispositional lens'
-								: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
+							aria-disabled={!consensusTempApplies}
+							use:tooltip={!consensusTempApplies
+								? 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
+								: consensusTemperament
+									? 'Consensus temperament active — synthesizer responds through its dispositional lens'
+									: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
 						>
 							<Brain size={12} />
 							{consensusTemperament ? 'ON' : 'OFF'}
@@ -387,7 +416,9 @@
 							{disabled}
 							aria-disabled={!awarenessApplies}
 							use:tooltip={!awarenessApplies
-								? 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
+								? strategy === 'debate'
+									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'
+									: 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
 								: temperamentAwareness
 									? 'Temperament awareness active — synthesizer considers dispositional lenses'
 									: "Enable temperament awareness — tell the synthesizer about each node's dispositional lens"}
@@ -402,6 +433,7 @@
 	</div>
 	<div
 		class="min-h-0 flex-1 overflow-y-auto"
+		class:hidden={collapsed}
 		bind:this={scrollEl}
 		bind:clientHeight={viewportH}
 		onscroll={onScroll}
@@ -447,6 +479,18 @@
 						{:else if loading && !text}
 							<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
 						{:else if text}
+							{#if debateComplete}
+								<!-- Headline banner crowning a completed multi-round debate. -->
+								<div class="flex flex-col gap-1">
+									<div class="flex items-center gap-2">
+										<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
+											Consensus reached
+										</span>
+										<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
+									</div>
+									<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
+								</div>
+							{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
