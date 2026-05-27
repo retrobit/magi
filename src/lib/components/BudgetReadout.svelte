@@ -75,8 +75,7 @@
 	}
 </script>
 
-<div class="flex items-center justify-between">
-	<span class="text-xs font-medium text-gray-400">Budget</span>
+<div class="flex items-center justify-end">
 	<button
 		type="button"
 		class="text-gray-500 transition-colors hover:text-white disabled:opacity-40"

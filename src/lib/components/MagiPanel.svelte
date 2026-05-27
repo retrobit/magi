@@ -39,8 +39,6 @@
 		Copy,
 		Check,
 		ChevronRight,
-		ChevronsUpDown,
-		ChevronsDownUp,
 		X
 	} from 'lucide-svelte';
 
@@ -65,9 +63,6 @@
 		debateRounds?: DebateRoundEntry[];
 		/** Collapsed to just the header (focus accordion). */
 		collapsed?: boolean;
-		/** This zone is the one currently expanded/focused. */
-		focused?: boolean;
-		onfocustoggle?: () => void;
 		transcript?: NodeTranscriptEntry[];
 		liveQuery?: string;
 		liveInput?: number;
@@ -97,8 +92,6 @@
 		status,
 		debateRounds = [],
 		collapsed = false,
-		focused = false,
-		onfocustoggle,
 		transcript = [],
 		liveQuery = '',
 		liveInput = 0,
@@ -126,6 +119,27 @@
 	const totalCached = $derived(transcript.reduce((sum, t) => sum + t.cachedTokens, 0) + liveCached);
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
+
+	// The token breakdown moves into a hover tooltip on the (static-width) context
+	// gauge, so hovering no longer widens the header and shoves the layout control.
+	const tokensTooltip = $derived.by(() => {
+		const segs: string[] = [];
+		if (showContext && contextWindow) {
+			segs.push(
+				`Context ${contextUsed.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`
+			);
+		}
+		if (showTokens) {
+			const t = [
+				`↑ ${totalInput.toLocaleString()} in`,
+				`↓ ${totalOutput.toLocaleString()} out`,
+				`${(totalInput + totalOutput).toLocaleString()} total`
+			];
+			if (totalCached > 0) t.push(`⚡ ${totalCached.toLocaleString()} cached`);
+			segs.push(t.join(' · '));
+		}
+		return segs.join('  —  ');
+	});
 
 	// Follow mode: track the latest content while pinned to the bottom; a manual
 	// scroll up pauses it until the viewport returns there. A ResizeObserver on
@@ -363,47 +377,25 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
-				{#if onfocustoggle}
-					<button
-						type="button"
-						class="text-gray-500 transition-colors hover:text-white"
-						onclick={() => onfocustoggle?.()}
-						title={focused ? 'Collapse — show all panels' : 'Expand this panel'}
-						aria-label={focused ? 'Collapse panel' : 'Expand panel'}
-					>
-						{#if focused}
-							<ChevronsDownUp size={14} />
-						{:else}
-							<ChevronsUpDown size={14} />
-						{/if}
-					</button>
-				{/if}
 				{#if showTokens || showContext}
-					<span class="group flex items-center gap-1 font-mono text-[10px] text-gray-500">
-						{#if showTokens}
-							<span
-								class={showContext ? 'hidden group-hover:inline' : ''}
-								title="Tokens this conversation{totalCached > 0
-									? ` — ⚡${formatTokenCount(totalCached)} prompt-cached`
-									: ''}"
-							>
-								<TokenCount
-									input={totalInput}
-									output={totalOutput}
-									cached={totalCached}
-									estimated={liveEstimated}
-								/>
-							</span>
-						{/if}
-						{#if showTokens && showContext}
-							<span class="hidden opacity-50 group-hover:inline">·</span>
-						{/if}
-						{#if contextWindow && contextUsed > 0}
-							<span
-								class={contextClass}
-								title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
+					<!-- Static-width token readout: the context gauge when known, else the
+					     bare count. The full ↑in/↓out/total breakdown lives in a tooltip so
+					     hovering never reflows the header. -->
+					<span
+						class="flex items-center font-mono text-[10px] text-gray-500"
+						use:tooltip={tokensTooltip}
+					>
+						{#if showContext && contextWindow}
+							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
 							>
+						{:else}
+							<TokenCount
+								input={totalInput}
+								output={totalOutput}
+								cached={totalCached}
+								estimated={liveEstimated}
+							/>
 						{/if}
 					</span>
 				{/if}

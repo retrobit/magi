@@ -3,6 +3,7 @@
 		MagiNodeName,
 		GatewayName,
 		ConsensusTranscriptEntry,
+		DebateVerdict,
 		ScrollMode
 	} from '$lib/magi/types';
 	import {
@@ -25,16 +26,7 @@
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import TokenCount from './TokenCount.svelte';
-	import {
-		Copy,
-		Check,
-		LoaderCircle,
-		CircleCheck,
-		AlertTriangle,
-		Brain,
-		ChevronsUpDown,
-		ChevronsDownUp
-	} from 'lucide-svelte';
+	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
 
 	let copied = $state(false);
 	function copyConsensus() {
@@ -46,6 +38,10 @@
 	interface Props {
 		text: string;
 		fullText: string;
+		/** Debate outcome for the in-flight turn — picks the live banner variant. */
+		debateVerdict?: DebateVerdict;
+		/** A split's coalition shape — the live banner subtitle. */
+		debateSummary?: string;
 		loading: boolean;
 		allModelsResponded: boolean;
 		respondedCount?: number;
@@ -75,14 +71,13 @@
 		onawarenesschange?: (value: boolean) => void;
 		/** Collapsed to just the header (focus accordion). */
 		collapsed?: boolean;
-		/** This zone is the one currently expanded/focused. */
-		focused?: boolean;
-		onfocustoggle?: () => void;
 	}
 
 	let {
 		text,
 		fullText,
+		debateVerdict,
+		debateSummary,
 		loading,
 		allModelsResponded,
 		respondedCount = 0,
@@ -110,9 +105,7 @@
 		onconsensuschange,
 		onconsensustemperamentchange,
 		onawarenesschange,
-		collapsed = false,
-		focused = false,
-		onfocustoggle
+		collapsed = false
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
@@ -142,6 +135,19 @@
 	const debateComplete = $derived(strategy === 'debate' && !loading && text !== '');
 	const gradientText = `${CONSENSUS_GRADIENT}; -webkit-background-clip: text; background-clip: text; color: transparent;`;
 
+	// Debate streams its round ledger into `text`, then a `---` divider, then the
+	// synthesized answer. While the rounds are still running (no divider yet) the
+	// ledger sits static between rounds — so we keep the pulsating verb beneath it
+	// to signal the debate is still deliberating, not stalled.
+	const DEBATE_DIVIDER = '\n\n---\n\n';
+	const debateRounding = $derived(
+		strategy === 'debate' && loading && text !== '' && !text.includes(DEBATE_DIVIDER)
+	);
+
+	// Drives both the loader effect and its placement: true the whole time the
+	// consensus is being produced but its answer hasn't begun streaming.
+	const showConsensusLoader = $derived((loading && allModelsResponded && !text) || debateRounding);
+
 	// Live loading-progress summary — how many of the MAGI have settled so far.
 	const waitingLabel = $derived.by(() => {
 		const parts = [`${respondedCount} / ${MAGI_NODE_NAMES.length} responded`];
@@ -157,6 +163,27 @@
 	const totalCached = $derived(transcript.reduce((sum, t) => sum + t.cachedTokens, 0) + liveCached);
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
+
+	// Token breakdown lives in a hover tooltip on the static-width context gauge, so
+	// hovering never widens the header and shoves the layout control.
+	const tokensTooltip = $derived.by(() => {
+		const segs: string[] = [];
+		if (showContext && contextWindow) {
+			segs.push(
+				`Context ${contextUsed.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`
+			);
+		}
+		if (showTokens) {
+			const t = [
+				`↑ ${totalInput.toLocaleString()} in`,
+				`↓ ${totalOutput.toLocaleString()} out`,
+				`${(totalInput + totalOutput).toLocaleString()} total`
+			];
+			if (totalCached > 0) t.push(`⚡ ${totalCached.toLocaleString()} cached`);
+			segs.push(t.join(' · '));
+		}
+		return segs.join('  —  ');
+	});
 
 	// Follow mode: track the latest content while pinned to the bottom; a manual
 	// scroll up pauses it until the viewport returns there. A ResizeObserver on
@@ -217,7 +244,7 @@
 		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep)
 	);
 	$effect(() => {
-		if (!loading || !allModelsResponded || text) return;
+		if (!showConsensusLoader) return;
 		cVerbIndex = 0;
 		cSweep = 0;
 		const id = setInterval(() => {
@@ -255,17 +282,44 @@
 	{/if}
 {/snippet}
 
-<!-- Headline banner crowning a completed multi-round debate. -->
-{#snippet debateBanner()}
-	<div class="flex flex-col gap-1">
-		<div class="flex items-center gap-2">
-			<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
-				Consensus reached
-			</span>
-			<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
-		</div>
-		<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
+<!-- Partial-data warning, presented like the node panels' "Model unavailable"
+     card: icon on top, a short title, then the detail. Keeps the warning's amber
+     palette and ⚠ symbol — only the layout/sizing matches the node error card. -->
+{#snippet warningCard(message: string)}
+	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+		<AlertTriangle size={24} class="text-amber-400" />
+		<p class="text-sm font-medium text-amber-400">Partial consensus</p>
+		<p class="text-xs text-gray-500">{message}</p>
 	</div>
+{/snippet}
+
+<!-- Headline banner crowning a completed multi-round debate. Two faces: a
+     gradient "Consensus reached" when the MAGI agreed, an amber "Split decision"
+     when they stayed divided. A walkover (one responder) earns no banner. -->
+{#snippet debateBanner(verdict: DebateVerdict | undefined, summary: string | undefined)}
+	{#if verdict === 'consensus'}
+		<div class="flex flex-col gap-1">
+			<div class="flex items-center gap-2">
+				<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
+					Consensus reached
+				</span>
+				<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
+			</div>
+			<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
+		</div>
+	{:else if verdict === 'split'}
+		<div class="flex flex-col gap-1">
+			<div class="flex items-center gap-2">
+				<span class="text-sm font-bold tracking-wide text-amber-400 uppercase">Split decision</span>
+				<span class="text-xs" aria-hidden="true">⚖️</span>
+			</div>
+			<p class="text-xs text-gray-500">
+				{#if summary}No full consensus — {summary}.{:else}The MAGI did not fully agree — the
+					differing positions are laid out below.{/if}
+			</p>
+			<div class="h-0.5 w-full rounded-full bg-amber-500/60"></div>
+		</div>
+	{/if}
 {/snippet}
 
 <div
@@ -287,47 +341,25 @@
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
-				{#if onfocustoggle}
-					<button
-						type="button"
-						class="text-gray-500 transition-colors hover:text-white"
-						onclick={() => onfocustoggle?.()}
-						title={focused ? 'Collapse — show all panels' : 'Expand consensus'}
-						aria-label={focused ? 'Collapse consensus' : 'Expand consensus'}
-					>
-						{#if focused}
-							<ChevronsDownUp size={14} />
-						{:else}
-							<ChevronsUpDown size={14} />
-						{/if}
-					</button>
-				{/if}
 				{#if showTokens || showContext}
-					<span class="group flex items-center gap-1 font-mono text-[10px] text-gray-500">
-						{#if showTokens}
-							<span
-								class={showContext ? 'hidden group-hover:inline' : ''}
-								title="Tokens this conversation{totalCached > 0
-									? ` — ⚡${formatTokenCount(totalCached)} prompt-cached`
-									: ''}"
-							>
-								<TokenCount
-									input={totalInput}
-									output={totalOutput}
-									cached={totalCached}
-									estimated={liveEstimated}
-								/>
-							</span>
-						{/if}
-						{#if showTokens && showContext}
-							<span class="hidden opacity-50 group-hover:inline">·</span>
-						{/if}
-						{#if contextWindow && contextUsed > 0}
-							<span
-								class={contextClass}
-								title="Context: {contextUsed.toLocaleString()} / {contextWindow.toLocaleString()} tokens"
+					<!-- Static-width readout: context gauge when known, else the bare count.
+					     The full ↑in/↓out/total breakdown lives in a tooltip so hovering
+					     never reflows the header. -->
+					<span
+						class="flex items-center font-mono text-[10px] text-gray-500"
+						use:tooltip={tokensTooltip}
+					>
+						{#if showContext && contextWindow}
+							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
 							>
+						{:else}
+							<TokenCount
+								input={totalInput}
+								output={totalOutput}
+								cached={totalCached}
+								estimated={liveEstimated}
+							/>
 						{/if}
 					</span>
 				{/if}
@@ -470,7 +502,10 @@
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.consensus}
-							{#if turn.strategy === 'debate'}{@render debateBanner()}{/if}
+							{#if turn.strategy === 'debate'}{@render debateBanner(
+									turn.debateVerdict,
+									turn.debateSummary
+								)}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
@@ -489,20 +524,20 @@
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 						{#if warning}
-							<p class="flex items-center gap-1.5 text-sm text-amber-400">
-								<AlertTriangle size={14} />
-								{warning}
-							</p>
+							{@render warningCard(warning)}
 						{/if}
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
 							<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
 						{:else if text}
-							{#if debateComplete}{@render debateBanner()}{/if}
+							{#if debateComplete}{@render debateBanner(debateVerdict, debateSummary)}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
+							{#if debateRounding}
+								<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
+							{/if}
 						{:else}
 							<p class="text-sm text-gray-600">
 								Consensus will appear after all three MAGI respond

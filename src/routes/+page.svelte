@@ -3,6 +3,7 @@
 	import TierSelector from '$lib/components/TierSelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
+	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import BudgetReadout from '$lib/components/BudgetReadout.svelte';
 	import StatsPanel from '$lib/components/StatsPanel.svelte';
@@ -32,6 +33,7 @@
 		type NodeTranscriptEntry,
 		type ConsensusTranscriptEntry,
 		type DebateRoundEntry,
+		type DebateVerdict,
 		type ScrollMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
@@ -60,6 +62,7 @@
 		Settings,
 		Bug,
 		BarChart3,
+		Wallet,
 		MessageSquarePlus
 	} from 'lucide-svelte';
 
@@ -104,21 +107,19 @@
 	let modelsLoading = $state(true);
 	let copiedQuery = $state(false);
 	let settingsOpen = $state(false);
+	let budgetOpen = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
 	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
-	// Focus accordion between the node row and the consensus. Clicking a zone's
-	// chevron expands it and collapses the other to its header; clicking the
-	// focused zone again returns to the balanced split. Default leads with the
-	// consensus (the answer).
-	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('consensus');
+	// Focus accordion between the node row and the consensus. The status-bar layout
+	// control sets one of three states: nodes expanded, consensus expanded, or a
+	// balanced split (the default — both zones share the view).
+	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
-	const focusNodes = () => (layoutFocus = layoutFocus === 'nodes' ? 'balanced' : 'nodes');
-	const focusConsensus = () =>
-		(layoutFocus = layoutFocus === 'consensus' ? 'balanced' : 'consensus');
+	const setLayoutFocus = (focus: 'balanced' | 'nodes' | 'consensus') => (layoutFocus = focus);
 	let debugOpen = $state(false);
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	let statsOpen = $state(false);
@@ -154,6 +155,10 @@
 		debateRounds: Record<MagiNodeName, DebateRoundEntry[]>;
 		consensusStream: string;
 		consensusFinal: string;
+		// Debate outcome, set on the consensus-complete event — picks the banner variant.
+		debateVerdict?: DebateVerdict;
+		// A split's coalition shape (e.g. "X & Y aligned; Z dissents") — banner subtitle.
+		debateSummary?: string;
 		consensusWarning: string;
 		error: string;
 		streamDone: boolean;
@@ -262,6 +267,13 @@
 		MAGI_NODE_NAMES.some((n) => liveNodeOutputs[n].estimated) || liveConsensusOutput.estimated
 	);
 
+	// Explainer for the header's running token total — mirrors the per-panel
+	// readouts: ↑ prompt tokens in, ↓ generated tokens out, combined total, summed
+	// across every node and the consensus over the whole conversation.
+	const conversationTokensTooltip = $derived(
+		`Tokens this conversation (all nodes + consensus) — ↑ ${conversationUsage.input.toLocaleString()} in · ↓ ${conversationUsage.output.toLocaleString()} out · ${conversationUsage.total.toLocaleString()} total${conversationEstimated ? ' · live estimate' : ''}`
+	);
+
 	function modelContextWindow(modelId: string): number | undefined {
 		return availableModels.find((m) => m.id === modelId)?.contextLength;
 	}
@@ -337,7 +349,9 @@
 			inputTokens: turn.consensusUsage?.inputTokens ?? 0,
 			outputTokens: turn.consensusUsage?.outputTokens ?? 0,
 			cachedTokens: turn.consensusUsage?.cachedTokens ?? 0,
-			strategy: turn.strategy
+			strategy: turn.strategy,
+			debateVerdict: turn.debateVerdict,
+			debateSummary: turn.debateSummary
 		}))
 	);
 
@@ -711,6 +725,8 @@
 				nodeUsage: { ...liveNodeUsage },
 				consensusUsage: liveConsensusUsage,
 				strategy,
+				debateVerdict: live.debateVerdict,
+				debateSummary: live.debateSummary,
 				debateRounds: { ...live.debateRounds }
 			}
 		];
@@ -829,8 +845,10 @@
 		'consensus-chunk': ({ text }) => {
 			live.consensusStream += text;
 		},
-		'consensus-complete': ({ text }) => {
+		'consensus-complete': ({ text, debateVerdict, debateSummary }) => {
 			live.consensusFinal = text;
+			live.debateVerdict = debateVerdict;
+			live.debateSummary = debateSummary;
 		},
 		'partial-consensus': ({ responded, total }) => {
 			live.consensusWarning = `Only ${responded} of ${total} models responded — consensus is based on partial data.`;
@@ -888,6 +906,7 @@
 							debugOpen = !debugOpen;
 							settingsOpen = false;
 							statsOpen = false;
+							budgetOpen = false;
 						}}
 						title="Debug panel (dev only)"
 					>
@@ -901,10 +920,24 @@
 						statsOpen = !statsOpen;
 						debugOpen = false;
 						settingsOpen = false;
+						budgetOpen = false;
 					}}
 					title="Stats"
 				>
 					<BarChart3 size={16} />
+				</button>
+				<button
+					type="button"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-emerald-400"
+					onclick={() => {
+						budgetOpen = !budgetOpen;
+						debugOpen = false;
+						statsOpen = false;
+						settingsOpen = false;
+					}}
+					title="Budget"
+				>
+					<Wallet size={16} />
 				</button>
 				<button
 					type="button"
@@ -913,6 +946,7 @@
 						settingsOpen = !settingsOpen;
 						debugOpen = false;
 						statsOpen = false;
+						budgetOpen = false;
 					}}
 					title="Settings"
 				>
@@ -1022,11 +1056,15 @@
 			>
 				<MessageSquarePlus size={12} /> New conversation
 			</button>
+			<LayoutToggle focus={layoutFocus} onchange={setLayoutFocus} />
 			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
 				{#if conversation.length > 0}
-					<span>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span>
+					<span
+						use:tooltip={'Completed turns — each turn is one prompt answered by all three MAGI, then merged into a consensus. Multi-turn context carries forward across turns.'}
+						>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span
+					>
 					<span class="text-gray-500">·</span>
-					<span class="magi-token-total text-gray-500">
+					<span class="magi-token-total text-gray-500" use:tooltip={conversationTokensTooltip}>
 						<TokenCount
 							input={conversationUsage.input}
 							output={conversationUsage.output}
@@ -1097,8 +1135,6 @@
 					text={responseMap.get(assignment.node)?.text ?? live.modelStreams[assignment.node]}
 					debateRounds={live.debateRounds[assignment.node]}
 					collapsed={nodesCollapsed}
-					focused={layoutFocus === 'nodes'}
-					onfocustoggle={focusNodes}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
@@ -1125,6 +1161,8 @@
 				contextWindow={modelContextWindow(consensusAssignment.modelId)}
 				text={live.consensusStream}
 				fullText={live.consensusFinal}
+				debateVerdict={live.debateVerdict}
+				debateSummary={live.debateSummary}
 				{loading}
 				{allModelsResponded}
 				respondedCount={live.responses.length}
@@ -1141,8 +1179,6 @@
 				{scrollMode}
 				disabled={loading}
 				collapsed={consensusCollapsed}
-				focused={layoutFocus === 'consensus'}
-				onfocustoggle={focusConsensus}
 				onstrategychange={(s) => (strategy = s)}
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
@@ -1248,9 +1284,36 @@
 					Off
 				</button>
 			</div>
-			<div class="mt-3">
-				<BudgetReadout active={settingsOpen} />
+		</div>
+	</div>
+{/if}
+
+{#if budgetOpen}
+	<button
+		class="fixed inset-0 z-40 cursor-default"
+		onclick={() => (budgetOpen = false)}
+		aria-label="Close budget"
+	></button>
+	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
+		<div
+			class="pointer-events-auto ml-auto w-64 rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
+		>
+			<div class="mb-3 flex items-center justify-between">
+				<span
+					class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-emerald-400"
+				>
+					<Wallet size={13} /> BUDGET
+				</span>
+				<button
+					type="button"
+					class="text-gray-500 transition-colors hover:text-white"
+					onclick={() => (budgetOpen = false)}
+					aria-label="Close budget"
+				>
+					<X size={14} />
+				</button>
 			</div>
+			<BudgetReadout active={budgetOpen} />
 		</div>
 	</div>
 {/if}

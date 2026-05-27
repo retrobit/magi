@@ -48,9 +48,16 @@
 		use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
 	>
 		{#if strategy === FLAGSHIP_STRATEGY}
-			<span style={gradientText} aria-hidden="true">✦</span>
+			<!-- Once chosen, the flagship wears the three-MAGI gradient in the trigger.
+			     Star + label live in one clipped span so the gradient sweeps continuously
+			     across both rather than restarting per element. -->
+			<span class="font-semibold" style={gradientText}>
+				<span aria-hidden="true">✦</span>
+				{STRATEGY_LABELS[strategy]}
+			</span>
+		{:else}
+			<span>{STRATEGY_LABELS[strategy]}</span>
 		{/if}
-		<span>{STRATEGY_LABELS[strategy]}</span>
 		<ChevronDown size={12} class="text-gray-500" />
 	</button>
 
