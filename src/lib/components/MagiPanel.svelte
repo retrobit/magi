@@ -17,6 +17,7 @@
 		TEMPERAMENT_TOOLTIPS,
 		contextUsageClass,
 		formatTokenCount,
+		tokenUsageTooltip,
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
@@ -120,26 +121,11 @@
 	const showTokens = $derived(totalInput > 0 || totalOutput > 0);
 	const showContext = $derived(!!contextWindow && contextUsed > 0);
 
-	// The token breakdown moves into a hover tooltip on the (static-width) context
-	// gauge, so hovering no longer widens the header and shoves the layout control.
-	const tokensTooltip = $derived.by(() => {
-		const segs: string[] = [];
-		if (showContext && contextWindow) {
-			segs.push(
-				`Context ${contextUsed.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`
-			);
-		}
-		if (showTokens) {
-			const t = [
-				`↑ ${totalInput.toLocaleString()} in`,
-				`↓ ${totalOutput.toLocaleString()} out`,
-				`${(totalInput + totalOutput).toLocaleString()} total`
-			];
-			if (totalCached > 0) t.push(`⚡ ${totalCached.toLocaleString()} cached`);
-			segs.push(t.join(' · '));
-		}
-		return segs.join('  —  ');
-	});
+	// Breakdown for the static-width gauge's hover tooltip — kept off the gauge
+	// itself so hovering never widens the header and shoves the layout control.
+	const tokensTooltip = $derived(
+		tokenUsageTooltip({ contextUsed, contextWindow, totalInput, totalOutput, totalCached })
+	);
 
 	// Follow mode: track the latest content while pinned to the bottom; a manual
 	// scroll up pauses it until the viewport returns there. A ResizeObserver on
@@ -378,9 +364,6 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<!-- Static-width token readout: the context gauge when known, else the
-					     bare count. The full ↑in/↓out/total breakdown lives in a tooltip so
-					     hovering never reflows the header. -->
 					<span
 						class="flex items-center font-mono text-[10px] text-gray-500"
 						use:tooltip={tokensTooltip}

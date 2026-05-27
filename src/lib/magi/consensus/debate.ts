@@ -48,10 +48,15 @@ interface PeerView {
 	note?: string;
 }
 
+// Anonymized peer labels — every reference to a peer (prompts, the AGREE parse,
+// the verdict) goes through these so the A/B/C scheme is single-sourced.
+const peerLetter = (i: number) => String.fromCharCode(65 + i);
+const peerTag = (i: number) => `Peer ${peerLetter(i)}`;
+
 function peerBlocks(peers: PeerView[]): string {
 	return peers
 		.map((p, i) => {
-			const tag = `Peer ${String.fromCharCode(65 + i)}`;
+			const tag = peerTag(i);
 			const reasoning = p.note ? `\n${tag}'s reasoning last round: ${p.note}` : '';
 			return `${tag}'s answer:\n${p.answer}${reasoning}`;
 		})
@@ -66,7 +71,7 @@ function buildDebaterPrompt(
 	peers: PeerView[],
 	lens?: string
 ): string {
-	const peerTags = peers.map((_, i) => `Peer ${String.fromCharCode(65 + i)}`);
+	const peerTags = peers.map((_, i) => peerTag(i));
 	// Ask for a stance toward each peer by name, so the verdict can tell a 2-vs-1
 	// split (one holdout) from a three-way one — not just "agree" in the abstract.
 	const agreeFormat = peerTags.map((t) => `${t}: <yes or no>`).join(', ');
@@ -113,7 +118,7 @@ function parsePeerAgreement(agreeLine: string, peerCount: number): (boolean | nu
 	const out: (boolean | null)[] = Array.from({ length: peerCount }, () => null);
 	let sawPeer = false;
 	for (let i = 0; i < peerCount; i += 1) {
-		const letter = String.fromCharCode(65 + i);
+		const letter = peerLetter(i);
 		const m = agreeLine.match(new RegExp(`Peer\\s*${letter}\\s*[:-]?\\s*\\*{0,2}(yes|no)`, 'i'));
 		if (m) {
 			sawPeer = true;

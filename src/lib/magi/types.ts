@@ -1,3 +1,5 @@
+import type { StrategyName } from './consensus/types';
+
 export const TIER_NAMES = ['free', 'budget', 'balanced', 'frontier'] as const;
 export type TierName = (typeof TIER_NAMES)[number];
 export const DEFAULT_TIER: TierName = 'free';
@@ -116,6 +118,33 @@ export function contextUsageClass(used: number, window: number | undefined): str
 	return 'text-gray-500';
 }
 
+/** The hover-tooltip breakdown behind a panel's static-width token gauge: an
+ *  optional context line, then ↑in · ↓out · total (· ⚡cached). Shared so the
+ *  node panels and the consensus panel read identically. */
+export function tokenUsageTooltip(opts: {
+	contextUsed: number;
+	contextWindow: number | undefined;
+	totalInput: number;
+	totalOutput: number;
+	totalCached: number;
+}): string {
+	const { contextUsed, contextWindow, totalInput, totalOutput, totalCached } = opts;
+	const segs: string[] = [];
+	if (contextWindow && contextUsed > 0) {
+		segs.push(`Context ${contextUsed.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`);
+	}
+	if (totalInput > 0 || totalOutput > 0) {
+		const t = [
+			`↑ ${totalInput.toLocaleString()} in`,
+			`↓ ${totalOutput.toLocaleString()} out`,
+			`${(totalInput + totalOutput).toLocaleString()} total`
+		];
+		if (totalCached > 0) t.push(`⚡ ${totalCached.toLocaleString()} cached`);
+		segs.push(t.join(' · '));
+	}
+	return segs.join('  —  ');
+}
+
 /** How a panel reacts to streamed content. `off` — never moves. `follow` —
  *  pins to the newest text while scrolled to the bottom. `snap` — jumps to the
  *  start of the latest response once that response finishes. */
@@ -140,7 +169,7 @@ export interface ConversationTurn {
 	nodeUsage: Partial<Record<MagiNodeName, TurnUsage>>;
 	consensusUsage?: TurnUsage;
 	/** Which consensus strategy produced this turn — drives the debate banner etc. */
-	strategy?: string;
+	strategy?: StrategyName;
 	/** Whether a debate ended in agreement or a split — picks the banner variant. */
 	debateVerdict?: DebateVerdict;
 	/** A split's coalition shape (e.g. "X & Y aligned; Z dissents") — banner subtitle. */
@@ -170,7 +199,7 @@ export interface ConsensusTranscriptEntry {
 	outputTokens: number;
 	cachedTokens: number;
 	/** Strategy that produced this turn — shows the debate banner in the transcript. */
-	strategy?: string;
+	strategy?: StrategyName;
 	/** Debate outcome — picks the consensus/split banner variant in the transcript. */
 	debateVerdict?: DebateVerdict;
 	/** A split's coalition shape — banner subtitle in the transcript. */
