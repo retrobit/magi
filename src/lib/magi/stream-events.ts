@@ -1,4 +1,10 @@
-import type { DebateRoundEntry, GatewayName, MagiNodeName, MagiResponse } from './types';
+import type {
+	DebateRoundEntry,
+	DebateVerdict,
+	GatewayName,
+	MagiNodeName,
+	MagiResponse
+} from './types';
 import type { MagiConfig } from './config';
 import type { RunStats } from './consensus/types';
 
@@ -19,7 +25,7 @@ export interface StreamEventPayloads {
 	};
 	'partial-consensus': { responded: number; total: number };
 	'consensus-chunk': { text: string };
-	'consensus-complete': { text: string };
+	'consensus-complete': { text: string; debateVerdict?: DebateVerdict; debateSummary?: string };
 	'consensus-usage': { inputTokens: number; outputTokens: number; cachedInputTokens: number };
 	/** Per-run stats for the stats panel — usage axes for every run, plus the
 	 *  rich voting metrics when the run used Structured Voting. */

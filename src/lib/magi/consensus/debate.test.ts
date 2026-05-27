@@ -33,14 +33,26 @@ function context(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
 	};
 }
 
-// A debater's structured reply: CHANGED flag, one-line NOTE, full revised ANSWER.
+// A debater's structured reply: CHANGED flag, optional AGREE value, one-line NOTE,
+// full revised ANSWER. `agree` is omitted by default so the legacy parsing tests
+// exercise the "no explicit agreement signal" fallback path. It accepts either a
+// bare "yes"/"no" (applies to all peers) or a per-peer string ("Peer A: yes, Peer
+// B: no").
 function debaterReply(
 	changed: 'yes' | 'no',
 	answer = 'A revised answer',
 	note = 'tightened the reasoning',
-	usage = { inputTokens: 10, outputTokens: 5, cachedInputTokens: 0 }
+	usage = { inputTokens: 10, outputTokens: 5, cachedInputTokens: 0 },
+	agree?: string
 ) {
-	return { text: `CHANGED: ${changed}\nNOTE: ${note}\nANSWER:\n${answer}`, usage };
+	const agreeLine = agree ? `AGREE: ${agree}\n` : '';
+	return { text: `CHANGED: ${changed}\n${agreeLine}NOTE: ${note}\nANSWER:\n${answer}`, usage };
+}
+
+function verdictOf(events: ConsensusEvent[]): string | undefined {
+	const e = events.find((ev) => ev.type === 'complete');
+	if (!e || e.type !== 'complete') throw new Error('no complete event emitted');
+	return e.debateVerdict;
 }
 
 // A streamed synthesis result, matching the `ai` streamText shape.
@@ -230,6 +242,78 @@ describe('debateStrategy.execute', () => {
 		expect(introIdx).toBeGreaterThanOrEqual(0);
 		expect(introIdx).toBeLessThan(round1Idx);
 		expect(text.fullText).toContain('Answer from MELCHIOR');
+	});
+
+	it('reports consensus when every debater explicitly agrees', async () => {
+		// All hold AND say they now agree → the MAGI are in agreement.
+		generateTextMock.mockResolvedValue(
+			debaterReply('no', 'A revised answer', 'we align', undefined, 'yes') as never
+		);
+		const events = await collect(debateStrategy.execute(context({ genericLabels: true })));
+		expect(verdictOf(events)).toBe('consensus');
+		expect(completeText(events)).toContain('in agreement');
+	});
+
+	it('reports a split when a debater explicitly still disagrees', async () => {
+		// Two converge and agree, one holds and flags continued disagreement. Even
+		// once everyone stops moving, an explicit AGREE: no is a split, not consensus.
+		generateTextMock
+			.mockResolvedValueOnce(debaterReply('no', 'ans M', 'agree', undefined, 'yes') as never)
+			.mockResolvedValueOnce(debaterReply('no', 'ans B', 'agree', undefined, 'yes') as never)
+			.mockResolvedValue(debaterReply('no', 'ans C', 'I still differ', undefined, 'no') as never);
+		const events = await collect(debateStrategy.execute(context({ genericLabels: true })));
+		expect(verdictOf(events)).toBe('split');
+		// The synthesizer is briefed to surface the divide, not force a verdict.
+		expect(String(streamTextMock.mock.calls.at(-1)?.[0].system)).toContain(
+			'manufacture a false consensus'
+		);
+	});
+
+	it('names the dissenter in a 2-vs-1 split from per-peer AGREE flags', async () => {
+		// Peer order per debater (responses minus self): M sees [B, C]; B sees [M, C];
+		// C sees [M, B]. MELCHIOR & BALTHASAR align with each other but reject CASPAR;
+		// CASPAR rejects both → a clean 2-vs-1 with CASPAR as the lone dissenter.
+		generateTextMock
+			.mockResolvedValueOnce(
+				debaterReply('no', 'ans M', 'note', undefined, 'Peer A: yes, Peer B: no') as never
+			)
+			.mockResolvedValueOnce(
+				debaterReply('no', 'ans B', 'note', undefined, 'Peer A: yes, Peer B: no') as never
+			)
+			.mockResolvedValueOnce(
+				debaterReply('no', 'ans C', 'note', undefined, 'Peer A: no, Peer B: no') as never
+			);
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).toBe('split');
+		const summary = events.find((e) => e.type === 'complete');
+		if (!summary || summary.type !== 'complete') throw new Error('no complete');
+		expect(summary.debateSummary).toContain('aligned');
+		expect(summary.debateSummary).toMatch(/CASPAR.*dissents/);
+		// The coalition shape is mirrored into the ledger text, not just the banner.
+		expect(summary.fullText).toContain('dissents');
+	});
+
+	it('reports a split when the debate hits the round limit still diverging', async () => {
+		// Everyone keeps changing every round and never signals agreement → split.
+		generateTextMock.mockResolvedValue(debaterReply('yes') as never);
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).toBe('split');
+		expect(completeText(events)).toContain('round limit');
+	});
+
+	it('reports a walkover when only one node responded', async () => {
+		const events = await collect(
+			debateStrategy.execute(context({ responses: threeResponses.slice(0, 1) }))
+		);
+		expect(verdictOf(events)).toBe('walkover');
+	});
+
+	it('asks each debater for a per-peer agreement stance in its reply format', async () => {
+		generateTextMock.mockResolvedValue(debaterReply('no') as never);
+		await collect(debateStrategy.execute(context()));
+		// The AGREE line names each anonymized peer, not a single collective flag.
+		expect(String(generateTextMock.mock.calls[0]?.[0].prompt)).toContain('AGREE: Peer A');
+		expect(String(generateTextMock.mock.calls[0]?.[0].prompt)).toContain('Peer B');
 	});
 
 	it('emits a debate run-stats record with no voting block', async () => {

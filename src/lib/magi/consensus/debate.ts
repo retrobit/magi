@@ -5,7 +5,13 @@ import {
 	type ConsensusContext,
 	type ConsensusEvent
 } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC, NODE_TEMPERAMENTS, type MagiNodeName } from '../types';
+import {
+	NODE_LABELS,
+	NODE_LABELS_GENERIC,
+	NODE_TEMPERAMENTS,
+	type MagiNodeName,
+	type DebateVerdict
+} from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
 
@@ -23,6 +29,11 @@ interface UsageTotals {
 interface DebaterReply {
 	/** Did this debater materially revise its answer this round? */
 	changed: boolean;
+	/** This debater's stance toward each peer, positional: index 0 is Peer A, 1 is
+	 *  Peer B — the same order the peers were presented in. `true`/`false` when the
+	 *  debater stated it, `null` when it didn't (treated as "no signal", never as
+	 *  agreement). A bare "yes"/"no" with no per-peer breakdown applies to all peers. */
+	agree: (boolean | null)[];
 	/** One-line gist of what changed / why it held — shown in the consensus ledger. */
 	note: string;
 	/** The full revised answer (or the prior answer when nothing parsed). */
@@ -55,6 +66,10 @@ function buildDebaterPrompt(
 	peers: PeerView[],
 	lens?: string
 ): string {
+	const peerTags = peers.map((_, i) => `Peer ${String.fromCharCode(65 + i)}`);
+	// Ask for a stance toward each peer by name, so the verdict can tell a 2-vs-1
+	// split (one holdout) from a three-way one — not just "agree" in the abstract.
+	const agreeFormat = peerTags.map((t) => `${t}: <yes or no>`).join(', ');
 	const instructions = `Several AI models are debating the best answer to a question. Below is your current answer and your anonymized peers' current answers — and, from the second round on, the reasoning each peer gave for their position. Engage with their reasoning directly: where a peer's argument is stronger, adopt it; where you disagree, say why and hold your ground — do not cave just to agree.
 
 Question:
@@ -67,6 +82,7 @@ ${peerBlocks(peers)}
 
 Reply in EXACTLY this format, each label on its own line, nothing before or after:
 CHANGED: <yes or no — did you materially change your answer?>
+AGREE: ${agreeFormat} — for each peer, answer "no" if that peer's position still genuinely differs from yours on the core question.
 NOTE: <one sentence addressing your peers: what you changed and why, or why you still disagree>
 ANSWER:
 <your full revised answer>`;
@@ -90,24 +106,79 @@ function surfacedInputs(ownAnswer: string, peers: PeerView[]): string {
 	return `**Your previous answer:**\n${ownAnswer}\n\n${peerBlocks(peers)}`;
 }
 
-// Pull the CHANGED flag and revised ANSWER out of a debater's reply. Plain-text
-// parsing (not structured output) so it works on every model, including
-// free-tier ones. Tolerant of bold markers and ':'/'-' separators.
-function parseDebaterReply(text: string, fallbackAnswer: string): DebaterReply {
+// Resolve the AGREE line into a positional stance per peer. Prefers explicit
+// "Peer A: yes, Peer B: no" breakdowns; falls back to a bare "yes"/"no" applied
+// to every peer when the model ignored the per-peer format. Unstated → null.
+function parsePeerAgreement(agreeLine: string, peerCount: number): (boolean | null)[] {
+	const out: (boolean | null)[] = Array.from({ length: peerCount }, () => null);
+	let sawPeer = false;
+	for (let i = 0; i < peerCount; i += 1) {
+		const letter = String.fromCharCode(65 + i);
+		const m = agreeLine.match(new RegExp(`Peer\\s*${letter}\\s*[:-]?\\s*\\*{0,2}(yes|no)`, 'i'));
+		if (m) {
+			sawPeer = true;
+			out[i] = m[1].toLowerCase() === 'yes';
+		}
+	}
+	// No per-peer tokens but a lone yes/no → apply it across the board.
+	if (!sawPeer) {
+		const bare = agreeLine.match(/\b(yes|no)\b/i);
+		if (bare) out.fill(bare[1].toLowerCase() === 'yes');
+	}
+	return out;
+}
+
+// Pull the CHANGED flag, per-peer AGREE stances, and revised ANSWER out of a
+// debater's reply. Plain-text parsing (not structured output) so it works on
+// every model, including free-tier ones. Tolerant of bold markers and ':'/'-'.
+function parseDebaterReply(text: string, fallbackAnswer: string, peerCount: number): DebaterReply {
 	const answerMatch = text.match(/ANSWER\s*[:-]?\s*\n?([\s\S]*)$/i);
 	const parsed = answerMatch?.[1]?.trim();
 	const hasNewAnswer = !!parsed && parsed.length > 0;
 
 	const changedMatch = text.match(/CHANGED\s*[:-]?\s*\*{0,2}(yes|no)/i);
+	const agreeLine = text.match(/AGREE\s*[:-]?\s*(.+?)(?:\r?\n|$)/i)?.[1] ?? '';
 	const noteMatch = text.match(/NOTE\s*[:-]?\s*\*{0,2}(.+?)(?:\r?\n|$)/i);
 
 	return {
 		// No usable revision → the answer didn't change. Otherwise trust the flag,
 		// defaulting to "changed" when it's missing (conservative: keep debating).
 		changed: hasNewAnswer ? (changedMatch ? changedMatch[1].toLowerCase() === 'yes' : true) : false,
+		agree: parsePeerAgreement(agreeLine, peerCount),
 		note: noteMatch?.[1]?.trim() ?? '',
 		answer: hasNewAnswer ? parsed : fallbackAnswer
 	};
+}
+
+// Combine two debaters' self-reported stances on a pair into one status.
+// Disagreement dominates: a single explicit "no" (in either direction) means the
+// pair is not aligned, even if the other side called it agreement.
+type PairStatus = 'agree' | 'disagree' | 'unknown';
+function pairStatus(directed: Map<string, boolean>, a: MagiNodeName, b: MagiNodeName): PairStatus {
+	const ab = directed.get(`${a}->${b}`);
+	const ba = directed.get(`${b}->${a}`);
+	if (ab === false || ba === false) return 'disagree';
+	if (ab === true || ba === true) return 'agree';
+	return 'unknown';
+}
+
+// Describe the coalition shape of a split for the banner/ledger. Names the common
+// 2-vs-1 case (an aligned pair plus a dissenter); anything messier reads as a
+// plain three-way divide.
+function coalitionPhrase(
+	nodes: MagiNodeName[],
+	status: (a: MagiNodeName, b: MagiNodeName) => PairStatus,
+	labels: Record<MagiNodeName, string>
+): string {
+	if (nodes.length < 3) return 'the MAGI hold differing positions';
+	for (const odd of nodes) {
+		const [x, y] = nodes.filter((n) => n !== odd);
+		const dissents = status(odd, x) === 'disagree' || status(odd, y) === 'disagree';
+		if (status(x, y) === 'agree' && dissents) {
+			return `${labels[x]} & ${labels[y]} aligned; ${labels[odd]} dissents`;
+		}
+	}
+	return 'the three MAGI each hold a different position';
 }
 
 export const debateStrategy: ConsensusStrategy = {
@@ -179,7 +250,15 @@ export const debateStrategy: ConsensusStrategy = {
 
 		yield emit('### 🗣️ Multi-Round Debate\n');
 
+		// How the debate ended — drives the consensus/split headline banner and the
+		// final synthesizer's brief. Set per branch below. `debateSummary` carries the
+		// coalition shape for a split (e.g. "X & Y aligned; Z dissents").
+		let verdict: DebateVerdict;
+		let debateSummary: string | undefined;
+
 		if (responses.length === 1) {
+			// One voice — nothing was debated; the synthesizer just relays it.
+			verdict = 'walkover';
 			yield emit(`\nOnly ${labels[responses[0].node]} responded — no debate was held.\n`);
 		} else {
 			// Initial positions — each node's opening stance, before any rebuttal,
@@ -187,6 +266,11 @@ export const debateStrategy: ConsensusStrategy = {
 			let intro = `\n**Initial positions**\n`;
 			for (const r of responses) intro += `- ${labels[r.node]}: ${gist(r.text)}\n`;
 			yield emit(intro);
+
+			// Directed agreement edges keyed `from->to`: does `from` say its answer
+			// agrees with `to`? Latest round wins. Only parseable yes/no lands here, so
+			// a missing stance never reads as agreement.
+			const directed = new Map<string, boolean>();
 
 			// Debate rounds. All debaters run in parallel; because every prompt is
 			// built from `current` before any await resolves, the revisions are
@@ -198,10 +282,15 @@ export const debateStrategy: ConsensusStrategy = {
 						const assignment = nodeAssignments.find((a) => a.node === r.node);
 						if (!assignment) throw new Error(`No assignment for debater ${r.node}`);
 						const ownAnswer = current.get(r.node) ?? r.text;
-						// Peers carry last round's rationale (empty in round 1).
-						const peers: PeerView[] = responses
-							.filter((p) => p.node !== r.node)
-							.map((p) => ({ answer: current.get(p.node) ?? p.text, note: notes.get(p.node) }));
+						// Peers carry last round's rationale (empty in round 1). `peerNodes`
+						// records which actual node each anonymized Peer A/B is, so the
+						// per-peer AGREE stances can be mapped back into the agreement graph.
+						const peerResponses = responses.filter((p) => p.node !== r.node);
+						const peerNodes = peerResponses.map((p) => p.node);
+						const peers: PeerView[] = peerResponses.map((p) => ({
+							answer: current.get(p.node) ?? p.text,
+							note: notes.get(p.node)
+						}));
 						// Debaters argue in-character whenever the MAGI are in-character —
 						// they ARE the nodes continuing to think. (The synthesizer, by
 						// contrast, stays a neutral scribe.)
@@ -214,9 +303,10 @@ export const debateStrategy: ConsensusStrategy = {
 							abortSignal: signal
 						});
 						return {
-							reply: parseDebaterReply(text, ownAnswer),
+							reply: parseDebaterReply(text, ownAnswer, peerNodes.length),
 							usage: u,
-							surfaced: surfacedInputs(ownAnswer, peers)
+							surfaced: surfacedInputs(ownAnswer, peers),
+							peerNodes
 						};
 					})
 				);
@@ -235,9 +325,14 @@ export const debateStrategy: ConsensusStrategy = {
 						continue;
 					}
 					addUsage(run.value.usage);
-					const { reply } = run.value;
+					const { reply, peerNodes } = run.value;
 					current.set(node, reply.answer);
 					notes.set(node, reply.note);
+					// Record this debater's stance toward each peer it named.
+					peerNodes.forEach((peer, pi) => {
+						const stance = reply.agree[pi];
+						if (stance !== null) directed.set(`${node}->${peer}`, stance);
+					});
 					if (reply.changed) anyChanged = true;
 					const status = reply.changed ? 'revised' : 'held';
 					block += `- ${labels[node]}: ${status}${reply.note ? ` — ${reply.note}` : ''}\n`;
@@ -253,11 +348,42 @@ export const debateStrategy: ConsensusStrategy = {
 				// Converged — no debater moved this round.
 				if (!anyChanged) break;
 			}
-			yield emit(
-				round > MAX_ROUNDS
-					? `\n_Reached the ${MAX_ROUNDS}-round limit._\n`
-					: `\n_Converged after ${round} ${round === 1 ? 'round' : 'rounds'}._\n`
-			);
+
+			// Decide the verdict from the pairwise agreement graph, falling back to the
+			// convergence signal when the debaters left it unstated. Stability alone is
+			// NOT agreement — debaters can stop moving while still holding rival
+			// positions (a stalemate), so we never call that "consensus" without a
+			// positive signal.
+			//   • any pair explicitly disagrees        → split (they still diverge)
+			//   • every pair explicitly agrees         → consensus
+			//   • no explicit signal → infer: stabilized early = consensus,
+			//     hit the round limit still changing = split.
+			const hitLimit = round > MAX_ROUNDS;
+			const respNodes = responses.map((r) => r.node);
+			const status = (a: MagiNodeName, b: MagiNodeName) => pairStatus(directed, a, b);
+			const pairs: PairStatus[] = [];
+			for (let i = 0; i < respNodes.length; i += 1)
+				for (let j = i + 1; j < respNodes.length; j += 1)
+					pairs.push(status(respNodes[i], respNodes[j]));
+			const anyDisagree = pairs.some((p) => p === 'disagree');
+			const allAgree = pairs.length > 0 && pairs.every((p) => p === 'agree');
+			verdict = anyDisagree ? 'split' : allAgree ? 'consensus' : hitLimit ? 'split' : 'consensus';
+
+			const roundWord = round === 1 ? 'round' : 'rounds';
+			if (verdict === 'consensus') {
+				yield emit(
+					hitLimit
+						? `\n_Reached the ${MAX_ROUNDS}-round limit — the MAGI are in agreement._\n`
+						: `\n_Converged after ${round} ${roundWord} — the MAGI are in agreement._\n`
+				);
+			} else {
+				debateSummary = coalitionPhrase(respNodes, status, labels);
+				yield emit(
+					hitLimit
+						? `\n_Reached the ${MAX_ROUNDS}-round limit without full agreement — ${debateSummary}._\n`
+						: `\n_Stalemate after ${round} ${roundWord} — ${debateSummary}._\n`
+				);
+			}
 		}
 
 		// Final synthesis: a NEUTRAL scribe. All the perspective and reasoning lives
@@ -278,7 +404,11 @@ After a multi-round debate, the ${n === 3 ? 'three' : n} MAGI hold these ${n ===
 
 ${formatted}
 
-Provide the synthesized consensus response.`;
+${
+	verdict === 'split'
+		? 'The debaters did NOT reach full agreement — they hold genuinely differing positions. Do not paper over the disagreement: state what they agree on, then lay out each distinct position and the strongest case for it, and be explicit that the MAGI are divided.'
+		: 'Provide the synthesized consensus response.'
+}`;
 
 		const messages: ModelMessage[] = [];
 		for (const turn of history) {
@@ -296,14 +426,24 @@ Provide the synthesized consensus response.`;
 				n === 3
 					? 'Three independent AI models have each debated and revised'
 					: `${n} of three independent AI models debated and revised`
-			} their answers to the same query. The debate is done — your job is to consolidate, not to add a new perspective. Synthesize the best possible answer by:
+			} their answers to the same query. The debate is done — your job is to consolidate, not to add a new perspective.${
+				verdict === 'split'
+					? ` The debaters remained divided, so do not manufacture a false consensus. Report the outcome honestly:
+
+1. State the points where the ${n === 3 ? 'three' : 'available'} answers do agree.
+2. Lay out each remaining position distinctly, with the strongest case for each.
+3. Make the disagreement explicit — name that the MAGI are split rather than picking a winner by fiat.
+
+Be clear and faithful to the divide; do NOT smooth it over into one verdict.`
+					: ` Synthesize the best possible answer by:
 
 1. Identifying where the ${n === 3 ? 'three' : 'available'} answers now agree — these points are likely reliable.
 2. Noting where they still disagree and evaluating which position is strongest.
 3. Combining the best elements into a single, clear, definitive response.
 4. Flagging any remaining uncertainty honestly.
 
-Do NOT simply concatenate or summarize. Produce a unified answer that is better than any individual response.`,
+Do NOT simply concatenate or summarize. Produce a unified answer that is better than any individual response.`
+			}`,
 			messages,
 			abortSignal: signal
 		});
@@ -313,7 +453,7 @@ Do NOT simply concatenate or summarize. Produce a unified answer that is better 
 		}
 		addUsage(await result.usage);
 
-		yield { type: 'complete', fullText };
+		yield { type: 'complete', fullText, debateVerdict: verdict, debateSummary };
 		yield { type: 'usage', ...usage };
 		yield runStats();
 	}

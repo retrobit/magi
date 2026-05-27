@@ -67,6 +67,13 @@ export interface MagiResponse {
 	text: string;
 }
 
+/** How a multi-round debate ended. `consensus` — the debaters agree.
+ *  `split` — they hold differing positions (stalemate or hit the round limit
+ *  still diverging); the synthesizer lays the positions out rather than forcing
+ *  a unified answer. `walkover` — only one MAGI responded, so nothing was
+ *  debated. Drives which headline banner the consensus panel shows. */
+export type DebateVerdict = 'consensus' | 'split' | 'walkover';
+
 /** One debate round as surfaced in a node panel — the trimmed inputs the node
  *  was reacting to and the revised answer it produced. */
 export interface DebateRoundEntry {
@@ -134,6 +141,10 @@ export interface ConversationTurn {
 	consensusUsage?: TurnUsage;
 	/** Which consensus strategy produced this turn — drives the debate banner etc. */
 	strategy?: string;
+	/** Whether a debate ended in agreement or a split — picks the banner variant. */
+	debateVerdict?: DebateVerdict;
+	/** A split's coalition shape (e.g. "X & Y aligned; Z dissents") — banner subtitle. */
+	debateSummary?: string;
 	/** Debate rounds per node (Multi-Round Debate only) — kept so the round-by-round
 	 *  detail survives in the transcript after the turn completes. */
 	debateRounds?: Partial<Record<MagiNodeName, DebateRoundEntry[]>>;
@@ -160,6 +171,10 @@ export interface ConsensusTranscriptEntry {
 	cachedTokens: number;
 	/** Strategy that produced this turn — shows the debate banner in the transcript. */
 	strategy?: string;
+	/** Debate outcome — picks the consensus/split banner variant in the transcript. */
+	debateVerdict?: DebateVerdict;
+	/** A split's coalition shape — banner subtitle in the transcript. */
+	debateSummary?: string;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {

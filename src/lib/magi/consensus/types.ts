@@ -1,5 +1,11 @@
 import type { LanguageModel } from 'ai';
-import type { MagiResponse, GatewayName, MagiNodeName, DebateRoundEntry } from '../types';
+import type {
+	MagiResponse,
+	GatewayName,
+	MagiNodeName,
+	DebateRoundEntry,
+	DebateVerdict
+} from '../types';
 import type { NodeAssignment } from '../config';
 
 /** Per-juror breakdown of which anonymized candidate got which score. */
@@ -56,7 +62,10 @@ export interface RunStats {
 
 export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
-	| { type: 'complete'; fullText: string }
+	// `debateVerdict` is set only by the debate strategy — the consensus/split
+	// outcome the banner keys off; `debateSummary` carries a split's coalition
+	// shape (e.g. "X & Y aligned; Z dissents"). Other strategies omit both.
+	| { type: 'complete'; fullText: string; debateVerdict?: DebateVerdict; debateSummary?: string }
 	| { type: 'usage'; inputTokens: number; outputTokens: number; cachedInputTokens: number }
 	| { type: 'run-stats'; stats: RunStats }
 	// Per-node, per-round debate activity — surfaced in the node panels, not the

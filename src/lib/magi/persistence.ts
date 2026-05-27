@@ -88,6 +88,8 @@ const conversationTurnSchema = z.object({
 	nodeUsage: z.record(z.string(), turnUsageSchema),
 	consensusUsage: turnUsageSchema.optional(),
 	strategy: z.string().optional(),
+	debateVerdict: z.enum(['consensus', 'split', 'walkover']).optional(),
+	debateSummary: z.string().optional(),
 	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional()
 });
 

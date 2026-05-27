@@ -404,7 +404,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							send('consensus-chunk', { text: event.text });
 							break;
 						case 'complete':
-							send('consensus-complete', { text: event.fullText });
+							send('consensus-complete', {
+								text: event.fullText,
+								debateVerdict: event.debateVerdict,
+								debateSummary: event.debateSummary
+							});
 							break;
 						case 'usage':
 							logEvent('info', 'consensus.complete', {
