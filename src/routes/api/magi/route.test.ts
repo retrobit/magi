@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
-import { isModelHealthy } from '$lib/server/health';
-import { POST } from './+server';
+import { isModelHealthy, markUnhealthy } from '$lib/server/health';
+import { POST, extractErrorMessage } from './+server';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -80,6 +80,8 @@ async function readEvents(res: Response): Promise<StreamEvent[]> {
 }
 
 const names = (events: StreamEvent[]) => events.map((e) => e.event);
+const firstIndex = (events: StreamEvent[], name: string) => names(events).indexOf(name);
+const lastIndex = (events: StreamEvent[], name: string) => names(events).lastIndexOf(name);
 
 beforeEach(() => {
 	streamTextMock.mockReset();
@@ -152,6 +154,22 @@ describe('POST /api/magi — streaming', () => {
 		expect(got).not.toContain('partial-consensus');
 	});
 
+	it('emits events in the contract order: config → phase-1 → consensus', async () => {
+		const events = await readEvents(await callPost(validBody));
+		// config opens the stream, before any node output.
+		expect(firstIndex(events, 'config')).toBe(0);
+		expect(firstIndex(events, 'config')).toBeLessThan(firstIndex(events, 'model-response'));
+		// All phase-1 node responses land before consensus synthesis begins.
+		expect(lastIndex(events, 'model-response')).toBeLessThan(firstIndex(events, 'consensus-chunk'));
+		// The consensus answer streams, then completes, then reports usage.
+		expect(firstIndex(events, 'consensus-chunk')).toBeLessThan(
+			firstIndex(events, 'consensus-complete')
+		);
+		expect(firstIndex(events, 'consensus-complete')).toBeLessThan(
+			firstIndex(events, 'consensus-usage')
+		);
+	});
+
 	it('emits a model-error and a partial-consensus when one node fails', async () => {
 		streamTextMock.mockImplementationOnce(() => {
 			throw new Error('model boom');
@@ -172,5 +190,66 @@ describe('POST /api/magi — streaming', () => {
 		const fatal = events.find((e) => e.event === 'error');
 		expect(fatal?.data).toEqual({ message: 'All three models are unavailable' });
 		expect(names(events)).not.toContain('consensus-complete');
+	});
+
+	it('does not emit model-error or poison health when the client aborts', async () => {
+		vi.mocked(markUnhealthy).mockClear();
+		// The first node call aborts the request (synchronously firing the abort
+		// listener wired in the handler), then throws — so by the time the catch
+		// runs, signal.aborted is true and the failure must be treated as a
+		// teardown, not a model fault.
+		const clientAbort = new AbortController();
+		streamTextMock.mockImplementation(() => {
+			clientAbort.abort();
+			throw new Error('aborted by client');
+		});
+		const request = new Request('http://localhost/api/magi', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(validBody),
+			signal: clientAbort.signal
+		});
+		const res = await POST({
+			request,
+			getClientAddress: () => '127.0.0.1'
+		} as unknown as PostEvent);
+		const events = await readEvents(res);
+		expect(names(events)).not.toContain('model-error');
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+	});
+});
+
+describe('extractErrorMessage', () => {
+	it('unwraps a JSON provider error nested in responseBody.metadata.raw', () => {
+		const raw = JSON.stringify({ error: 'rate limit exceeded' });
+		const err = { responseBody: JSON.stringify({ error: { metadata: { raw } } }) };
+		expect(extractErrorMessage(err)).toBe('rate limit exceeded');
+	});
+
+	it('returns the raw string when metadata.raw is not JSON', () => {
+		const err = { responseBody: JSON.stringify({ error: { metadata: { raw: 'upstream 503' } } }) };
+		expect(extractErrorMessage(err)).toBe('upstream 503');
+	});
+
+	it('falls back to error.message inside responseBody', () => {
+		const err = { responseBody: JSON.stringify({ error: { message: 'bad request' } }) };
+		expect(extractErrorMessage(err)).toBe('bad request');
+	});
+
+	it('recurses into a RetryError lastError', () => {
+		expect(extractErrorMessage({ lastError: new Error('final attempt failed') })).toBe(
+			'final attempt failed'
+		);
+	});
+
+	it('uses the Error message when there is no wrapping', () => {
+		expect(extractErrorMessage(new Error('plain boom'))).toBe('plain boom');
+	});
+
+	it('returns a default for unrecognised or malformed values', () => {
+		expect(extractErrorMessage({})).toBe('Unknown error');
+		expect(extractErrorMessage(null)).toBe('Unknown error');
+		// Malformed responseBody JSON falls through; a plain object is not an Error.
+		expect(extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
 	});
 });

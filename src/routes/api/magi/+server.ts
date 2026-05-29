@@ -32,28 +32,32 @@ import { checkApiKey } from '$lib/server/auth';
 validateConfig(DEFAULT_MAGI_CONFIG);
 validateConfig(FREE_MAGI_CONFIG);
 
-function extractErrorMessage(err: unknown): string {
-	// AI SDK wraps upstream errors — dig into responseBody for the real message
-	const apiErr = err as { responseBody?: string; message?: string };
-	if (apiErr.responseBody) {
-		try {
-			const body = JSON.parse(apiErr.responseBody);
-			const raw = body?.error?.metadata?.raw;
-			if (raw) {
-				try {
-					return JSON.parse(raw).error ?? raw;
-				} catch {
-					return raw;
+// Exported for unit testing — the nested unwrap is brittle enough to warrant
+// direct coverage of each error shape.
+export function extractErrorMessage(err: unknown): string {
+	if (err && typeof err === 'object') {
+		// AI SDK wraps upstream errors — dig into responseBody for the real message
+		const apiErr = err as { responseBody?: string };
+		if (apiErr.responseBody) {
+			try {
+				const body = JSON.parse(apiErr.responseBody);
+				const raw = body?.error?.metadata?.raw;
+				if (raw) {
+					try {
+						return JSON.parse(raw).error ?? raw;
+					} catch {
+						return raw;
+					}
 				}
+				if (body?.error?.message) return body.error.message;
+			} catch {
+				// fall through
 			}
-			if (body?.error?.message) return body.error.message;
-		} catch {
-			// fall through
 		}
+		// RetryError — dig into the last error
+		const retryErr = err as { lastError?: unknown };
+		if (retryErr.lastError) return extractErrorMessage(retryErr.lastError);
 	}
-	// RetryError — dig into the last error
-	const retryErr = err as { lastError?: unknown };
-	if (retryErr.lastError) return extractErrorMessage(retryErr.lastError);
 	if (err instanceof Error) return err.message;
 	return 'Unknown error';
 }
