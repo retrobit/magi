@@ -293,6 +293,20 @@ describe('debateStrategy.execute', () => {
 		expect(summary.fullText).toContain('dissents');
 	});
 
+	it('describes a three-way divide when no two debaters align', async () => {
+		// Every debater rejects both peers → all three pairs disagree, so there is no
+		// aligned pair to name. The coalition phrasing falls back to a plain divide.
+		generateTextMock.mockResolvedValue(
+			debaterReply('no', 'distinct', 'note', undefined, 'Peer A: no, Peer B: no') as never
+		);
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).toBe('split');
+		const summary = events.find((e) => e.type === 'complete');
+		if (!summary || summary.type !== 'complete') throw new Error('no complete');
+		expect(summary.debateSummary).toBe('the three MAGI each hold a different position');
+		expect(summary.debateSummary).not.toContain('aligned');
+	});
+
 	it('reports a split when the debate hits the round limit still diverging', async () => {
 		// Everyone keeps changing every round and never signals agreement → split.
 		generateTextMock.mockResolvedValue(debaterReply('yes') as never);
