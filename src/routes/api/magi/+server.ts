@@ -33,8 +33,9 @@ validateConfig(DEFAULT_MAGI_CONFIG);
 validateConfig(FREE_MAGI_CONFIG);
 
 // Exported for unit testing — the nested unwrap is brittle enough to warrant
-// direct coverage of each error shape.
-export function extractErrorMessage(err: unknown): string {
+// direct coverage of each error shape. SvelteKit reserves bare exports from
+// route files for handler names, so this is prefixed with `_` per its convention.
+export function _extractErrorMessage(err: unknown): string {
 	if (err && typeof err === 'object') {
 		// AI SDK wraps upstream errors — dig into responseBody for the real message
 		const apiErr = err as { responseBody?: string };
@@ -56,7 +57,7 @@ export function extractErrorMessage(err: unknown): string {
 		}
 		// RetryError — dig into the last error
 		const retryErr = err as { lastError?: unknown };
-		if (retryErr.lastError) return extractErrorMessage(retryErr.lastError);
+		if (retryErr.lastError) return _extractErrorMessage(retryErr.lastError);
 	}
 	if (err instanceof Error) return err.message;
 	return 'Unknown error';
@@ -342,7 +343,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							if (abortController.signal.aborted) {
 								throw err;
 							}
-							const message = extractErrorMessage(err);
+							const message = _extractErrorMessage(err);
 							logEvent('error', 'node.failed', { node, model: modelId, error: message });
 							markUnhealthy(modelId, message);
 							send('model-error', { node, gateway, provider, error: message });

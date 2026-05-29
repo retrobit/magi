@@ -3,7 +3,7 @@ import { streamText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
-import { POST, extractErrorMessage } from './+server';
+import { POST, _extractErrorMessage } from './+server';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -219,37 +219,37 @@ describe('POST /api/magi — streaming', () => {
 	});
 });
 
-describe('extractErrorMessage', () => {
+describe('_extractErrorMessage', () => {
 	it('unwraps a JSON provider error nested in responseBody.metadata.raw', () => {
 		const raw = JSON.stringify({ error: 'rate limit exceeded' });
 		const err = { responseBody: JSON.stringify({ error: { metadata: { raw } } }) };
-		expect(extractErrorMessage(err)).toBe('rate limit exceeded');
+		expect(_extractErrorMessage(err)).toBe('rate limit exceeded');
 	});
 
 	it('returns the raw string when metadata.raw is not JSON', () => {
 		const err = { responseBody: JSON.stringify({ error: { metadata: { raw: 'upstream 503' } } }) };
-		expect(extractErrorMessage(err)).toBe('upstream 503');
+		expect(_extractErrorMessage(err)).toBe('upstream 503');
 	});
 
 	it('falls back to error.message inside responseBody', () => {
 		const err = { responseBody: JSON.stringify({ error: { message: 'bad request' } }) };
-		expect(extractErrorMessage(err)).toBe('bad request');
+		expect(_extractErrorMessage(err)).toBe('bad request');
 	});
 
 	it('recurses into a RetryError lastError', () => {
-		expect(extractErrorMessage({ lastError: new Error('final attempt failed') })).toBe(
+		expect(_extractErrorMessage({ lastError: new Error('final attempt failed') })).toBe(
 			'final attempt failed'
 		);
 	});
 
 	it('uses the Error message when there is no wrapping', () => {
-		expect(extractErrorMessage(new Error('plain boom'))).toBe('plain boom');
+		expect(_extractErrorMessage(new Error('plain boom'))).toBe('plain boom');
 	});
 
 	it('returns a default for unrecognised or malformed values', () => {
-		expect(extractErrorMessage({})).toBe('Unknown error');
-		expect(extractErrorMessage(null)).toBe('Unknown error');
+		expect(_extractErrorMessage({})).toBe('Unknown error');
+		expect(_extractErrorMessage(null)).toBe('Unknown error');
 		// Malformed responseBody JSON falls through; a plain object is not an Error.
-		expect(extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
+		expect(_extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
 	});
 });
