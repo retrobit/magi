@@ -150,10 +150,3 @@ export const STRATEGY_INTENSITY: Record<StrategyName, 1 | 2 | 3> = {
 	voting: 2,
 	debate: 3
 };
-
-/** Text shown in the consensus panel while a strategy is still running. */
-export const STRATEGY_PENDING_LABELS: Record<StrategyName, string> = {
-	synthesis: 'Synthesizing consensus…',
-	voting: 'Tallying votes…',
-	debate: 'Deliberating…'
-};

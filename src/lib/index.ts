@@ -54,3 +54,4 @@ export {
 	type ConsensusContext
 } from './magi/consensus';
 export { TEMPERAMENT_SYSTEM_PROMPTS } from './magi/temperaments';
+export type { MagiRequest } from './magi/validation';
