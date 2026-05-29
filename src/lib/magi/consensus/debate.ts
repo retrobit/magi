@@ -280,8 +280,8 @@ export const debateStrategy: ConsensusStrategy = {
 			// Debate rounds. All debaters run in parallel; because every prompt is
 			// built from `current` before any await resolves, the revisions are
 			// effectively simultaneous (peers see the prior round's answers).
-			let round = 0;
-			for (round = 1; round <= MAX_ROUNDS; round += 1) {
+			let round = 1;
+			for (; round <= MAX_ROUNDS; round += 1) {
 				const runs = await Promise.allSettled(
 					responses.map(async (r) => {
 						const assignment = nodeAssignments.find((a) => a.node === r.node);
