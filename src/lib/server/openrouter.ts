@@ -48,8 +48,6 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 	}
 }
 
-export { pickDiverseModels } from '$lib/magi/types';
-
 export const _testing = {
 	clearCache: () => {
 		cachedModels = null;
