@@ -344,7 +344,7 @@
 <div
 	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72'} {status === 'pending' ? 'pulse-glow' : ''}"
+		: 'min-h-72 md:min-h-0'} {status === 'pending' ? 'pulse-glow' : ''}"
 	style:--node-color={NODE_HEX_COLORS[name]}
 >
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
