@@ -1068,7 +1068,7 @@
 
 		<!-- Three MAGI panels -->
 		<div
-			class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] {nodesCollapsed
+			class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-1 {nodesCollapsed
 				? 'shrink-0'
 				: 'flex-2 md:min-h-0 md:flex-1 md:overflow-hidden'}"
 		>
