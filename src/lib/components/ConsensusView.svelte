@@ -178,6 +178,7 @@
 	// stale height and never reached the bottom.
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
+	let liveTurnEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
 	// Scroll-viewport height — gives the latest turn block a min-height in snap
 	// mode so its prompt can always reach the top even on a short consensus.
@@ -213,8 +214,7 @@
 			// Target the prompt line (first child), not the block, so the divider
 			// and its padding scroll off above. Leave a few px of breathing room
 			// above the prompt rather than pinning it flush to the top edge.
-			const block = content.lastElementChild;
-			const target = block?.firstElementChild ?? block;
+			const target = liveTurnEl?.firstElementChild ?? liveTurnEl;
 			if (target) {
 				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
 			}
@@ -231,10 +231,12 @@
 		strategy === 'debate' ? (text.match(/\*\*Round \d+\*\*/g) ?? []).length : 0
 	);
 	let lastSnappedRound = $state(0);
+	let snappedSynthesis = $state(false);
 	$effect(() => {
-		// Reset the watermark on every new live turn (or when leaving snap mode).
+		// Reset both watermarks on every new live turn (or when leaving snap mode).
 		if (scrollMode !== 'snap' || !liveQuery) {
 			lastSnappedRound = 0;
+			snappedSynthesis = false;
 			return;
 		}
 		if (collapsed) return;
@@ -261,6 +263,34 @@
 		});
 		observer.observe(content);
 		// Safety: don't watch forever — Markdown throttle is ~100 ms, give it 500.
+		const timeout = setTimeout(() => observer.disconnect(), 500);
+		return () => {
+			clearTimeout(timeout);
+			observer.disconnect();
+		};
+	});
+
+	// Snap mode + debate: when the `---` divider arrives (the boundary between
+	// the round ledger and the streamed synthesis), snap so the divider lands at
+	// the top of the viewport — the user reads the synthesis from its first line
+	// rather than chasing it as it streams. Mirrors the round-snap pattern: wait
+	// for Markdown's throttled re-render, find the last `<hr>` in the live block,
+	// scroll it to top, fire exactly once per turn.
+	const hasSynthesisStarted = $derived(strategy === 'debate' && text.includes(DEBATE_DIVIDER));
+	$effect(() => {
+		if (scrollMode !== 'snap' || !liveQuery || collapsed) return;
+		if (!hasSynthesisStarted || snappedSynthesis) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const observer = new ResizeObserver(() => {
+			const hr = Array.from(content.querySelectorAll('hr')).at(-1);
+			if (!hr) return;
+			el.scrollTop += hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+			snappedSynthesis = true;
+			observer.disconnect();
+		});
+		observer.observe(content);
 		const timeout = setTimeout(() => observer.disconnect(), 500);
 		return () => {
 			clearTimeout(timeout);
@@ -528,7 +558,6 @@
 						class="flex flex-col gap-1.5 {i > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
-						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.consensus}
@@ -547,10 +576,10 @@
 				{/each}
 				{#if liveQuery}
 					<div
+						bind:this={liveTurnEl}
 						class="flex flex-col gap-1.5 {transcript.length > 0
 							? 'magi-turn-divider border-t border-gray-800 pt-3'
 							: ''}"
-						style:min-height={snapMinHeight}
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
 						{#if warning}
@@ -559,14 +588,14 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
+							<p class="font-mono text-xs text-gray-500">{consensusLoadingText}…</p>
 						{:else if text}
 							{#if debateComplete}{@render debateBanner(debateVerdict, debateSummary)}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
 							{#if debateRounding}
-								<p class="font-mono text-sm text-gray-500">{consensusLoadingText}…</p>
+								<p class="font-mono text-xs text-gray-500">{consensusLoadingText}…</p>
 							{/if}
 						{:else}
 							<p class="text-sm text-gray-600">
@@ -576,6 +605,12 @@
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>
 				{/if}
+			{/if}
+			<!-- Tail spacer for snap mode: lets any element inside the live block
+			     (round headings, the `---` divider, the streamed synthesis) scroll
+			     to the top of the viewport regardless of how short the content is. -->
+			{#if snapMinHeight}
+				<div style:min-height={snapMinHeight} aria-hidden="true"></div>
 			{/if}
 		</div>
 	</div>

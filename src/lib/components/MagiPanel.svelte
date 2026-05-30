@@ -29,6 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import {
@@ -505,7 +506,7 @@
 							{@render errorCard(turn.error)}
 						{:else if turn.response}
 							<div class="prose prose-sm max-w-none prose-invert">
-								<Markdown source={turn.response} />
+								<Markdown source={stripSummaryTail(turn.response)} />
 							</div>
 						{:else}
 							<p class="text-sm text-gray-600">No response</p>
@@ -526,14 +527,14 @@
 							{@render errorCard(error)}
 						{:else if text}
 							<div class="prose prose-sm max-w-none prose-invert">
-								<Markdown source={text} />
+								<Markdown source={stripSummaryTail(text)} />
 							</div>
 						{:else if status === 'unknown'}
 							<p class="text-sm text-orange-400">No response received</p>
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">Empty response</p>
 						{:else}
-							<p class="font-mono text-sm text-gray-500">{loadingText}…</p>
+							<p class="font-mono text-xs text-gray-500">{loadingText}…</p>
 						{/if}
 						{@render roundList(debateRounds, true)}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}

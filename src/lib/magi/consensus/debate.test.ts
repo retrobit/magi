@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText, streamText } from 'ai';
-import { debateStrategy, extractInitialSummary } from './debate';
+import { debateStrategy, extractInitialSummary, stripSummaryTail } from './debate';
 import type { ConsensusContext, ConsensusEvent } from './types';
 import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
@@ -478,5 +478,60 @@ describe('extractInitialSummary', () => {
 		const out = extractInitialSummary(text);
 		expect(out.length).toBe(158); // 157 chars + the ellipsis
 		expect(out.endsWith('…')).toBe(true);
+	});
+});
+
+describe('stripSummaryTail', () => {
+	it('strips the trailing SUMMARY line when there is other content above', () => {
+		const text = 'Free will is an illusion.\nSUMMARY: Free will is an illusion.';
+		expect(stripSummaryTail(text)).toBe('Free will is an illusion.');
+	});
+
+	it('strips through trailing blank lines between the body and the SUMMARY line', () => {
+		const text = 'Long answer.\n\n\nSUMMARY: A succinct take.';
+		expect(stripSummaryTail(text)).toBe('Long answer.');
+	});
+
+	it('tolerates bold around the SUMMARY label in the tail', () => {
+		expect(stripSummaryTail('Body.\n**SUMMARY:** foo')).toBe('Body.');
+		expect(stripSummaryTail('Body.\n**SUMMARY**: foo')).toBe('Body.');
+	});
+
+	it('tolerates a leading bullet on the SUMMARY tail', () => {
+		expect(stripSummaryTail('Body.\n- SUMMARY: foo')).toBe('Body.');
+	});
+
+	it('does not strip when the SUMMARY line is the only content', () => {
+		// Keep something on screen — better the metadata than a blank panel.
+		const text = 'SUMMARY: only line';
+		expect(stripSummaryTail(text)).toBe(text);
+	});
+
+	it('does not strip a SUMMARY line that is followed by more prose', () => {
+		const text = 'Intro.\nSUMMARY: not at end\n\nMore body after.';
+		expect(stripSummaryTail(text)).toBe(text);
+	});
+
+	it('returns text unchanged when there is no SUMMARY line', () => {
+		const text = 'Just a plain answer with no metadata tail.';
+		expect(stripSummaryTail(text)).toBe(text);
+	});
+
+	it('strips a bare mid-stream SUMMARY prefix (no separator yet)', () => {
+		// While the stream is mid-flight the tail is briefly `\nSUMMARY` before the
+		// colon arrives; treat it as a SUMMARY line to avoid a one-frame flicker.
+		expect(stripSummaryTail('Body.\nSUMMARY')).toBe('Body.');
+	});
+
+	it('strips a SUMMARY line with an empty value (separator but no value yet)', () => {
+		// Same flicker window, one keystroke later: `\nSUMMARY:` with no value.
+		expect(stripSummaryTail('Body.\nSUMMARY:')).toBe('Body.');
+	});
+
+	it('strips every trailing SUMMARY line when the model self-corrects', () => {
+		// Earlier SUMMARY lines are noise the same way they are for extractInitialSummary;
+		// don't leak the rejected take into the displayed panel.
+		const text = 'Body.\nSUMMARY: first\nSUMMARY: second';
+		expect(stripSummaryTail(text)).toBe('Body.');
 	});
 });

@@ -9,8 +9,13 @@
 	 *  dev debug panel is currently injecting. Applied imperatively by the page. */
 	export interface DebugScenario {
 		nodeError: Record<MagiNodeName, boolean>;
+		/** Force a node into the in-flight ("pending") state — the pulsating glow
+		 *  + the sweeping loading verb — without making a real request. */
+		nodeLoading: Record<MagiNodeName, boolean>;
 		nodeContext: Record<MagiNodeName, ContextLevel>;
 		consensusContext: ContextLevel;
+		/** Force the consensus loader (the strategy-flavoured sweeping verb) on. */
+		consensusLoading: boolean;
 		globalError: boolean;
 		partialConsensus: boolean;
 	}
@@ -18,8 +23,10 @@
 	export function freshDebugScenario(): DebugScenario {
 		return {
 			nodeError: { MELCHIOR: false, BALTHASAR: false, CASPAR: false },
+			nodeLoading: { MELCHIOR: false, BALTHASAR: false, CASPAR: false },
 			nodeContext: { MELCHIOR: 'off', BALTHASAR: 'off', CASPAR: 'off' },
 			consensusContext: 'off',
+			consensusLoading: false,
 			globalError: false,
 			partialConsensus: false
 		};
@@ -29,8 +36,11 @@
 	 *  a synthetic turn or falls back to its normal idle state. */
 	export function isDebugScenarioActive(s: DebugScenario): boolean {
 		return (
-			MAGI_NODE_NAMES.some((n) => s.nodeError[n] || s.nodeContext[n] !== 'off') ||
+			MAGI_NODE_NAMES.some(
+				(n) => s.nodeError[n] || s.nodeLoading[n] || s.nodeContext[n] !== 'off'
+			) ||
 			s.consensusContext !== 'off' ||
+			s.consensusLoading ||
 			s.globalError ||
 			s.partialConsensus
 		);
@@ -69,7 +79,20 @@
 	};
 
 	function setNodeError(node: MagiNodeName, value: boolean) {
-		onchange({ ...scenario, nodeError: { ...scenario.nodeError, [node]: value } });
+		// Error and Loading are mutually exclusive — flipping Error on clears Loading.
+		onchange({
+			...scenario,
+			nodeError: { ...scenario.nodeError, [node]: value },
+			nodeLoading: { ...scenario.nodeLoading, [node]: value ? false : scenario.nodeLoading[node] }
+		});
+	}
+
+	function setNodeLoading(node: MagiNodeName, value: boolean) {
+		onchange({
+			...scenario,
+			nodeLoading: { ...scenario.nodeLoading, [node]: value },
+			nodeError: { ...scenario.nodeError, [node]: value ? false : scenario.nodeError[node] }
+		});
 	}
 
 	function setNodeContext(node: MagiNodeName, level: ContextLevel) {
@@ -78,6 +101,10 @@
 
 	function setConsensusContext(level: ContextLevel) {
 		onchange({ ...scenario, consensusContext: level });
+	}
+
+	function setConsensusLoading(value: boolean) {
+		onchange({ ...scenario, consensusLoading: value });
 	}
 </script>
 
@@ -134,10 +161,24 @@
 				>
 					Error
 				</button>
+				<button
+					type="button"
+					{disabled}
+					title="Show the pulsating loading state for this node"
+					class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {scenario
+						.nodeLoading[assignment.node]
+						? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
+						: 'bg-gray-800 text-gray-400 hover:text-white'}"
+					onclick={() => setNodeLoading(assignment.node, !scenario.nodeLoading[assignment.node])}
+				>
+					Load
+				</button>
 				<select
 					class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 					value={scenario.nodeContext[assignment.node]}
-					disabled={disabled || scenario.nodeError[assignment.node]}
+					disabled={disabled ||
+						scenario.nodeError[assignment.node] ||
+						scenario.nodeLoading[assignment.node]}
 					onchange={(e) => setNodeContext(assignment.node, e.currentTarget.value as ContextLevel)}
 				>
 					{#each CONTEXT_LEVELS as level (level)}
@@ -154,10 +195,21 @@
 	<div class="mt-3 flex flex-col gap-2">
 		<div class="flex items-center gap-2">
 			<span class="flex-1 text-xs font-medium text-gray-300">Consensus</span>
+			<button
+				type="button"
+				{disabled}
+				title="Show the strategy-flavoured sweeping verb loader on the consensus pane"
+				class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
+					? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
+					: 'bg-gray-800 text-gray-400 hover:text-white'}"
+				onclick={() => setConsensusLoading(!scenario.consensusLoading)}
+			>
+				Load
+			</button>
 			<select
 				class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 				value={scenario.consensusContext}
-				{disabled}
+				disabled={disabled || scenario.consensusLoading}
 				onchange={(e) => setConsensusContext(e.currentTarget.value as ContextLevel)}
 			>
 				{#each CONTEXT_LEVELS as level (level)}
