@@ -8,8 +8,9 @@ export default defineConfig({
 	test: {
 		// Coverage counts only files the tests actually import (v8 default), so the
 		// largely view-only Svelte components don't drag the numbers down. Thresholds
-		// sit just under current levels (stmt/line/fn ~89%, branch ~76%) as a ratchet —
-		// raise them as coverage climbs; never let a change drop below the floor.
+		// are a ratchet floor — set deliberately below current levels so a normal
+		// change can't drop coverage below them. Raise the floor as coverage climbs;
+		// never let a change drop below it.
 		coverage: {
 			provider: 'v8',
 			reporter: ['text-summary', 'html'],
