@@ -134,6 +134,40 @@ export function extractInitialSummary(text: string): string {
 	return gist(text);
 }
 
+// Strip trailing `SUMMARY: …` lines (with leading bullets / bold) so per-node
+// panels show the substantive answer, not the metadata tail that exists for the
+// ledger. Some models (notably small ones) emit a one-line answer immediately
+// followed by an identical SUMMARY line, which doubles up in the panel — this
+// removes the duplicate. Walks backward through any sequence of SUMMARY lines
+// interleaved with blanks so a self-correcting model's earlier SUMMARY lines
+// don't leak through either. Mid-stream partials — a bare `SUMMARY` with no
+// separator yet, or `SUMMARY:` with no value yet — also count, to avoid a
+// one-frame flicker while the value's first chars are still in flight.
+// Conservative: only strips when there is *other* content above the SUMMARY
+// run, so an answer that's only the SUMMARY survives intact.
+const SUMMARY_LINE_RE = /^[ \t]*[-*•>]?[ \t]*\**[ \t]*SUMMARY[ \t]*\**[ \t]*[:\-–—][ \t]*.*$/i;
+const SUMMARY_PREFIX_RE = /^[ \t]*[-*•>]?[ \t]*\**[ \t]*SUMMARY[ \t]*\**[ \t]*$/i;
+const isSummaryLine = (line: string) => SUMMARY_LINE_RE.test(line) || SUMMARY_PREFIX_RE.test(line);
+export function stripSummaryTail(text: string): string {
+	const lines = text.split('\n');
+	let i = lines.length - 1;
+	let strippedAny = false;
+	// Walk backward through trailing SUMMARY lines interleaved with blanks.
+	while (i >= 0) {
+		while (i >= 0 && lines[i].trim() === '') i -= 1;
+		if (i < 0 || !isSummaryLine(lines[i])) break;
+		strippedAny = true;
+		i -= 1;
+	}
+	if (!strippedAny) return text;
+	const hasOtherContent = lines.slice(0, i + 1).some((l) => l.trim() !== '');
+	if (!hasOtherContent) return text;
+	return lines
+		.slice(0, i + 1)
+		.join('\n')
+		.trimEnd();
+}
+
 // The trimmed inputs surfaced in the node panel — the substance the node reacted
 // to (its prior answer + anonymized peers, with their reasoning), without the
 // fixed instruction scaffolding that repeats every round.

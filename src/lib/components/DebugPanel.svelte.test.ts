@@ -39,6 +39,18 @@ describe('freshDebugScenario / isDebugScenarioActive', () => {
 		expect(isDebugScenarioActive(withError)).toBe(true);
 		expect(isDebugScenarioActive(withPartial)).toBe(true);
 	});
+
+	it('a node Loading flag makes the scenario active', () => {
+		const s = freshDebugScenario();
+		s.nodeLoading.MELCHIOR = true;
+		expect(isDebugScenarioActive(s)).toBe(true);
+	});
+
+	it('the consensus Loading flag makes the scenario active', () => {
+		const s = freshDebugScenario();
+		s.consensusLoading = true;
+		expect(isDebugScenarioActive(s)).toBe(true);
+	});
 });
 
 describe('DebugPanel', () => {
@@ -90,5 +102,46 @@ describe('DebugPanel', () => {
 		const { onclose } = setup();
 		await fireEvent.click(screen.getByRole('button', { name: 'Close debug panel' }));
 		expect(onclose).toHaveBeenCalledOnce();
+	});
+});
+
+describe('DebugPanel — Load toggles', () => {
+	it('renders one Load button per node plus one for the consensus', () => {
+		setup();
+		expect(screen.getAllByRole('button', { name: 'Load' })).toHaveLength(4);
+	});
+
+	it('node Load and Error are mutually exclusive', async () => {
+		const { onchange } = setup();
+		await fireEvent.click(screen.getAllByRole('button', { name: 'Error' })[0]);
+		expect(onchange.mock.calls[0][0].nodeError.MELCHIOR).toBe(true);
+		expect(onchange.mock.calls[0][0].nodeLoading.MELCHIOR).toBe(false);
+
+		// Re-render with the post-Error state so clicking Load flips from a true error.
+		onchange.mockClear();
+		const s = freshDebugScenario();
+		s.nodeError.MELCHIOR = true;
+		setup(s);
+		await fireEvent.click(screen.getAllByRole('button', { name: 'Load' })[0]);
+		expect(onchange.mock.calls[0][0].nodeLoading.MELCHIOR).toBe(true);
+		expect(onchange.mock.calls[0][0].nodeError.MELCHIOR).toBe(false);
+	});
+
+	it('node Context select is disabled when nodeLoading is on', () => {
+		const s = freshDebugScenario();
+		s.nodeLoading.MELCHIOR = true;
+		setup(s);
+		const selects = screen.getAllByRole('combobox');
+		expect(selects[0]).toBeDisabled();
+		expect(selects[1]).not.toBeDisabled();
+	});
+
+	it('consensus Context select is disabled when consensusLoading is on', () => {
+		const s = freshDebugScenario();
+		s.consensusLoading = true;
+		setup(s);
+		const selects = screen.getAllByRole('combobox');
+		// 3 node selects + 1 consensus select; consensus is the last one.
+		expect(selects[3]).toBeDisabled();
 	});
 });

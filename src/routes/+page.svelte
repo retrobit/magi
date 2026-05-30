@@ -153,6 +153,10 @@
 		consensusWarning: string;
 		error: string;
 		streamDone: boolean;
+		// Dev-only: when true, drive the pending UI (sweeping verb + glow) without a
+		// real fetch in flight. Set by the debug panel's Load toggles; treated as an
+		// additional source of `loading` everywhere the UI checks it.
+		debugPreviewLoading: boolean;
 	}
 
 	function freshLiveState(): LiveState {
@@ -165,7 +169,8 @@
 			consensusFinal: '',
 			consensusWarning: '',
 			error: '',
-			streamDone: false
+			streamDone: false,
+			debugPreviewLoading: false
 		};
 	}
 
@@ -346,11 +351,16 @@
 		}))
 	);
 
+	// Effective loading flag: union of the real fetch-in-flight `loading` state and
+	// the debug panel's preview flag, so the pending UI (verb sweeps, glow,
+	// consensus loader) lights up the same whether the data is real or injected.
+	const effectiveLoading = $derived(loading || live.debugPreviewLoading);
+
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
 		if (responseMap.get(node)) return 'success';
-		if (loading && !live.streamDone) return 'pending';
-		if (loading && live.streamDone) return 'unknown';
+		if (effectiveLoading && !live.streamDone) return 'pending';
+		if (effectiveLoading && live.streamDone) return 'unknown';
 		// Turn finished and live state was cleared — keep the last turn's outcome so
 		// the checkmark persists instead of reverting to idle. Long debates make the
 		// reset-to-idle especially noticeable.
@@ -659,6 +669,9 @@
 					provider: a.provider,
 					error: DEBUG_NODE_ERROR
 				});
+			} else if (scenario.nodeLoading[a.node]) {
+				// Pending: leave the node empty so getNodeStatus reports 'pending'.
+				// No usage either — there's nothing to bill against an in-flight call.
 			} else {
 				next.responses.push({
 					node: a.node,
@@ -675,17 +688,31 @@
 		}
 		next.error = scenario.globalError ? DEBUG_GLOBAL_ERROR : '';
 		next.consensusWarning = scenario.partialConsensus ? DEBUG_PARTIAL : '';
-		next.consensusStream = DEBUG_CONSENSUS;
-		next.consensusFinal = DEBUG_CONSENSUS;
-		next.streamDone = true;
+		// Any Load toggle drives the union pending UI (verb sweeps, glow, consensus
+		// loader). When it's on, the consensus text stays empty so the loader fires
+		// (`loading && allModelsResponded && !text`) and streamDone goes false so
+		// nodes without a response read as 'pending', not 'unknown'.
+		const previewLoading =
+			scenario.consensusLoading || MAGI_NODE_NAMES.some((n) => scenario.nodeLoading[n]);
+		next.debugPreviewLoading = previewLoading;
+		next.streamDone = !previewLoading;
+		if (scenario.consensusLoading) {
+			next.consensusStream = '';
+			next.consensusFinal = '';
+		} else {
+			next.consensusStream = DEBUG_CONSENSUS;
+			next.consensusFinal = DEBUG_CONSENSUS;
+		}
 		activeTurnQuery = DEBUG_QUERY;
 		live = next;
 		liveNodeUsage = usage;
-		liveConsensusUsage = {
-			inputTokens: debugContextTokens(consensusAssignment.modelId, scenario.consensusContext),
-			outputTokens: 480,
-			cachedTokens: 0
-		};
+		liveConsensusUsage = scenario.consensusLoading
+			? undefined
+			: {
+					inputTokens: debugContextTokens(consensusAssignment.modelId, scenario.consensusContext),
+					outputTokens: 480,
+					cachedTokens: 0
+				};
 	}
 
 	// Commit the just-finished turn into the conversation, then clear live state.
@@ -1105,7 +1132,7 @@
 				fullText={live.consensusFinal}
 				debateVerdict={live.debateVerdict}
 				debateSummary={live.debateSummary}
-				{loading}
+				loading={effectiveLoading}
 				{allModelsResponded}
 				respondedCount={live.responses.length}
 				erroredCount={live.modelErrors.length}
