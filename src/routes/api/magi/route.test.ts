@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
@@ -11,7 +11,7 @@ interface MutableEnv {
 
 const env = _env as unknown as MutableEnv;
 
-vi.mock('ai', () => ({ streamText: vi.fn() }));
+vi.mock('ai', () => ({ streamText: vi.fn(), generateText: vi.fn() }));
 vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
 vi.mock('$lib/server/rate-limit', () => ({ isRateLimited: vi.fn(() => false) }));
 vi.mock('$lib/server/health', () => ({
@@ -27,6 +27,7 @@ vi.mock('$lib/server/logger', () => ({
 }));
 
 const streamTextMock = vi.mocked(streamText);
+const generateTextMock = vi.mocked(generateText);
 
 function fakeStream(text: string) {
 	return {
@@ -86,6 +87,13 @@ const lastIndex = (events: StreamEvent[], name: string) => names(events).lastInd
 beforeEach(() => {
 	streamTextMock.mockReset();
 	streamTextMock.mockImplementation(() => fakeStream('chunk') as never);
+	generateTextMock.mockReset();
+	// Default: round-1 reply that converges immediately so debate-strategy tests
+	// don't hang or exhaust round retries.
+	generateTextMock.mockResolvedValue({
+		text: 'CHANGED: no\nAGREE: yes\nNOTE: aligned\nANSWER:\nstable',
+		usage: { inputTokens: 1, outputTokens: 1, cachedInputTokens: 0 }
+	} as never);
 	vi.mocked(isRateLimited).mockReturnValue(false);
 	vi.mocked(isModelHealthy).mockReturnValue(true);
 });
@@ -190,6 +198,29 @@ describe('POST /api/magi — streaming', () => {
 		const fatal = events.find((e) => e.event === 'error');
 		expect(fatal?.data).toEqual({ message: 'All three models are unavailable' });
 		expect(names(events)).not.toContain('consensus-complete');
+	});
+
+	it('asks each node for a SUMMARY: line when the strategy is debate', async () => {
+		await readEvents(await callPost({ ...validBody, strategy: 'debate' }));
+		// Phase 1 dispatches one streamText per healthy node — its last user message
+		// must carry the SUMMARY ask so the model seals its reply with a one-liner.
+		const phase1Calls = streamTextMock.mock.calls.slice(0, 3);
+		expect(phase1Calls).toHaveLength(3);
+		for (const call of phase1Calls) {
+			const messages = call[0].messages as { role: string; content: string }[];
+			const last = messages[messages.length - 1];
+			expect(last.role).toBe('user');
+			expect(last.content).toContain('SUMMARY:');
+		}
+	});
+
+	it('does not append the SUMMARY ask for non-debate strategies', async () => {
+		await readEvents(await callPost(validBody));
+		for (const call of streamTextMock.mock.calls) {
+			const messages = call[0].messages as { role: string; content: string }[];
+			const last = messages[messages.length - 1];
+			expect(last.content).not.toContain('SUMMARY:');
+		}
 	});
 
 	it('does not emit model-error or poison health when the client aborts', async () => {

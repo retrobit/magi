@@ -300,6 +300,18 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									content: `${temperamentPrompt}\n\n---\n\n${first.content as string}`
 								};
 							}
+							// Multi-Round Debate uses each model's opening answer as round 0, so we
+							// ask each model to seal its reply with a `SUMMARY:` line — those become
+							// the "Initial positions" ledger entries (rather than a heuristic first-
+							// sentence gist). Only attached to the current query, so prior turns'
+							// replayed history isn't mutated.
+							if (strategyName === 'debate') {
+								const last = messages[messages.length - 1];
+								messages[messages.length - 1] = {
+									role: 'user',
+									content: `${last.content as string}\n\nAt the very end of your reply, on its own line, write:\nSUMMARY: <one short sentence stating your position on the question>`
+								};
+							}
 							// Cache the replayed thread — a no-op for non-Anthropic gateways.
 							markCacheBreakpoint(messages);
 							const nodeTimer = startTimer();

@@ -104,6 +104,36 @@ function gist(text: string): string {
 	return out.length > 160 ? `${out.slice(0, 157).trimEnd()}…` : out;
 }
 
+// The model's own SUMMARY: line, if it followed the Phase-1 instruction. Falls
+// back to `gist()` when missing or empty so the ledger always has something —
+// older history, a model that ignored the format, or a partial stream all stay
+// readable. Scans mid-text (not just final line) with the `m` flag, tolerates
+// leading bullet markers (`-`, `*`, `•`, `>`), bold around the label
+// (`**SUMMARY:**`, `**SUMMARY**:`, `*SUMMARY*:`), colon or en/em-dash
+// separators, and bold around the value (outer `**` stripped). When the model
+// emits more than one SUMMARY line (e.g. self-corrects), the LAST one wins.
+// Literal angle-bracket placeholders echoed from the prompt template (e.g.
+// `<one short sentence stating your position>`) are rejected and fall through
+// to gist() so they never reach the ledger.
+export function extractInitialSummary(text: string): string {
+	const regex =
+		/(?:^|\n)[ \t]*[-*•>]?[ \t]*\**[ \t]*SUMMARY[ \t]*\**[ \t]*[:\-–—][ \t]*\**[ \t]*(.+?)[ \t]*$/gim;
+	const matches = [...text.matchAll(regex)];
+	const last = matches[matches.length - 1];
+	let summary = last?.[1]?.trim() ?? '';
+	// Strip outer bold markers (`**foo**` or `*foo*`) from the captured value, and
+	// any stray trailing `**` left from a `**SUMMARY:**` bold-around-label form.
+	const boldStripped = summary.match(/^\*{1,2}(.+?)\*{1,2}$/);
+	if (boldStripped) summary = boldStripped[1].trim();
+	else summary = summary.replace(/\*{1,2}\s*$/, '').trimEnd();
+	// Reject literal angle-bracket placeholders echoed from the prompt.
+	if (/^<.+>$/.test(summary)) summary = '';
+	if (summary.length > 0) {
+		return summary.length > 160 ? `${summary.slice(0, 157).trimEnd()}…` : summary;
+	}
+	return gist(text);
+}
+
 // The trimmed inputs surfaced in the node panel — the substance the node reacted
 // to (its prior answer + anonymized peers, with their reasoning), without the
 // fixed instruction scaffolding that repeats every round.
@@ -266,10 +296,12 @@ export const debateStrategy: ConsensusStrategy = {
 			verdict = 'walkover';
 			yield emit(`\nOnly ${labels[responses[0].node]} responded — no debate was held.\n`);
 		} else {
-			// Initial positions — each node's opening stance, before any rebuttal,
-			// in the same per-node format the rounds use.
+			// Initial positions — each node's opening stance, before any rebuttal.
+			// Prefers the model's own SUMMARY: line (asked for in Phase 1 when the
+			// strategy is debate); falls back to a first-sentence gist when the line
+			// is absent so older history and stragglers still read sensibly.
 			let intro = `\n**Initial positions**\n`;
-			for (const r of responses) intro += `- ${labels[r.node]}: ${gist(r.text)}\n`;
+			for (const r of responses) intro += `- ${labels[r.node]}: ${extractInitialSummary(r.text)}\n`;
 			yield emit(intro);
 
 			// Directed agreement edges keyed `from->to`: does `from` say its answer
@@ -411,7 +443,11 @@ ${formatted}
 
 ${
 	verdict === 'split'
-		? 'The debaters did NOT reach full agreement — they hold genuinely differing positions. Do not paper over the disagreement: state what they agree on, then lay out each distinct position and the strongest case for it, and be explicit that the MAGI are divided.'
+		? `The debaters did NOT reach full agreement — they hold genuinely differing positions. Coalition: ${debateSummary ?? 'positions differ'}.
+
+You are writing as ${labels[assignment.node]}. Your own answer above carries NO extra weight just because it's yours — present every position at full strength, including the one(s) you disagree with. If your seat is in the minority coalition, your view does not get to crowd out the majority.
+
+Do not paper over the disagreement: state what they agree on, then lay out each distinct position and the strongest case for it, and be explicit that the MAGI are divided.`
 		: 'Provide the synthesized consensus response.'
 }`;
 
@@ -433,13 +469,13 @@ ${
 					: `${n} of three independent AI models debated and revised`
 			} their answers to the same query. The debate is done — your job is to consolidate, not to add a new perspective.${
 				verdict === 'split'
-					? ` The debaters remained divided, so do not manufacture a false consensus. Report the outcome honestly:
+					? ` The debaters remained divided, so do not manufacture a false consensus. You are one of the debaters; the position you produced has NO privileged status — treat each side equitably regardless of which one is yours. Report the outcome honestly:
 
 1. State the points where the ${n === 3 ? 'three' : 'available'} answers do agree.
-2. Lay out each remaining position distinctly, with the strongest case for each.
+2. Lay out each remaining position distinctly, with the strongest case for each — give the majority coalition and any dissenter equal airtime.
 3. Make the disagreement explicit — name that the MAGI are split rather than picking a winner by fiat.
 
-Be clear and faithful to the divide; do NOT smooth it over into one verdict.`
+Be clear and faithful to the divide; do NOT smooth it over into one verdict, and do NOT collapse it into your own view.`
 					: ` Synthesize the best possible answer by:
 
 1. Identifying where the ${n === 3 ? 'three' : 'available'} answers now agree — these points are likely reliable.

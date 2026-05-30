@@ -983,22 +983,23 @@
 		</form>
 
 		<!-- Conversation status bar — always rendered (even before the first
-		     prompt) so submitting a query doesn't reflow the layout. When the
-		     conversation is empty the button is disabled and the figures show
-		     placeholder em-dashes. -->
+		     prompt) so submitting a query doesn't reflow the layout. The row uses a
+		     1fr/auto/1fr grid so the layout toggle is pinned to true center: the
+		     side cells absorb growth on either side (counters lengthen, tooltips
+		     appear) without ever shifting the toggle off-center. -->
 		<div
-			class="magi-panel flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
+			class="magi-panel grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-4 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
 		>
 			<button
 				type="button"
 				onclick={handleNewConversation}
 				disabled={loading || conversation.length === 0}
-				class="magi-newconv-btn flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+				class="magi-newconv-btn flex w-fit items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
 			>
 				<MessageSquarePlus size={12} /> New conversation
 			</button>
 			<LayoutToggle focus={layoutFocus} onchange={setLayoutFocus} />
-			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400">
+			<div class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-gray-400">
 				{#if conversation.length > 0}
 					<span
 						use:tooltip={'Completed turns — each turn is one prompt answered by all three MAGI, then merged into a consensus. Multi-turn context carries forward across turns.'}

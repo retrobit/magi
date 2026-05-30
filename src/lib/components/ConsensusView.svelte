@@ -205,6 +205,7 @@
 	// prompt lands at the very top, and the consensus then streams in below it.
 	$effect(() => {
 		if (scrollMode !== 'snap' || !liveQuery) return;
+		if (collapsed) return;
 		const el = scrollEl;
 		const content = contentEl;
 		if (!el || !content) return;
@@ -219,6 +220,52 @@
 			}
 		});
 		return () => cancelAnimationFrame(frame);
+	});
+
+	// Snap mode + debate: each new round arrives as a `**Round N**` chunk in the
+	// streamed text. When the round count grows, jump so that round's heading
+	// sits at the top — mirroring how MagiPanel snaps per round. The Markdown
+	// renderer throttles to ~100 ms, so we wait via a single-shot ResizeObserver
+	// for the new heading to land in the DOM before measuring.
+	const debateRoundCount = $derived(
+		strategy === 'debate' ? (text.match(/\*\*Round \d+\*\*/g) ?? []).length : 0
+	);
+	let lastSnappedRound = $state(0);
+	$effect(() => {
+		// Reset the watermark on every new live turn (or when leaving snap mode).
+		if (scrollMode !== 'snap' || !liveQuery) {
+			lastSnappedRound = 0;
+			return;
+		}
+		if (collapsed) return;
+		const count = debateRoundCount;
+		if (!loading || count === 0 || count <= lastSnappedRound) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const desired = count;
+		const observer = new ResizeObserver(() => {
+			const headings = content.querySelectorAll('strong');
+			let target: Element | null = null;
+			for (let i = headings.length - 1; i >= 0; i -= 1) {
+				if (headings[i].textContent === `Round ${desired}`) {
+					target = headings[i];
+					break;
+				}
+			}
+			if (target) {
+				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+				lastSnappedRound = desired;
+				observer.disconnect();
+			}
+		});
+		observer.observe(content);
+		// Safety: don't watch forever — Markdown throttle is ~100 ms, give it 500.
+		const timeout = setTimeout(() => observer.disconnect(), 500);
+		return () => {
+			clearTimeout(timeout);
+			observer.disconnect();
+		};
 	});
 
 	// A block sweeps through the verb while the consensus itself is produced (all

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText, streamText } from 'ai';
-import { debateStrategy } from './debate';
+import { debateStrategy, extractInitialSummary } from './debate';
 import type { ConsensusContext, ConsensusEvent } from './types';
 import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
@@ -244,6 +244,38 @@ describe('debateStrategy.execute', () => {
 		expect(text.fullText).toContain('Answer from MELCHIOR');
 	});
 
+	it('uses the model’s own SUMMARY: line as the initial position when present', async () => {
+		generateTextMock.mockResolvedValue(debaterReply('no') as never);
+		const summaries: MagiResponse[] = [
+			{
+				node: 'MELCHIOR',
+				gateway: 'anthropic',
+				provider: 'anthropic',
+				text: 'Long discursive answer with many sentences.\n\nSUMMARY: Privacy must be the default.'
+			},
+			{
+				node: 'BALTHASAR',
+				gateway: 'openai',
+				provider: 'openai',
+				text: 'Another long answer.\nSUMMARY: Convenience usually wins.'
+			},
+			{
+				node: 'CASPAR',
+				gateway: 'google',
+				provider: 'google',
+				text: 'A third answer without the marker.'
+			}
+		];
+		const events = await collect(debateStrategy.execute(context({ responses: summaries })));
+		const text = events.find((e) => e.type === 'complete');
+		if (!text || text.type !== 'complete') throw new Error('no complete');
+		// The two SUMMARY: lines appear verbatim in the ledger; the missing one
+		// falls back to the first-sentence gist.
+		expect(text.fullText).toContain('Privacy must be the default.');
+		expect(text.fullText).toContain('Convenience usually wins.');
+		expect(text.fullText).toContain('A third answer without the marker.');
+	});
+
 	it('reports consensus when every debater explicitly agrees', async () => {
 		// All hold AND say they now agree → the MAGI are in agreement.
 		generateTextMock.mockResolvedValue(
@@ -252,6 +284,36 @@ describe('debateStrategy.execute', () => {
 		const events = await collect(debateStrategy.execute(context({ genericLabels: true })));
 		expect(verdictOf(events)).toBe('consensus');
 		expect(completeText(events)).toContain('in agreement');
+	});
+
+	it('briefs the split synthesizer against self-bias and surfaces the coalition', async () => {
+		// Two converge & agree, one holds and dissents — a 2-vs-1 split where the
+		// consensus seat (index 0 → MELCHIOR) is on the majority side. The synthesis
+		// prompt must explicitly forbid privileging its own answer and name the
+		// coalition so the model knows which side it's on.
+		generateTextMock
+			.mockResolvedValueOnce(debaterReply('no', 'ans M', 'agree', undefined, 'yes') as never)
+			.mockResolvedValueOnce(debaterReply('no', 'ans B', 'agree', undefined, 'yes') as never)
+			.mockResolvedValue(debaterReply('no', 'ans C', 'I differ', undefined, 'no') as never);
+		await collect(debateStrategy.execute(context()));
+		const synthesisCall = streamTextMock.mock.calls.at(-1)?.[0];
+		const system = String(synthesisCall?.system);
+		const messages = synthesisCall?.messages as { role: string; content: string }[];
+		const userMsg = String(messages?.at(-1)?.content);
+		// System prompt explicitly forbids the synthesizer from favoring its own view.
+		expect(system).toContain('NO privileged status');
+		expect(system).toContain('equal airtime');
+		// User prompt names the synthesizer's seat AND surfaces the coalition phrase.
+		expect(userMsg).toContain('You are writing as MELCHIOR');
+		// Coalition names both majority members, in either order (avoids coupling
+		// to coalitionPhrase's iteration order).
+		const coalitionIdx = userMsg.indexOf('Coalition:');
+		expect(coalitionIdx).toBeGreaterThanOrEqual(0);
+		expect(userMsg).toContain('MELCHIOR');
+		expect(userMsg).toContain('BALTHASAR');
+		expect(userMsg.slice(coalitionIdx)).toMatch(/MELCHIOR/);
+		expect(userMsg.slice(coalitionIdx)).toMatch(/BALTHASAR/);
+		expect(userMsg).toContain('NO extra weight');
 	});
 
 	it('reports a split when a debater explicitly still disagrees', async () => {
@@ -343,5 +405,78 @@ describe('debateStrategy.execute', () => {
 			provider: 'anthropic',
 			model: 'claude-x'
 		});
+	});
+});
+
+describe('extractInitialSummary', () => {
+	it('returns the SUMMARY value when it is the final line', () => {
+		const text = 'A long winded answer goes here first.\nSUMMARY: Privacy is the default.';
+		expect(extractInitialSummary(text)).toBe('Privacy is the default.');
+	});
+
+	it('returns the SUMMARY value when there is trailing prose after it', () => {
+		// Mid-text SUMMARY: line — the `m` flag should still pick it up.
+		const text =
+			'Opening paragraph.\nSUMMARY: Convenience usually wins.\nFollow-up rambling about edge cases.';
+		expect(extractInitialSummary(text)).toBe('Convenience usually wins.');
+	});
+
+	it('uses the LAST SUMMARY line when the model self-corrects', () => {
+		const text = 'SUMMARY: First take.\nOn reflection, scratch that.\nSUMMARY: Second take wins.';
+		expect(extractInitialSummary(text)).toBe('Second take wins.');
+	});
+
+	it('strips bold around the LABEL: **SUMMARY:** foo → foo', () => {
+		const text = 'Body of the answer.\n**SUMMARY:** Privacy is the default.';
+		const out = extractInitialSummary(text);
+		expect(out).toBe('Privacy is the default.');
+		expect(out.startsWith('**')).toBe(false);
+	});
+
+	it('strips bold around the LABEL form **SUMMARY**: foo → foo', () => {
+		const text = 'Body of the answer.\n**SUMMARY**: Convenience usually wins.';
+		const out = extractInitialSummary(text);
+		expect(out).toBe('Convenience usually wins.');
+		expect(out.startsWith('**')).toBe(false);
+	});
+
+	it('accepts a leading bullet marker before the label', () => {
+		const text = 'Body of the answer.\n- SUMMARY: Privacy is the default.';
+		expect(extractInitialSummary(text)).toBe('Privacy is the default.');
+	});
+
+	it('accepts en-dash and em-dash separators after the label', () => {
+		const enDash = 'Body.\nSUMMARY – Privacy is the default.';
+		const emDash = 'Body.\nSUMMARY — Convenience usually wins.';
+		expect(extractInitialSummary(enDash)).toBe('Privacy is the default.');
+		expect(extractInitialSummary(emDash)).toBe('Convenience usually wins.');
+	});
+
+	it('rejects angle-bracket placeholder echoes and falls back to gist', () => {
+		// A model that parroted the prompt template instead of writing a real summary.
+		const text =
+			'This is the actual first sentence. Then more details follow.\nSUMMARY: <one short sentence stating your position>';
+		const out = extractInitialSummary(text);
+		expect(out).not.toContain('<');
+		expect(out).toBe('This is the actual first sentence.');
+	});
+
+	it('falls back to gist when the SUMMARY value is empty', () => {
+		const text = 'This is the actual first sentence. Then more details follow.\nSUMMARY: ';
+		const out = extractInitialSummary(text);
+		expect(out).toBe('This is the actual first sentence.');
+	});
+
+	it('falls back to a first-sentence gist when no SUMMARY line exists', () => {
+		const text = 'A third answer without the marker. Followed by some more prose.';
+		expect(extractInitialSummary(text)).toBe('A third answer without the marker.');
+	});
+
+	it('caps a very long SUMMARY at 160 chars plus an ellipsis', () => {
+		const long = 'x'.repeat(300);
+		const text = `Body.\nSUMMARY: ${long}`;
+		const out = extractInitialSummary(text);
+		expect(out.length).toBe(158); // 157 chars + the ellipsis
+		expect(out.endsWith('…')).toBe(true);
 	});
 });
