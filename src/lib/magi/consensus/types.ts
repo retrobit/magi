@@ -45,9 +45,30 @@ export interface NodeIdentity {
 	model: string;
 }
 
+/** Debate-only metrics — convergence shape, per-node stickiness, dissent. Lives
+ *  under `RunStats.debate`; absent for non-debate strategies and for debate runs
+ *  with zero responses (nothing happened to measure). */
+export interface DebateStats {
+	/** consensus / split / walkover. Walkover means only one node responded. */
+	verdict: DebateVerdict;
+	/** True when the run ran every allowed round and never converged — only meaningful
+	 *  for split outcomes. False for walkover and consensus-by-stability. */
+	hitLimit: boolean;
+	/** Rounds actually executed. 0 for walkover (no debate happens). */
+	rounds: number;
+	/** Per node, count of rounds where the debater materially revised its answer.
+	 *  Denominator is `rounds` — `revisions[node] / rounds` is the revision rate. */
+	revisions: Partial<Record<MagiNodeName, number>>;
+	/** Model each responding node used — separates "node bias" from "model bias". */
+	models: Partial<Record<MagiNodeName, string>>;
+	/** For a 'split' verdict with a clean 2-vs-1 coalition, the dissenter; null
+	 *  for three-way splits, non-split outcomes, and walkover. */
+	dissenter: MagiNodeName | null;
+}
+
 /** One consensus run, regardless of strategy. Every run emits exactly one of
- *  these; voting runs additionally fill in `voting`. This is the unit the stats
- *  panel aggregates over. */
+ *  these; voting runs additionally fill in `voting`, debate runs `debate`. This
+ *  is the unit the stats panel aggregates over. */
 export interface RunStats {
 	strategy: StrategyName;
 	/** Active configuration when the run executed. */
@@ -56,8 +77,10 @@ export interface RunStats {
 	consensusTemperament: boolean;
 	/** Identity of each node that responded this run — drives usage breakdowns. */
 	nodes: Partial<Record<MagiNodeName, NodeIdentity>>;
-	/** Voting-only rich metrics. Absent for synthesis. */
+	/** Voting-only rich metrics. Absent for synthesis and debate. */
 	voting?: VotingStats;
+	/** Debate-only rich metrics. Absent for synthesis and voting. */
+	debate?: DebateStats;
 }
 
 export type ConsensusEvent =

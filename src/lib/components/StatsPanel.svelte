@@ -8,7 +8,12 @@
 		type RunStatRecord
 	} from '$lib/magi/run-stats';
 	import { STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus/types';
-	import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '$lib/magi/types';
+	import {
+		NODE_LABELS,
+		NODE_LABELS_GENERIC,
+		type MagiNodeName,
+		type DebateVerdict
+	} from '$lib/magi/types';
 
 	interface Props {
 		/** Bumped by the parent every time a new run-stats event arrives. */
@@ -32,7 +37,13 @@
 
 	const agg = $derived(aggregate(records));
 	const nodeOrder: MagiNodeName[] = ['MELCHIOR', 'BALTHASAR', 'CASPAR'];
-	const strategyOrder: StrategyName[] = ['synthesis', 'voting'];
+	const strategyOrder: StrategyName[] = ['synthesis', 'voting', 'debate'];
+	const verdictOrder: DebateVerdict[] = ['consensus', 'split', 'walkover'];
+	const VERDICT_LABELS: Record<DebateVerdict, string> = {
+		consensus: 'Consensus',
+		split: 'Split',
+		walkover: 'Walkover'
+	};
 
 	function pct(n: number, total: number): string {
 		if (total === 0) return '—';
@@ -320,6 +331,105 @@
 					>
 				</div>
 			</section>
+		{/if}
+
+		<!-- ===== Multi-Round Debate deep-dive (only when debates have run) ===== -->
+		{#if agg.debate.total > 0}
+			{@const dbt = agg.debate}
+			<div class="mt-1 border-t border-gray-800 pt-2">
+				<span class="text-xs font-semibold tracking-wide text-gray-400">
+					🗣️ Multi-Round Debate
+					<span class="font-normal text-gray-500">({dbt.total} runs)</span>
+				</span>
+			</div>
+
+			<!-- Verdict distribution — how often does debate actually converge? -->
+			<section class="flex flex-col gap-1">
+				<h3 class="text-xs font-semibold text-gray-400">Verdict distribution</h3>
+				{#each verdictOrder as verdict (verdict)}
+					{@const count = dbt.verdictCounts[verdict] ?? 0}
+					<div class="flex items-center gap-2 text-xs">
+						<span class="w-24 text-gray-300">{VERDICT_LABELS[verdict]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+							<div
+								class="h-full bg-purple-500/70"
+								style="width: {dbt.total > 0 ? ((count / dbt.total) * 100).toFixed(1) : 0}%"
+							></div>
+						</div>
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+							{count} ({pct(count, dbt.total)})
+						</span>
+					</div>
+				{/each}
+			</section>
+
+			<!-- Convergence speed + stalemate rate, when there's anything to report. -->
+			{#if dbt.verdictCounts.consensus > 0 || dbt.hitLimitCount > 0}
+				<section class="flex flex-col gap-1">
+					<h3 class="text-xs font-semibold text-gray-400">Convergence</h3>
+					{#if dbt.verdictCounts.consensus > 0}
+						<div class="flex justify-between text-xs">
+							<span class="text-gray-300">Avg rounds to converge</span>
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+								{dbt.avgRoundsToConverge.toFixed(2)}
+							</span>
+						</div>
+					{/if}
+					{#if dbt.hitLimitCount > 0}
+						<div class="flex justify-between text-xs">
+							<span class="text-gray-300">Hit round limit</span>
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+								{dbt.hitLimitCount} ({pct(dbt.hitLimitCount, dbt.total)})
+							</span>
+						</div>
+					{/if}
+				</section>
+			{/if}
+
+			<!-- Revision rate by node — which nodes are most willing to revise their answer. -->
+			<section class="flex flex-col gap-1">
+				<h3 class="text-xs font-semibold text-gray-400">Revision rate by node</h3>
+				{#each nodeOrder as node (node)}
+					{@const r = dbt.revisionRateByNode[node]}
+					<div class="flex items-center gap-2 text-xs">
+						<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+							<div class="h-full bg-amber-500/70" style="width: {(r.rate * 100).toFixed(1)}%"></div>
+						</div>
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+							{r.revised}/{r.rounds} ({r.rounds > 0 ? `${(r.rate * 100).toFixed(0)}%` : '—'})
+						</span>
+					</div>
+				{/each}
+			</section>
+
+			<!-- Dissenter — when a clean 2-vs-1 split happened, who was the holdout? -->
+			{#if nodeOrder.some((n) => dbt.dissenterByNode[n] > 0)}
+				<section class="flex flex-col gap-1">
+					<h3 class="text-xs font-semibold text-gray-400">
+						Dissenter
+						<span class="font-normal text-gray-500"
+							>({nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)} 2-vs-1 splits)</span
+						>
+					</h3>
+					{#each nodeOrder as node (node)}
+						{@const count = dbt.dissenterByNode[node] ?? 0}
+						{@const denom = nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)}
+						<div class="flex items-center gap-2 text-xs">
+							<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
+							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+								<div
+									class="h-full bg-rose-500/70"
+									style="width: {denom > 0 ? ((count / denom) * 100).toFixed(1) : 0}%"
+								></div>
+							</div>
+							<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+								{count} ({pct(count, denom)})
+							</span>
+						</div>
+					{/each}
+				</section>
+			{/if}
 		{/if}
 	{/if}
 </div>

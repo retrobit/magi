@@ -8,7 +8,13 @@
 // data only feeds an informational panel — corrupting it is a non-issue.
 
 import type { NodeIdentity, RunStats, StrategyName } from './consensus/types';
-import { GATEWAY_LABELS, getProviderLabel, type GatewayName, type MagiNodeName } from './types';
+import {
+	GATEWAY_LABELS,
+	getProviderLabel,
+	type GatewayName,
+	type MagiNodeName,
+	type DebateVerdict
+} from './types';
 
 const STORAGE_KEY = 'magi:run-stats:v1';
 const MAX_RECORDS = 500;
@@ -87,6 +93,31 @@ export interface VotingAggregate {
 	loserAvgLength: number;
 }
 
+/** Per-node revision rate over the runs the node participated in — `revised`
+ *  rounds out of `rounds` total, with `rate` precomputed for the panel. */
+export interface RevisionRate {
+	revised: number;
+	rounds: number;
+	rate: number;
+}
+
+export interface DebateAggregate {
+	/** Number of records that carried debate metrics. */
+	total: number;
+	/** Count of runs ending in each verdict. */
+	verdictCounts: Record<DebateVerdict, number>;
+	/** Count of split runs that ran every allowed round without converging. */
+	hitLimitCount: number;
+	/** Avg rounds executed across `consensus`-verdict runs only — measures
+	 *  how quickly debates that DO converge get there. 0 when no consensus runs. */
+	avgRoundsToConverge: number;
+	/** Per node: count of rounds revised vs rounds participated in. */
+	revisionRateByNode: Record<MagiNodeName, RevisionRate>;
+	/** When a 2-vs-1 split had a clean dissenter, who was it? Three-way splits
+	 *  don't contribute (no dissenter to credit). */
+	dissenterByNode: Record<MagiNodeName, number>;
+}
+
 export interface AggregatedStats {
 	/** Total runs recorded, across every strategy. */
 	total: number;
@@ -97,6 +128,8 @@ export interface AggregatedStats {
 	usageByNode: Record<MagiNodeName, number>;
 	/** Voting-only breakdowns, computed over the subset of runs that have them. */
 	voting: VotingAggregate;
+	/** Debate-only breakdowns, computed over the subset of runs that have them. */
+	debate: DebateAggregate;
 }
 
 function bump(map: Map<string, CountEntry>, key: string, label: string): void {
@@ -113,7 +146,7 @@ function gatewayLabel(g: string): string {
 }
 
 export function aggregate(records: RunStatRecord[]): AggregatedStats {
-	const byStrategy = { synthesis: 0, voting: 0 } as Record<StrategyName, number>;
+	const byStrategy = { synthesis: 0, voting: 0, debate: 0 } as Record<StrategyName, number>;
 	const usageByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
 	const usageGateway = new Map<string, CountEntry>();
 	const usageProvider = new Map<string, CountEntry>();
@@ -138,6 +171,15 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 	let loserLengthSum = 0;
 	let loserLengthCount = 0;
 
+	let debateTotal = 0;
+	const verdictCounts = { consensus: 0, split: 0, walkover: 0 } as Record<DebateVerdict, number>;
+	let hitLimitCount = 0;
+	let consensusRoundSum = 0;
+	let consensusRoundCount = 0;
+	const revisionsByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+	const roundsByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+	const dissenterByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+
 	for (const { stats } of records) {
 		byStrategy[stats.strategy] = (byStrategy[stats.strategy] ?? 0) + 1;
 
@@ -151,6 +193,25 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 			bump(usageGateway, id.gateway, gatewayLabel(id.gateway));
 			bump(usageProvider, id.provider, getProviderLabel(id.provider));
 			bump(usageModel, id.model, id.model);
+		}
+
+		// Debate-only metrics.
+		const d = stats.debate;
+		if (d) {
+			debateTotal += 1;
+			verdictCounts[d.verdict] = (verdictCounts[d.verdict] ?? 0) + 1;
+			if (d.hitLimit) hitLimitCount += 1;
+			if (d.verdict === 'consensus') {
+				consensusRoundSum += d.rounds;
+				consensusRoundCount += 1;
+			}
+			// Each responding node's rounds-participated counter advances by `d.rounds`
+			// even when it revised 0 times — keeps the rate denominator honest.
+			for (const node of Object.keys(d.models) as MagiNodeName[]) {
+				revisionsByNode[node] = (revisionsByNode[node] ?? 0) + (d.revisions[node] ?? 0);
+				roundsByNode[node] = (roundsByNode[node] ?? 0) + d.rounds;
+			}
+			if (d.dissenter) dissenterByNode[d.dissenter] = (dissenterByNode[d.dissenter] ?? 0) + 1;
 		}
 
 		// Voting-only metrics.
@@ -213,6 +274,22 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 			tiebreakDistribution,
 			winnerAvgLength: votingTotal > 0 ? winnerLengthSum / votingTotal : 0,
 			loserAvgLength: loserLengthCount > 0 ? loserLengthSum / loserLengthCount : 0
+		},
+		debate: {
+			total: debateTotal,
+			verdictCounts,
+			hitLimitCount,
+			avgRoundsToConverge: consensusRoundCount > 0 ? consensusRoundSum / consensusRoundCount : 0,
+			revisionRateByNode: {
+				MELCHIOR: revisionRate(revisionsByNode.MELCHIOR, roundsByNode.MELCHIOR),
+				BALTHASAR: revisionRate(revisionsByNode.BALTHASAR, roundsByNode.BALTHASAR),
+				CASPAR: revisionRate(revisionsByNode.CASPAR, roundsByNode.CASPAR)
+			},
+			dissenterByNode
 		}
 	};
+}
+
+function revisionRate(revised: number, rounds: number): RevisionRate {
+	return { revised, rounds, rate: rounds > 0 ? revised / rounds : 0 };
 }

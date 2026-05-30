@@ -6,7 +6,7 @@ import {
 	aggregate,
 	type RunStatRecord
 } from './run-stats';
-import type { RunStats, VotingStats } from './consensus/types';
+import type { RunStats, VotingStats, DebateStats } from './consensus/types';
 
 const STORAGE_KEY = 'magi:run-stats:v1';
 
@@ -43,6 +43,18 @@ function makeVoting(overrides: Partial<VotingStats> = {}): VotingStats {
 		models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'gemini-x' },
 		jurors: [],
 		positionBias: { avgA: 7, avgB: 5, n: 4 },
+		...overrides
+	};
+}
+
+function makeDebate(overrides: Partial<DebateStats> = {}): DebateStats {
+	return {
+		verdict: 'consensus',
+		hitLimit: false,
+		rounds: 2,
+		revisions: { MELCHIOR: 1, BALTHASAR: 1, CASPAR: 0 },
+		models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' },
+		dissenter: null,
 		...overrides
 	};
 }
@@ -127,24 +139,30 @@ describe('run-stats aggregate', () => {
 	it('returns zeros for an empty input', () => {
 		const agg = aggregate([]);
 		expect(agg.total).toBe(0);
-		expect(agg.byStrategy).toEqual({ synthesis: 0, voting: 0 });
+		expect(agg.byStrategy).toEqual({ synthesis: 0, voting: 0, debate: 0 });
 		expect(agg.usageByGateway).toEqual([]);
 		expect(agg.usageByNode).toEqual({ MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 });
 		expect(agg.voting.total).toBe(0);
 		expect(agg.voting.winsByModel).toEqual([]);
 		expect(agg.voting.avgPositionBias).toEqual({ avgA: 0, avgB: 0, samples: 0 });
+		expect(agg.debate.total).toBe(0);
+		expect(agg.debate.verdictCounts).toEqual({ consensus: 0, split: 0, walkover: 0 });
+		expect(agg.debate.avgRoundsToConverge).toBe(0);
 	});
 
-	it('counts runs by strategy across both kinds', () => {
+	it('counts runs by strategy across all three kinds', () => {
 		const agg = aggregate([
 			record({ strategy: 'synthesis', voting: undefined }),
 			record({ strategy: 'synthesis', voting: undefined }),
-			record({ strategy: 'voting' })
+			record({ strategy: 'voting' }),
+			record({ strategy: 'debate', voting: undefined, debate: makeDebate() })
 		]);
-		expect(agg.total).toBe(3);
-		expect(agg.byStrategy).toEqual({ synthesis: 2, voting: 1 });
+		expect(agg.total).toBe(4);
+		expect(agg.byStrategy).toEqual({ synthesis: 2, voting: 1, debate: 1 });
 		// Only the voting run contributes to the voting deep-dive.
 		expect(agg.voting.total).toBe(1);
+		// Only the debate run contributes to the debate deep-dive.
+		expect(agg.debate.total).toBe(1);
 	});
 
 	it('tallies usage axes from every responding node, both strategies', () => {
@@ -233,5 +251,99 @@ describe('run-stats aggregate', () => {
 		// Winners: 1000, 800 → avg 900. Losers: 500, 700, 200, 400 → avg 450.
 		expect(agg.voting.winnerAvgLength).toBe(900);
 		expect(agg.voting.loserAvgLength).toBe(450);
+	});
+
+	// ----- Debate deep-dive -----
+
+	function debateRun(d: Partial<DebateStats>): RunStatRecord {
+		return record({ strategy: 'debate', voting: undefined, debate: makeDebate(d) });
+	}
+
+	it('counts debate verdicts and hit-limit runs', () => {
+		const agg = aggregate([
+			debateRun({ verdict: 'consensus' }),
+			debateRun({ verdict: 'consensus' }),
+			debateRun({ verdict: 'split', hitLimit: true }),
+			debateRun({ verdict: 'walkover', rounds: 0, revisions: {}, models: { MELCHIOR: 'claude-x' } })
+		]);
+		expect(agg.debate.total).toBe(4);
+		expect(agg.debate.verdictCounts).toEqual({ consensus: 2, split: 1, walkover: 1 });
+		expect(agg.debate.hitLimitCount).toBe(1);
+	});
+
+	it('averages rounds-to-converge across consensus runs only', () => {
+		const agg = aggregate([
+			debateRun({ verdict: 'consensus', rounds: 1 }),
+			debateRun({ verdict: 'consensus', rounds: 3 }),
+			// Splits and walkovers are excluded — only successful convergence counts.
+			debateRun({ verdict: 'split', rounds: 3, hitLimit: true }),
+			debateRun({ verdict: 'walkover', rounds: 0, revisions: {}, models: {} })
+		]);
+		expect(agg.debate.avgRoundsToConverge).toBe(2);
+	});
+
+	it('returns 0 avg rounds when no debate converged', () => {
+		const agg = aggregate([
+			debateRun({ verdict: 'split', rounds: 3, hitLimit: true }),
+			debateRun({ verdict: 'walkover', rounds: 0, revisions: {}, models: {} })
+		]);
+		expect(agg.debate.avgRoundsToConverge).toBe(0);
+	});
+
+	it('sums per-node revisions and rounds across all debate runs', () => {
+		const agg = aggregate([
+			debateRun({
+				rounds: 2,
+				revisions: { MELCHIOR: 2, BALTHASAR: 0, CASPAR: 1 },
+				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' }
+			}),
+			debateRun({
+				rounds: 3,
+				revisions: { MELCHIOR: 1, BALTHASAR: 3, CASPAR: 2 },
+				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' }
+			})
+		]);
+		// MELCHIOR revised 3 out of 5 rounds (2 + 3). BALTHASAR 3/5. CASPAR 3/5.
+		expect(agg.debate.revisionRateByNode.MELCHIOR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+		expect(agg.debate.revisionRateByNode.BALTHASAR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+		expect(agg.debate.revisionRateByNode.CASPAR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+	});
+
+	it('only credits rounds to nodes that actually participated', () => {
+		const agg = aggregate([
+			debateRun({
+				rounds: 2,
+				// CASPAR didn't respond this run — `models` omits it.
+				revisions: { MELCHIOR: 1, BALTHASAR: 2 },
+				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x' }
+			})
+		]);
+		expect(agg.debate.revisionRateByNode.MELCHIOR).toEqual({ revised: 1, rounds: 2, rate: 0.5 });
+		expect(agg.debate.revisionRateByNode.BALTHASAR).toEqual({ revised: 2, rounds: 2, rate: 1 });
+		// CASPAR's denominator stays 0 → rate 0, not NaN.
+		expect(agg.debate.revisionRateByNode.CASPAR).toEqual({ revised: 0, rounds: 0, rate: 0 });
+	});
+
+	it('tallies dissenter by node, ignoring three-way splits and consensus runs', () => {
+		const agg = aggregate([
+			debateRun({ verdict: 'split', dissenter: 'MELCHIOR' }),
+			debateRun({ verdict: 'split', dissenter: 'MELCHIOR' }),
+			debateRun({ verdict: 'split', dissenter: 'CASPAR' }),
+			// Three-way split has no clean dissenter → not credited.
+			debateRun({ verdict: 'split', dissenter: null }),
+			// Consensus runs never set a dissenter, but verify they don't leak in.
+			debateRun({ verdict: 'consensus' })
+		]);
+		expect(agg.debate.dissenterByNode).toEqual({ MELCHIOR: 2, BALTHASAR: 0, CASPAR: 1 });
+	});
+
+	it('ignores synthesis and voting runs when aggregating debate metrics', () => {
+		const agg = aggregate([
+			record({ strategy: 'synthesis', voting: undefined }),
+			record({ strategy: 'voting' }),
+			debateRun({ verdict: 'consensus', rounds: 2 })
+		]);
+		expect(agg.debate.total).toBe(1);
+		expect(agg.debate.verdictCounts).toEqual({ consensus: 1, split: 0, walkover: 0 });
 	});
 });

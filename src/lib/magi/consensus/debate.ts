@@ -3,7 +3,8 @@ import {
 	nodeIdentities,
 	type ConsensusStrategy,
 	type ConsensusContext,
-	type ConsensusEvent
+	type ConsensusEvent,
+	type DebateStats
 } from './types';
 import {
 	NODE_LABELS,
@@ -231,6 +232,24 @@ function pairStatus(directed: Map<string, boolean>, a: MagiNodeName, b: MagiNode
 	return 'unknown';
 }
 
+// Identify the lone dissenter in a 2-vs-1 split — the node whose answer disagrees
+// with both of the other two (who agree with each other). Returns null for
+// three-way splits, < 3 debaters, or when the agreement graph is too sparse to
+// pick a clean dissenter. Drives both the user-facing coalition phrase and the
+// dissenter-by-node metric in [[debate-stats]].
+function findDissenter(
+	nodes: MagiNodeName[],
+	status: (a: MagiNodeName, b: MagiNodeName) => PairStatus
+): MagiNodeName | null {
+	if (nodes.length !== 3) return null;
+	for (const odd of nodes) {
+		const [x, y] = nodes.filter((n) => n !== odd);
+		const dissents = status(odd, x) === 'disagree' || status(odd, y) === 'disagree';
+		if (status(x, y) === 'agree' && dissents) return odd;
+	}
+	return null;
+}
+
 // Describe the coalition shape of a split for the banner/ledger. Names the common
 // 2-vs-1 case (an aligned pair plus a dissenter); anything messier reads as a
 // plain three-way divide.
@@ -240,12 +259,10 @@ function coalitionPhrase(
 	labels: Record<MagiNodeName, string>
 ): string {
 	if (nodes.length < 3) return 'the MAGI hold differing positions';
-	for (const odd of nodes) {
+	const odd = findDissenter(nodes, status);
+	if (odd) {
 		const [x, y] = nodes.filter((n) => n !== odd);
-		const dissents = status(odd, x) === 'disagree' || status(odd, y) === 'disagree';
-		if (status(x, y) === 'agree' && dissents) {
-			return `${labels[x]} & ${labels[y]} aligned; ${labels[odd]} dissents`;
-		}
+		return `${labels[x]} & ${labels[y]} aligned; ${labels[odd]} dissents`;
 	}
 	return 'the three MAGI each hold a different position';
 }
@@ -291,6 +308,32 @@ export const debateStrategy: ConsensusStrategy = {
 			return { type: 'text-delta', text };
 		};
 
+		// Stats state for [[debate-stats]] — populated as the debate progresses;
+		// `runStats()` reads it at the end. Kept at this scope so both the early
+		// walkover branch and the main loop write to the same fields.
+		let verdictForStats: DebateVerdict | undefined;
+		let roundsRun = 0;
+		let hitLimitForStats = false;
+		let dissenterForStats: MagiNodeName | null = null;
+		const revisionCounts: Partial<Record<MagiNodeName, number>> = {};
+
+		const buildDebateStats = (): DebateStats | undefined => {
+			if (responses.length === 0 || !verdictForStats) return undefined;
+			const models: Partial<Record<MagiNodeName, string>> = {};
+			for (const r of responses) {
+				const a = nodeAssignments.find((a) => a.node === r.node);
+				if (a) models[r.node] = a.modelId;
+			}
+			return {
+				verdict: verdictForStats,
+				hitLimit: hitLimitForStats,
+				rounds: roundsRun,
+				revisions: revisionCounts,
+				models,
+				dissenter: dissenterForStats
+			};
+		};
+
 		const runStats = (): ConsensusEvent => ({
 			type: 'run-stats',
 			stats: {
@@ -298,7 +341,8 @@ export const debateStrategy: ConsensusStrategy = {
 				tier: tier ?? 'unknown',
 				temperaments: temperaments ?? false,
 				consensusTemperament: consensusTemperament ?? false,
-				nodes: nodeIdentities(responses, nodeAssignments)
+				nodes: nodeIdentities(responses, nodeAssignments),
+				debate: buildDebateStats()
 			}
 		});
 
@@ -328,6 +372,7 @@ export const debateStrategy: ConsensusStrategy = {
 		if (responses.length === 1) {
 			// One voice — nothing was debated; the synthesizer just relays it.
 			verdict = 'walkover';
+			verdictForStats = 'walkover';
 			yield emit(`\nOnly ${labels[responses[0].node]} responded — no debate was held.\n`);
 		} else {
 			// Initial positions — each node's opening stance, before any rebuttal.
@@ -342,6 +387,10 @@ export const debateStrategy: ConsensusStrategy = {
 			// agrees with `to`? Latest round wins. Only parseable yes/no lands here, so
 			// a missing stance never reads as agreement.
 			const directed = new Map<string, boolean>();
+
+			// Seed revision counts at 0 for every responding node so the stats panel
+			// can divide by `rounds` even when a node never revised.
+			for (const r of responses) revisionCounts[r.node] = 0;
 
 			// Debate rounds. All debaters run in parallel; because every prompt is
 			// built from `current` before any await resolves, the revisions are
@@ -404,7 +453,10 @@ export const debateStrategy: ConsensusStrategy = {
 						const stance = reply.agree[pi];
 						if (stance !== null) directed.set(`${node}->${peer}`, stance);
 					});
-					if (reply.changed) anyChanged = true;
+					if (reply.changed) {
+						anyChanged = true;
+						revisionCounts[node] = (revisionCounts[node] ?? 0) + 1;
+					}
 					const status = reply.changed ? 'revised' : 'held';
 					block += `- ${labels[node]}: ${status}${reply.note ? ` — ${reply.note}` : ''}\n`;
 					// Surface this node's round detail to its panel (not the consensus stream).
@@ -439,6 +491,12 @@ export const debateStrategy: ConsensusStrategy = {
 			const anyDisagree = pairs.some((p) => p === 'disagree');
 			const allAgree = pairs.length > 0 && pairs.every((p) => p === 'agree');
 			verdict = anyDisagree ? 'split' : allAgree ? 'consensus' : hitLimit ? 'split' : 'consensus';
+
+			// Capture for [[debate-stats]] — the inner-block locals don't escape.
+			verdictForStats = verdict;
+			hitLimitForStats = hitLimit;
+			roundsRun = hitLimit ? MAX_ROUNDS : round;
+			if (verdict === 'split') dissenterForStats = findDissenter(respNodes, status);
 
 			const roundWord = round === 1 ? 'round' : 'rounds';
 			if (verdict === 'consensus') {
