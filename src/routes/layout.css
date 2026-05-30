@@ -24,9 +24,14 @@
 	position: relative;
 }
 
-.magi-bg > *:not([aria-hidden]) {
-	position: relative;
-	z-index: 1;
+/* Layer content above the absolute-positioned MagiBackground. Lives in the
+   `components` layer so Tailwind utilities (e.g. `fixed`, `z-50`) on direct
+   children — like the header popovers — override it naturally. */
+@layer components {
+	.magi-bg > *:not([aria-hidden]) {
+		position: relative;
+		z-index: 1;
+	}
 }
 
 /* ── Panel & control definition (both themes) ── */
