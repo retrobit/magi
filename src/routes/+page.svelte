@@ -1164,4 +1164,27 @@
 			/>
 		</div>
 	</main>
+
+	<footer class="shrink-0 py-1.5 text-center magi-meta text-gray-600">
+		<a
+			href="https://github.com/retrobit/magi"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="transition-colors hover:text-gray-400">MAGI</a
+		>
+		·
+		<a
+			href="https://github.com/retrobit"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="transition-colors hover:text-gray-400">© 2026 retrobit</a
+		>
+		·
+		<a
+			href="https://github.com/retrobit/magi/blob/main/LICENSE"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="transition-colors hover:text-gray-400">MIT</a
+		>
+	</footer>
 </div>
