@@ -9,7 +9,8 @@ import {
 	FREE_MAGI_CONFIG,
 	validateConfig,
 	buildDiverseConfig,
-	type MagiConfig
+	type MagiConfig,
+	type NodeAssignment
 } from '$lib/magi/config';
 import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
 import { NODE_TEMPERAMENTS } from '$lib/magi/types';
@@ -139,21 +140,22 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// Use client assignments if provided, otherwise fall back to tier preset
 	let config: MagiConfig;
 	if (clientAssignments) {
-		config = clientAssignments as MagiConfig;
-		try {
-			validateConfig(config);
-		} catch (err) {
-			return json(
-				{
-					error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}`
-				},
-				{ status: 400 }
-			);
-		}
-		// Validate models against static registry (direct APIs only; OpenRouter is checked at dispatch)
-		for (const a of config) {
+		// Defense in depth: derive each assignment's `provider` from an
+		// authoritative source (registry for direct APIs, slug prefix for
+		// OpenRouter models) BEFORE validation. The client-sent `provider`
+		// is otherwise unverified — fake unique strings would slip past
+		// `validateConfig`'s diversity rule and mislabel the response stream.
+		// Build as a plain array, then cast — MagiConfig is a fixed-arity
+		// tuple. Schema validation upstream guarantees three elements.
+		const sanitized: NodeAssignment[] = [];
+		for (const a of clientAssignments) {
 			if (a.gateway === 'openrouter') {
-				// Validated by pre-flight health check before dispatch
+				// OpenRouter model IDs are `provider/model[:variant]`; the
+				// leading segment is the canonical provider. Existence is
+				// confirmed by the pre-flight health check below, so
+				// non-conforming IDs fail loudly there.
+				const slugProvider = a.modelId.split('/')[0];
+				sanitized.push({ ...a, provider: slugProvider || a.provider });
 			} else {
 				const entry = findModelEntry(a.gateway, a.modelId, tier);
 				if (!entry) {
@@ -167,7 +169,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						{ status: 400 }
 					);
 				}
+				sanitized.push({ ...a, provider: entry.provider });
 			}
+		}
+		config = sanitized as unknown as MagiConfig;
+		try {
+			validateConfig(config);
+		} catch (err) {
+			return json(
+				{
+					error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}`
+				},
+				{ status: 400 }
+			);
 		}
 	} else if (tier === 'free') {
 		// Resolve free tier dynamically from OpenRouter
@@ -322,12 +336,15 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								messages,
 								abortSignal: abortController.signal
 							});
-							let fullText = '';
+							// Accumulate via array+join rather than `+=` — long responses
+							// otherwise pay O(n²) for repeated string reallocations.
+							const chunks: string[] = [];
 							for await (const chunk of result.textStream) {
 								ttftMs ??= nodeTimer();
-								fullText += chunk;
+								chunks.push(chunk);
 								send('model-chunk', { node, text: chunk });
 							}
+							const fullText = chunks.join('');
 							const usage = await result.usage;
 							const cached = usage.cachedInputTokens ?? 0;
 							logEvent('info', 'node.complete', {
