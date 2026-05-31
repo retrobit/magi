@@ -411,7 +411,17 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					});
 				}
 
-				// Phase 2: Stream consensus synthesis
+				// Phase 2: Stream consensus synthesis — skipped entirely for the
+				// `none` strategy, where the three responses are the whole
+				// product and burning consensus tokens defeats the purpose.
+				if (strategyName === 'none') {
+					logEvent('info', 'request.complete', {
+						elapsedMs: requestTimer(),
+						strategy: 'none'
+					});
+					close();
+					return;
+				}
 				const consensusStrategy = getStrategy(strategyName);
 				const consensusSeat = config[consensusNodeIndex];
 				const ctx: ConsensusContext = {

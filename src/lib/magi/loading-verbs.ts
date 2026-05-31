@@ -15,7 +15,10 @@ export const TEMPERAMENT_VERBS: Record<TemperamentName, string[]> = {
 	individualist: ['Pondering', 'Feeling it out', 'Imagining', 'Following a hunch', 'Riffing']
 };
 
-export const STRATEGY_VERBS: Record<StrategyName, string[]> = {
+// `none` skips the consensus call entirely — no loader runs, so there are no
+// verbs to flavor. Narrowed to the dispatchable strategies; callers fall back
+// to GENERIC_VERBS for `none`.
+export const STRATEGY_VERBS: Record<Exclude<StrategyName, 'none'>, string[]> = {
 	synthesis: ['Synthesizing', 'Reconciling', 'Weighing', 'Distilling', 'Composing'],
 	voting: ['Tallying', 'Scoring', 'Counting', 'Deliberating', 'Judging'],
 	debate: ['Debating', 'Arguing', 'Deliberating', 'Rebutting', 'Converging']
