@@ -3,19 +3,24 @@ import { votingStrategy } from './voting';
 import { debateStrategy } from './debate';
 import type { ConsensusStrategy, StrategyName } from './types';
 
-const strategies: Record<StrategyName, ConsensusStrategy> = {
+/** `none` skips the consensus phase entirely and isn't a dispatchable strategy
+ *  — the server short-circuits before calling `getStrategy`, so this dispatch
+ *  table only carries the strategies that actually have a runner. */
+export type DispatchableStrategy = Exclude<StrategyName, 'none'>;
+
+const strategies: Record<DispatchableStrategy, ConsensusStrategy> = {
 	synthesis: synthesisStrategy,
 	voting: votingStrategy,
 	debate: debateStrategy
 };
 
-export function getStrategy(name: StrategyName): ConsensusStrategy {
+export function getStrategy(name: DispatchableStrategy): ConsensusStrategy {
 	return strategies[name];
 }
 
-export function getAvailableStrategies(): { name: StrategyName; description: string }[] {
+export function getAvailableStrategies(): { name: DispatchableStrategy; description: string }[] {
 	return Object.entries(strategies).map(([name, strategy]) => ({
-		name: name as StrategyName,
+		name: name as DispatchableStrategy,
 		description: strategy.description
 	}));
 }

@@ -139,8 +139,9 @@ export interface ConsensusStrategy {
 	execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent>;
 }
 
-// Ordered as shown in the strategy picker — cheapest first, flagship last.
-export const STRATEGY_NAMES = ['synthesis', 'voting', 'debate'] as const;
+// Ordered as shown in the strategy picker — cheapest first (`none` skips
+// consensus entirely), flagship last.
+export const STRATEGY_NAMES = ['none', 'synthesis', 'voting', 'debate'] as const;
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
 // The cheap, fast strategy loads by default. Debate is the headline option but
 // is opt-in because it is the most expensive by every metric.
@@ -150,6 +151,7 @@ export const DEFAULT_STRATEGY: StrategyName = 'synthesis';
 export const FLAGSHIP_STRATEGY: StrategyName = 'debate';
 
 export const STRATEGY_LABELS: Record<StrategyName, string> = {
+	none: 'None',
 	synthesis: 'Synthesis',
 	voting: 'Structured Voting',
 	debate: 'Multi-Round Debate'
@@ -158,6 +160,7 @@ export const STRATEGY_LABELS: Record<StrategyName, string> = {
 // Hover-explainer text for each strategy in the dropdown, so a first-time user
 // can tell them apart without leaving for the README.
 export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
+	none: 'Skip consensus entirely — the three model responses are shown side-by-side and nothing is synthesized. Useful for direct comparison without burning consensus tokens.',
 	synthesis:
 		'A consensus model reads all three responses and writes one unified answer — merging agreements, resolving conflicts, and flagging uncertainty.',
 	voting:
@@ -166,9 +169,11 @@ export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
 		'The full MAGI protocol: all three models read each other’s answers and revise across multiple rounds until they converge, then one synthesizes the final word. The most thorough — and the most expensive.'
 };
 
-/** Relative cost/thoroughness, 1–3, shown as a dot meter in the picker. Abstract
- *  on purpose — the true call count shifts with node count and early-stop. */
-export const STRATEGY_INTENSITY: Record<StrategyName, 1 | 2 | 3> = {
+/** Relative cost/thoroughness, 0–3, shown as a dot meter in the picker. `none`
+ *  scores 0 (no consensus run at all). Abstract on purpose — the true call
+ *  count shifts with node count and early-stop. */
+export const STRATEGY_INTENSITY: Record<StrategyName, 0 | 1 | 2 | 3> = {
+	none: 0,
 	synthesis: 1,
 	voting: 2,
 	debate: 3

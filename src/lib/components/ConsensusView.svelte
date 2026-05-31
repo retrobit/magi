@@ -22,7 +22,13 @@
 		isRouter
 	} from '$lib/magi/types';
 	import { type StrategyName } from '$lib/magi/consensus';
-	import { STRATEGY_VERBS, SWEEP_MS, sweepVerb, sweepCycleLength } from '$lib/magi/loading-verbs';
+	import {
+		STRATEGY_VERBS,
+		GENERIC_VERBS,
+		SWEEP_MS,
+		sweepVerb,
+		sweepCycleLength
+	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
@@ -118,12 +124,17 @@
 
 	// Consensus temperament lenses the consensus mechanism's participants — the
 	// synthesizer (Synthesis) or jurors (Voting). Debate's synthesizer is neutral
-	// and its debaters follow the main Temperaments toggle, so it's inert here.
-	const consensusTempApplies = $derived(strategy !== 'debate');
+	// and its debaters follow the main Temperaments toggle. `none` skips the
+	// consensus call entirely — no synthesizer to give a temperament to.
+	const consensusTempApplies = $derived(strategy !== 'debate' && strategy !== 'none');
 
 	// Voting tallies all jurors equally; there's no single consensus node, so
 	// both the Node dropdown and the consensus-temperament badge are inert.
-	const consensusNodeApplies = $derived(strategy !== 'voting');
+	// `none` also has no consensus call, so the same gate applies.
+	const consensusNodeApplies = $derived(strategy !== 'voting' && strategy !== 'none');
+
+	// Convenience flag for the placeholder / loader logic below.
+	const consensusSkipped = $derived(strategy === 'none');
 
 	// A consensus exists if it's streaming live or was committed to the transcript.
 	// Lets the header's done-check (and the debate banner) survive the live-state
@@ -299,8 +310,10 @@
 	});
 
 	// A block sweeps through the verb while the consensus itself is produced (all
-	// nodes have responded). The verb list leans into the active strategy.
-	const consensusVerbs = $derived(STRATEGY_VERBS[strategy]);
+	// nodes have responded). The verb list leans into the active strategy. `none`
+	// never reaches the loader (we short-circuit to the placeholder above), but
+	// fall back to GENERIC_VERBS so the index access stays defined.
+	const consensusVerbs = $derived(strategy === 'none' ? GENERIC_VERBS : STRATEGY_VERBS[strategy]);
 	let cVerbIndex = $state(0);
 	let cSweep = $state(0);
 	const consensusLoadingText = $derived(
@@ -481,14 +494,17 @@
 										{/each}
 									</select>
 								{:else}
-									<!-- Voting tallies jurors in code — there's no consensus model
-									     call to assign, so the dropdown shows "N/A" instead of a
-									     stale selection. The original `consensusNode` state is kept
-									     so it returns when the user switches back to Synthesis. -->
+									<!-- Voting tallies jurors in code, None skips consensus
+									     entirely — neither has a consensus model call to assign,
+									     so the dropdown shows "N/A" instead of a stale selection.
+									     The original `consensusNode` state is kept so it returns
+									     when the user switches back to Synthesis. -->
 									<select
 										class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
 										disabled
-										title="Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything."
+										title={consensusSkipped
+											? 'No consensus is computed in None mode — the three model responses stand on their own, so there is no node to assign.'
+											: 'Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything.'}
 									>
 										<option>N/A</option>
 									</select>
@@ -523,7 +539,9 @@
 							{disabled}
 							aria-disabled={!consensusTempApplies}
 							use:tooltip={!consensusTempApplies
-								? 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
+								? consensusSkipped
+									? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
+									: 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
 								: consensusTemperament
 									? 'Consensus temperament active — synthesizer responds through its dispositional lens'
 									: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
@@ -546,7 +564,9 @@
 							use:tooltip={!awarenessApplies
 								? strategy === 'debate'
 									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'
-									: 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
+									: strategy === 'voting'
+										? 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
+										: 'No consensus model runs in None mode — there is no synthesizer to be aware of node temperaments.'
 								: temperamentAwareness
 									? 'Temperament awareness active — synthesizer considers dispositional lenses'
 									: "Enable temperament awareness — tell the synthesizer about each node's dispositional lens"}
@@ -585,6 +605,10 @@
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
+						{:else if turn.strategy === 'none'}
+							<p class="magi-placeholder">
+								No consensus — enjoy reading the individual model responses.
+							</p>
 						{:else}
 							<p class="magi-placeholder">No consensus</p>
 						{/if}
@@ -602,7 +626,15 @@
 						{#if warning}
 							{@render warningCard(warning)}
 						{/if}
-						{#if loading && !allModelsResponded}
+						{#if consensusSkipped && allModelsResponded}
+							<!-- `none` strategy: the server skipped phase 2 entirely, so
+							     no consensus events ever arrive. Once all three responses
+							     are in, settle into the placeholder rather than waiting
+							     forever on a synthesis that won't come. -->
+							<p class="magi-placeholder">
+								No consensus — enjoy reading the individual model responses.
+							</p>
+						{:else if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
 							<p class="magi-loader-text">{consensusLoadingText}…</p>
