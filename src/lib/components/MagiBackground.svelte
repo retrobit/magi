@@ -7,7 +7,10 @@
 </script>
 
 {#if variant !== 'off'}
-	<div class="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+	<!-- `fixed` (not `absolute`) so the background stays anchored to the viewport
+	     on mobile, where the outer container scrolls. Foreground siblings still
+	     stack above it via the `.magi-bg > *:not([aria-hidden])` z-index rule. -->
+	<div class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
 		{#if variant === 'columns'}
 			<div class="aurora-col aurora-red"></div>
 			<div class="aurora-col aurora-green"></div>
