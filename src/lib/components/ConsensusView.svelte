@@ -363,7 +363,7 @@
 	{#if verdict === 'consensus'}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<span class="magi-banner-headline" style={gradientText}> Consensus reached </span>
+				<span class="magi-banner-headline" style={gradientText}>Consensus reached</span>
 				<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
 			</div>
 			<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>

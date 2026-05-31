@@ -4,25 +4,26 @@
 
 /* ── Typography tokens — semantic utilities for cohesion ──
    Use these instead of bare text-/font-/tracking- combinations so retuning
-   the typography happens in one place. Size utilities don't bake in color
-   (compose with `magi-warn` / `magi-success` / a raw `text-gray-*`), so the
-   same size carries different semantic colors.
+   the typography happens in one place. Some size utilities also bake in a
+   default color (the most common one for that role — listed below); to
+   override, compose with a `magi-warn` / `magi-success` / raw `text-*`
+   class after the size utility — the later declaration wins.
 
-   Cheat sheet
-     magi-headline        — app title only (text-2xl bold wider)
-     magi-banner-headline — CONSENSUS REACHED / SPLIT DECISION / PARTIAL CONSENSUS
-     magi-banner-detail   — subtitle beneath a banner
-     magi-section-header  — popover header (DEBUG/SETTINGS/BUDGET/STATS)
-     magi-subhead         — subsection header inside a panel (semibold xs gray-400)
-     magi-label           — primary form/control label (gray-300)
-     magi-label-muted     — secondary label / status-bar counter (gray-400)
-     magi-meta            — sub-labels, hints, descriptions (11px gray-500)
-     magi-badge           — round badge, Flagship chip — tiny ALL CAPS
-     magi-numeric         — token counts / context gauges (mono, 10px)
-     magi-loader-text     — sweeping-verb loaders (mono, xs, gray-500)
-     magi-placeholder     — empty state (sm, gray-600)
+   Cheat sheet — bracketed color means the utility includes it by default
+     magi-headline        — app title (text-2xl bold wider, no default color)
+     magi-banner-headline — banner titles (sm bold wider uppercase, no color)
+     magi-banner-detail   — banner subtitle [gray-500]
+     magi-section-header  — popover header (xs semibold wide, no default color)
+     magi-subhead         — subsection header inside a panel [gray-400]
+     magi-label           — primary form/control label (medium) [gray-300]
+     magi-label-muted     — secondary label / status-bar counter (medium) [gray-400]
+     magi-meta            — sub-labels, hints, descriptions (11px) [gray-500]
+     magi-badge           — round badge, Flagship chip — tiny ALL CAPS (no color)
+     magi-numeric         — token counts / context gauges (mono, 10px, no color)
+     magi-loader-text     — sweeping-verb loaders (mono, xs) [gray-500]
+     magi-placeholder     — empty state (sm) [gray-600]
 
-   Semantic colors (compose with a size utility or use alone)
+   Semantic colors (compose with a size utility, or use alone on an icon)
      magi-warn    — amber-400 (warnings, partial-consensus, near-context, dev header)
      magi-pending — yellow-400 (loading-state pulse + debug Load chips, distinct from warn)
      magi-error   — red-400
