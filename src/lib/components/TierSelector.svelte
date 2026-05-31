@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TierName } from '$lib/magi/types';
+	import { TIER_NAMES, type TierName } from '$lib/magi/types';
 
 	interface Props {
 		value: TierName;
@@ -9,8 +9,11 @@
 
 	let { value, onchange, disabled = false }: Props = $props();
 
-	const freeTiers: TierName[] = ['free'];
-	const paidTiers: TierName[] = ['budget', 'balanced', 'frontier'];
+	// Derived from TIER_NAMES (single source of truth in types.ts) so a new
+	// tier added there shows up here without manual array maintenance.
+	const FREE_TIERS = new Set<TierName>(['free']);
+	const freeTiers: TierName[] = TIER_NAMES.filter((t) => FREE_TIERS.has(t));
+	const paidTiers: TierName[] = TIER_NAMES.filter((t) => !FREE_TIERS.has(t));
 
 	const tierLabels: Record<TierName, string> = {
 		frontier: 'Frontier',
