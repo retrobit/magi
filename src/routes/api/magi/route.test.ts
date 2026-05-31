@@ -191,6 +191,36 @@ describe('POST /api/magi — streaming', () => {
 		expect(got).toContain('consensus-complete');
 	});
 
+	it('streams model responses but no consensus events when strategy is none', async () => {
+		const events = await readEvents(await callPost({ ...validBody, strategy: 'none' }));
+		const got = names(events);
+		expect(got).toContain('config');
+		expect(got.filter((n) => n === 'model-response')).toHaveLength(3);
+		expect(got.filter((n) => n === 'model-usage')).toHaveLength(3);
+		// `none` short-circuits before phase 2 — no consensus signals at all.
+		expect(got).not.toContain('consensus-chunk');
+		expect(got).not.toContain('consensus-complete');
+		expect(got).not.toContain('consensus-usage');
+		expect(got).not.toContain('partial-consensus');
+	});
+
+	it('skips the partial-consensus warning under none even when a node fails', async () => {
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('model boom');
+		});
+		const events = await readEvents(await callPost({ ...validBody, strategy: 'none' }));
+		const got = names(events);
+		// The failed node still surfaces via model-error — the user can see which
+		// one didn't come back…
+		expect(got).toContain('model-error');
+		expect(got.filter((n) => n === 'model-response')).toHaveLength(2);
+		// …but partial-consensus describes the consensus phase being short on
+		// data, which is misleading when no consensus runs at all.
+		expect(got).not.toContain('partial-consensus');
+		expect(got).not.toContain('consensus-chunk');
+		expect(got).not.toContain('consensus-complete');
+	});
+
 	it('emits a fatal error event when every model is unhealthy', async () => {
 		vi.mocked(isModelHealthy).mockReturnValue(false);
 		const events = await readEvents(await callPost(validBody));

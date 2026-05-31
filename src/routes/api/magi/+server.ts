@@ -400,6 +400,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					return;
 				}
 
+				// `none` skips the consensus phase entirely — short-circuit BEFORE
+				// emitting any consensus-specific signals (partial-consensus warns
+				// the consensus is based on partial data, which is misleading when
+				// no consensus runs at all). Individual model-error events have
+				// already surfaced any failed nodes upstream.
+				if (strategyName === 'none') {
+					logEvent('info', 'request.complete', {
+						elapsedMs: requestTimer(),
+						strategy: 'none'
+					});
+					close();
+					return;
+				}
+
 				if (responses.length < totalNodes) {
 					logEvent('warn', 'consensus.partial', {
 						responded: responses.length,
@@ -411,17 +425,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					});
 				}
 
-				// Phase 2: Stream consensus synthesis — skipped entirely for the
-				// `none` strategy, where the three responses are the whole
-				// product and burning consensus tokens defeats the purpose.
-				if (strategyName === 'none') {
-					logEvent('info', 'request.complete', {
-						elapsedMs: requestTimer(),
-						strategy: 'none'
-					});
-					close();
-					return;
-				}
+				// Phase 2: Stream consensus synthesis.
 				const consensusStrategy = getStrategy(strategyName);
 				const consensusSeat = config[consensusNodeIndex];
 				const ctx: ConsensusContext = {
