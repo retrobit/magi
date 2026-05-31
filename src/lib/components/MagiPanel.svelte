@@ -288,8 +288,8 @@
 
 {#snippet errorCard(message: string)}
 	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
-		<CircleAlert size={24} class="text-red-500" />
-		<p class="text-sm font-medium text-red-400">Model unavailable</p>
+		<CircleAlert size={24} class="magi-error" />
+		<p class="text-sm font-medium magi-error">Model unavailable</p>
 		<p class="text-xs text-gray-500">{message}</p>
 	</div>
 {/snippet}
@@ -312,7 +312,7 @@
 						? snapMinHeight
 						: undefined}
 				>
-					<span class="text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
+					<span class="magi-badge text-gray-500">
 						Round {r.round}
 					</span>
 					<div class="prose prose-sm max-w-none prose-invert">
@@ -365,10 +365,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span
-						class="flex items-center font-mono text-[10px] text-gray-500"
-						use:tooltip={tokensTooltip}
-					>
+					<span class="flex items-center magi-numeric text-gray-500" use:tooltip={tokensTooltip}>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
@@ -390,20 +387,20 @@
 						title="Copy response"
 					>
 						{#if copied}
-							<Check size={14} class="text-green-400" />
+							<Check size={14} class="magi-success" />
 						{:else}
 							<Copy size={14} />
 						{/if}
 					</button>
 				{/if}
 				{#if status === 'error'}
-					<X size={14} class="text-red-500" />
+					<X size={14} class="magi-error" />
 				{:else if status === 'pending'}
-					<LoaderCircle size={14} class="animate-spin text-yellow-400" />
+					<LoaderCircle size={14} class="animate-spin magi-pending" />
 				{:else if status === 'success'}
-					<CircleCheck size={14} class="text-green-400" />
+					<CircleCheck size={14} class="magi-success" />
 				{:else if status === 'unknown'}
-					<CircleHelp size={14} class="text-orange-500" />
+					<CircleHelp size={14} class="magi-unknown" />
 				{:else}
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 				{/if}
@@ -492,7 +489,7 @@
 	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
-				<p class="text-sm text-gray-600">Awaiting query...</p>
+				<p class="magi-placeholder">Awaiting query...</p>
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div
@@ -509,7 +506,7 @@
 								<Markdown source={stripSummaryTail(turn.response)} />
 							</div>
 						{:else}
-							<p class="text-sm text-gray-600">No response</p>
+							<p class="magi-placeholder">No response</p>
 						{/if}
 						{@render roundList(turn.debateRounds ?? [], false)}
 						{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
@@ -530,11 +527,11 @@
 								<Markdown source={stripSummaryTail(text)} />
 							</div>
 						{:else if status === 'unknown'}
-							<p class="text-sm text-orange-400">No response received</p>
+							<p class="text-sm magi-unknown">No response received</p>
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">Empty response</p>
 						{:else}
-							<p class="font-mono text-xs text-gray-500">{loadingText}…</p>
+							<p class="magi-loader-text">{loadingText}…</p>
 						{/if}
 						{@render roundList(debateRounds, true)}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}

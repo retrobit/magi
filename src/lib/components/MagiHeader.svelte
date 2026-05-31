@@ -46,7 +46,7 @@
 
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
 	<div class="relative mx-auto max-w-7xl px-4 py-4 md:px-6">
-		<h1 class="text-center text-2xl font-bold tracking-wider">
+		<h1 class="text-center magi-headline">
 			MAGI <span class="text-lg">🔺🔻🔺</span>
 		</h1>
 		<div class="absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-1 md:right-6">
@@ -62,7 +62,7 @@
 			{/if}
 			<button
 				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-emerald-400"
+				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 				onclick={() => togglePanel('stats')}
 				title="Stats"
 			>
@@ -70,7 +70,7 @@
 			</button>
 			<button
 				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-emerald-400"
+				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 				onclick={() => togglePanel('budget')}
 				title="Budget"
 			>
@@ -110,7 +110,7 @@
 {#snippet settingsBody()}
 	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
 		<div class="mb-3 flex items-center justify-between">
-			<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-gray-400">
+			<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
 				<Settings size={13} /> SETTINGS
 			</span>
 			<button
@@ -122,7 +122,7 @@
 				<X size={14} />
 			</button>
 		</div>
-		<span class="text-xs font-medium text-gray-400">Theme</span>
+		<span class="magi-label-muted">Theme</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
@@ -141,7 +141,7 @@
 				Light
 			</button>
 		</div>
-		<span class="mt-3 text-xs font-medium text-gray-400">Background</span>
+		<span class="mt-3 magi-label-muted">Background</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
@@ -168,7 +168,7 @@
 				Off
 			</button>
 		</div>
-		<span class="mt-3 text-xs font-medium text-gray-400">Auto-scroll</span>
+		<span class="mt-3 magi-label-muted">Auto-scroll</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
@@ -204,7 +204,7 @@
 {#snippet budgetBody()}
 	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
 		<div class="mb-3 flex items-center justify-between">
-			<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-emerald-400">
+			<span class="flex items-center gap-1.5 magi-section-header magi-success">
 				<Wallet size={13} /> BUDGET
 			</span>
 			<button

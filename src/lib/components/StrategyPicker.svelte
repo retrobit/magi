@@ -98,9 +98,7 @@
 							<span class="flex items-center gap-1 text-xs font-semibold text-gray-200">
 								{STRATEGY_LABELS[s]}
 								{#if flagship}
-									<span class="text-[10px] font-bold tracking-wide uppercase" style={gradientText}
-										>✦ Flagship</span
-									>
+									<span class="magi-badge" style={gradientText}>✦ Flagship</span>
 								{/if}
 							</span>
 							<!-- Relative cost / thoroughness meter. -->
@@ -117,12 +115,12 @@
 								{/each}
 							</span>
 						</div>
-						<p class="mt-0.5 text-[11px] leading-snug text-gray-500">
+						<p class="mt-0.5 magi-meta leading-snug">
 							{STRATEGY_DESCRIPTIONS[s]}
 						</p>
 					</div>
 					{#if selected}
-						<Check size={13} class="mt-0.5 shrink-0 text-green-400" />
+						<Check size={13} class="mt-0.5 shrink-0 magi-success" />
 					{/if}
 				</button>
 			{/each}

@@ -1043,7 +1043,7 @@
 					</span>
 					{#if contextWarnings.length > 0}
 						<span class="text-gray-500">·</span>
-						<span class="flex items-center gap-1 text-amber-400">
+						<span class="flex items-center gap-1 magi-warn">
 							<AlertTriangle size={12} />
 							{contextWarningLabels.join(', ')} near context limit
 						</span>
