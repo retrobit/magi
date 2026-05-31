@@ -963,7 +963,7 @@
 					type="text"
 					placeholder={queryPlaceholder}
 					disabled={loading}
-					class="magi-input w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+					class="magi-input w-full overflow-hidden rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-ellipsis whitespace-nowrap text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
 				{#if query.trim()}
 					<button
@@ -1010,23 +1010,32 @@
 		</form>
 
 		<!-- Conversation status bar — always rendered (even before the first
-		     prompt) so submitting a query doesn't reflow the layout. The row uses a
-		     1fr/auto/1fr grid so the layout toggle is pinned to true center: the
-		     side cells absorb growth on either side (counters lengthen, tooltips
-		     appear) without ever shifting the toggle off-center. -->
+		     prompt) so submitting a query doesn't reflow the layout. At sm+, a
+		     1fr/auto/1fr grid pins the layout toggle to true center: the side
+		     cells absorb growth on either side (counters lengthen, tooltips
+		     appear) without ever shifting the toggle off-center. Below sm the
+		     counters need full viewport width to read without crowding, so the
+		     button + toggle share row 1 and the counters get row 2 alone — the
+		     inner `sm:contents` wrapper disappears at sm+ so its children become
+		     direct grid items again. -->
 		<div
-			class="magi-panel grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-4 rounded-lg bg-gray-900/70 px-4 py-2 text-xs"
+			class="magi-panel flex shrink-0 flex-col gap-2 rounded-lg bg-gray-900/70 px-4 py-2 text-xs sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
 		>
-			<button
-				type="button"
-				onclick={handleNewConversation}
-				disabled={loading || conversation.length === 0}
-				class="magi-newconv-btn flex w-fit items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+			<div class="flex items-center justify-between sm:contents">
+				<button
+					type="button"
+					onclick={handleNewConversation}
+					disabled={loading || conversation.length === 0}
+					class="magi-newconv-btn flex w-fit items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+				>
+					<MessageSquarePlus size={12} /> New conversation
+				</button>
+				<LayoutToggle focus={layoutFocus} onchange={setLayoutFocus} />
+			</div>
+			<div class="-mx-4 border-t border-gray-800 sm:hidden" aria-hidden="true"></div>
+			<div
+				class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-gray-400 sm:justify-end"
 			>
-				<MessageSquarePlus size={12} /> New conversation
-			</button>
-			<LayoutToggle focus={layoutFocus} onchange={setLayoutFocus} />
-			<div class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-gray-400">
 				{#if conversation.length > 0}
 					<span
 						use:tooltip={'Completed turns — each turn is one prompt answered by all three MAGI, then merged into a consensus. Multi-turn context carries forward across turns.'}

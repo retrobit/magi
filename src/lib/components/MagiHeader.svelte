@@ -4,14 +4,14 @@
 	// is ever open at a time — that's a UI invariant the parent doesn't need to
 	// know about.
 	import type { Snippet } from 'svelte';
-	import { Settings, Bug, BarChart3, Wallet, X } from 'lucide-svelte';
+	import { Settings, Bug, BarChart3, Wallet, X, Menu } from 'lucide-svelte';
 	import BudgetReadout from './BudgetReadout.svelte';
 	import StatsPanel from './StatsPanel.svelte';
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
 	import type { NodeAssignment } from '$lib/magi/config';
 	import type { ScrollMode } from '$lib/magi/types';
 
-	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings';
+	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings' | 'menu';
 	type BgVariant = 'columns' | 'orbs' | 'off';
 
 	interface Props {
@@ -49,41 +49,54 @@
 		<h1 class="text-center magi-headline">
 			MAGI <span class="text-lg">🔺🔻🔺</span>
 		</h1>
-		<div class="absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-1 md:right-6">
-			{#if import.meta.env.DEV}
+		<div class="absolute top-1/2 right-4 -translate-y-1/2 md:right-6">
+			<!-- Mobile: single hamburger that opens a menu listing every section -->
+			<button
+				type="button"
+				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white sm:hidden"
+				onclick={() => togglePanel('menu')}
+				title="Menu"
+				aria-label="Open menu"
+			>
+				<Menu size={16} />
+			</button>
+			<!-- Tablet/desktop: every section gets its own icon button -->
+			<div class="hidden items-center gap-1 sm:flex">
+				{#if import.meta.env.DEV}
+					<button
+						type="button"
+						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
+						onclick={() => togglePanel('debug')}
+						title="Debug panel (dev only)"
+					>
+						<Bug size={16} />
+					</button>
+				{/if}
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
-					onclick={() => togglePanel('debug')}
-					title="Debug panel (dev only)"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
+					onclick={() => togglePanel('stats')}
+					title="Stats"
 				>
-					<Bug size={16} />
+					<BarChart3 size={16} />
 				</button>
-			{/if}
-			<button
-				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
-				onclick={() => togglePanel('stats')}
-				title="Stats"
-			>
-				<BarChart3 size={16} />
-			</button>
-			<button
-				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
-				onclick={() => togglePanel('budget')}
-				title="Budget"
-			>
-				<Wallet size={16} />
-			</button>
-			<button
-				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
-				onclick={() => togglePanel('settings')}
-				title="Settings"
-			>
-				<Settings size={16} />
-			</button>
+				<button
+					type="button"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
+					onclick={() => togglePanel('budget')}
+					title="Budget"
+				>
+					<Wallet size={16} />
+				</button>
+				<button
+					type="button"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
+					onclick={() => togglePanel('settings')}
+					title="Settings"
+				>
+					<Settings size={16} />
+				</button>
+			</div>
 		</div>
 	</div>
 </header>
@@ -100,6 +113,51 @@
 	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
 		<div class="pointer-events-auto ml-auto {width}">
 			{@render body()}
+		</div>
+	</div>
+{/snippet}
+
+{#if openPanel === 'menu'}
+	{@render panelShell('w-56', menuBody)}
+{/if}
+{#snippet menuBody()}
+	<!-- No explicit close button: the menu is mobile-only and the hamburger
+	     itself toggles it; tapping the backdrop also dismisses via panelShell. -->
+	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+		<div class="mb-3">
+			<span class="magi-section-header text-gray-400">MENU</span>
+		</div>
+		<div class="flex flex-col gap-1">
+			{#if import.meta.env.DEV}
+				<button
+					type="button"
+					class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-amber-400"
+					onclick={() => (openPanel = 'debug')}
+				>
+					<Bug size={14} /> Debug
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-green-400"
+				onclick={() => (openPanel = 'stats')}
+			>
+				<BarChart3 size={14} /> Stats
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-green-400"
+				onclick={() => (openPanel = 'budget')}
+			>
+				<Wallet size={14} /> Budget
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+				onclick={() => (openPanel = 'settings')}
+			>
+				<Settings size={14} /> Settings
+			</button>
 		</div>
 	</div>
 {/snippet}

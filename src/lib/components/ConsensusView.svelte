@@ -445,44 +445,66 @@
 			</div>
 		</div>
 		<div class="border-t border-gray-700"></div>
-		<div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+		<!-- Mobile: stack Strategy/Node/Model on their own row above
+		     Temperament/Awareness. sm+: side-by-side, wrap as needed. -->
+		<div
+			class="flex flex-col items-start gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-2 sm:gap-y-1"
+		>
+			<!-- Mobile: Strategy on its own line, Node + Model share line 2 (Model
+			     truncates with an ellipsis if the synth name is too long, with a
+			     touch/hover tooltip surfacing the full string). sm+: inline with
+			     a dot separator between Strategy and Node. -->
+			<div
+				class="flex w-full flex-col items-start gap-y-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1"
+			>
 				{#if onstrategychange}
-					<span class="text-xs text-gray-500">Strategy</span>
-					<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
-					<span class="text-xs text-gray-700">·</span>
+					<div class="flex items-center gap-x-2">
+						<span class="text-xs text-gray-500">Strategy</span>
+						<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
+					</div>
+					<span class="hidden text-xs text-gray-700 sm:inline">·</span>
 				{/if}
-				{#if onconsensuschange}
-					<span class="text-xs text-gray-500">Node</span>
-					{#if consensusNodeApplies}
-						<select
-							class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
-							value={consensusNode}
-							onchange={handleNodeChange}
-							{disabled}
-						>
-							{#each MAGI_NODE_NAMES as node (node)}
-								<option value={node}>{nodeLabels[node]}</option>
-							{/each}
-						</select>
-					{:else}
-						<!-- Voting tallies jurors in code — there's no consensus model
-						     call to assign, so the dropdown shows "N/A" instead of a
-						     stale selection. The original `consensusNode` state is kept
-						     so it returns when the user switches back to Synthesis. -->
-						<select
-							class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
-							disabled
-							title="Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything."
-						>
-							<option>N/A</option>
-						</select>
-					{/if}
-				{/if}
-				<!-- synthesisLabel names the model the consensus node would call —
-				     also meaningless in voting, since there is no such call. -->
-				{#if synthesisLabel && consensusNodeApplies}
-					<span class="text-xs text-gray-400">{synthesisLabel}</span>
+				{#if onconsensuschange || (synthesisLabel && consensusNodeApplies)}
+					<div class="flex w-full items-center gap-x-2 sm:contents">
+						{#if onconsensuschange}
+							<div class="flex shrink-0 items-center gap-x-2">
+								<span class="text-xs text-gray-500">Node</span>
+								{#if consensusNodeApplies}
+									<select
+										class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										value={consensusNode}
+										onchange={handleNodeChange}
+										{disabled}
+									>
+										{#each MAGI_NODE_NAMES as node (node)}
+											<option value={node}>{nodeLabels[node]}</option>
+										{/each}
+									</select>
+								{:else}
+									<!-- Voting tallies jurors in code — there's no consensus model
+									     call to assign, so the dropdown shows "N/A" instead of a
+									     stale selection. The original `consensusNode` state is kept
+									     so it returns when the user switches back to Synthesis. -->
+									<select
+										class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										disabled
+										title="Structured Voting has no consensus model — the winner is tallied from the juror scores and its response is shown verbatim, so no node synthesizes anything."
+									>
+										<option>N/A</option>
+									</select>
+								{/if}
+							</div>
+						{/if}
+						<!-- synthesisLabel names the model the consensus node would call —
+						     also meaningless in voting, since there is no such call. -->
+						{#if synthesisLabel && consensusNodeApplies}
+							<span
+								class="min-w-0 truncate text-xs text-gray-400"
+								title={synthesisLabel}
+								use:tooltip={synthesisLabel}>{synthesisLabel}</span
+							>
+						{/if}
+					</div>
 				{/if}
 			</div>
 			{#if onconsensustemperamentchange || onawarenesschange}
@@ -617,13 +639,13 @@
 			opacity: 0.7;
 		}
 		50% {
-			/* Match the node panels' glow strength (20px blur, -4px spread) so the
-			   consensus reads as bright as the three panels beside it. The red/blue
-			   split keeps the consensus's own left↔right identity; green lives in
-			   the top/bottom gradient bars below. */
+			/* Softer than the node panels' all-sides glow — the consensus's two
+			   side glows would otherwise compound into a heavier visual weight
+			   than any single node. The red/blue split keeps its left↔right
+			   identity; green lives in the top/bottom gradient bars below. */
 			box-shadow:
-				inset 18px 0 20px -4px #ef4444,
-				inset -18px 0 20px -4px #3b82f6;
+				inset 10px 0 14px -6px #ef4444,
+				inset -10px 0 14px -6px #3b82f6;
 			opacity: 1;
 		}
 	}
