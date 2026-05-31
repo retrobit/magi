@@ -94,13 +94,13 @@
 
 <div class="mt-2 flex flex-col gap-2 pl-3">
 	{#if !loaded && loading}
-		<span class="text-xs text-gray-500">Loading…</span>
+		<span class="magi-meta">Loading…</span>
 	{:else if error}
-		<span class="text-xs text-red-400">{error}</span>
+		<span class="magi-meta magi-error">{error}</span>
 	{:else if loaded}
 		{#each providers as p (p.provider)}
 			<div class="flex flex-col gap-1">
-				<span class="text-xs text-gray-300">{PROVIDER_LABELS[p.provider]}</span>
+				<span class="magi-label">{PROVIDER_LABELS[p.provider]}</span>
 				{#if p.status === 'ok'}
 					{@const ratio = usageRatio(p)}
 					{#if typeof p.usage === 'number' && typeof p.limit === 'number'}
@@ -115,7 +115,7 @@
 					{#if ratio !== null}
 						<div class="h-1 w-full overflow-hidden rounded-sm bg-gray-800">
 							<div
-								class="h-full bg-emerald-500/80 transition-all"
+								class="h-full bg-green-500/80 transition-all"
 								style="width: {(ratio * 100).toFixed(1)}%"
 							></div>
 						</div>
@@ -124,7 +124,7 @@
 						<span class="text-[10px] text-gray-500">free-tier key</span>
 					{/if}
 				{:else}
-					<span class="text-[11px] text-gray-500">{p.reason ?? 'unavailable'}</span>
+					<span class="magi-meta">{p.reason ?? 'unavailable'}</span>
 				{/if}
 			</div>
 		{/each}

@@ -65,7 +65,7 @@
 	class="flex max-h-[80vh] flex-col gap-3 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 p-4 text-sm text-gray-200 shadow-xl"
 >
 	<div class="flex items-center justify-between">
-		<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-gray-400">
+		<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
 			📊 STATS
 			<span class="font-normal text-gray-500">({agg.total} runs)</span>
 		</span>
@@ -92,13 +92,11 @@
 	</div>
 
 	{#if agg.total === 0}
-		<p class="text-xs text-gray-500">
-			Run a query — stats accumulate here as each consensus completes.
-		</p>
+		<p class="magi-meta">Run a query — stats accumulate here as each consensus completes.</p>
 	{:else}
 		<!-- ===== Usage (every run, both strategies) ===== -->
 		<section class="flex flex-col gap-1">
-			<h3 class="text-xs font-semibold text-gray-400">Runs by strategy</h3>
+			<h3 class="magi-subhead">Runs by strategy</h3>
 			{#each strategyOrder as s (s)}
 				{@const count = agg.byStrategy[s] ?? 0}
 				<div class="flex items-center gap-2 text-xs">
@@ -118,7 +116,7 @@
 
 		<!-- Usage by gateway -->
 		<section class="flex flex-col gap-1">
-			<h3 class="text-xs font-semibold text-gray-400">Usage by gateway</h3>
+			<h3 class="magi-subhead">Usage by gateway</h3>
 			{#each topN(agg.usageByGateway) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
 					<span class="w-28 truncate text-gray-300" title={e.label}>{e.label}</span>
@@ -137,7 +135,7 @@
 
 		<!-- Usage by provider -->
 		<section class="flex flex-col gap-1">
-			<h3 class="text-xs font-semibold text-gray-400">Usage by provider</h3>
+			<h3 class="magi-subhead">Usage by provider</h3>
 			{#each topN(agg.usageByProvider) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
 					<span class="w-28 truncate text-gray-300" title={e.label}>{e.label}</span>
@@ -156,7 +154,7 @@
 
 		<!-- Usage by model — capped; long tail summarized. -->
 		<section class="flex flex-col gap-1">
-			<h3 class="text-xs font-semibold text-gray-400">Usage by model</h3>
+			<h3 class="magi-subhead">Usage by model</h3>
 			{#each topN(agg.usageByModel) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
 					<span class="flex-1 truncate text-gray-400" title={e.key}>{e.key}</span>
@@ -166,13 +164,13 @@
 				</div>
 			{/each}
 			{#if agg.usageByModel.length > 6}
-				<p class="text-[11px] text-gray-500">+ {agg.usageByModel.length - 6} more</p>
+				<p class="magi-meta">+ {agg.usageByModel.length - 6} more</p>
 			{/if}
 		</section>
 
 		<!-- Usage by node -->
 		<section class="flex flex-col gap-1">
-			<h3 class="text-xs font-semibold text-gray-400">Usage by node</h3>
+			<h3 class="magi-subhead">Usage by node</h3>
 			{#each nodeOrder as node (node)}
 				{@const count = agg.usageByNode[node] ?? 0}
 				<div class="flex items-center justify-between text-xs">
@@ -186,7 +184,7 @@
 		{#if agg.voting.total > 0}
 			{@const v = agg.voting}
 			<div class="mt-1 border-t border-gray-800 pt-2">
-				<span class="text-xs font-semibold tracking-wide text-gray-400">
+				<span class="magi-section-header text-gray-400">
 					🗳️ Structured Voting
 					<span class="font-normal text-gray-500">({v.total} votes)</span>
 				</span>
@@ -194,7 +192,7 @@
 
 			<!-- Wins by node -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Wins by node</h3>
+				<h3 class="magi-subhead">Wins by node</h3>
 				{#each nodeOrder as node (node)}
 					{@const wins = v.winsByNode[node] ?? 0}
 					<div class="flex items-center gap-2 text-xs">
@@ -214,7 +212,7 @@
 
 			<!-- Wins by model — separates "node bias" from "model bias". -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Wins by model</h3>
+				<h3 class="magi-subhead">Wins by model</h3>
 				{#each v.winsByModel.slice(0, 6) as entry (entry.model + entry.node)}
 					<div class="flex items-center gap-2 text-xs">
 						<span class="w-24 text-gray-300">{nodeLabels[entry.node]}</span>
@@ -225,13 +223,13 @@
 					</div>
 				{/each}
 				{#if v.winsByModel.length > 6}
-					<p class="text-[11px] text-gray-500">+ {v.winsByModel.length - 6} more</p>
+					<p class="magi-meta">+ {v.winsByModel.length - 6} more</p>
 				{/if}
 			</section>
 
 			<!-- Wins by gateway / provider -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Wins by gateway</h3>
+				<h3 class="magi-subhead">Wins by gateway</h3>
 				{#each v.winsByGateway as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
 						<span class="text-gray-300">{e.label}</span>
@@ -242,7 +240,7 @@
 				{/each}
 			</section>
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Wins by provider</h3>
+				<h3 class="magi-subhead">Wins by provider</h3>
 				{#each v.winsByProvider as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
 						<span class="text-gray-300">{e.label}</span>
@@ -255,7 +253,7 @@
 
 			<!-- Position bias — Candidate A vs B average score across every juror response. -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">
+				<h3 class="magi-subhead">
 					Position bias <span class="font-normal text-gray-500"
 						>({v.avgPositionBias.samples} juror scores)</span
 					>
@@ -270,7 +268,7 @@
 					<span class="flex-1 font-mono text-gray-400">avg {v.avgPositionBias.avgB.toFixed(2)}</span
 					>
 				</div>
-				<p class="text-[11px] text-gray-500">
+				<p class="magi-meta">
 					A &gt; B suggests jurors favor the first candidate shown — {nodeLabels.MELCHIOR} sits in slot
 					A whenever both other nodes vote.
 				</p>
@@ -278,7 +276,7 @@
 
 			<!-- Tiebreak distribution — how often does the winner actually beat the runner-up cleanly? -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Tiebreak path</h3>
+				<h3 class="magi-subhead">Tiebreak path</h3>
 				<div class="flex flex-col gap-0.5 text-xs">
 					<div class="flex justify-between">
 						<span class="text-gray-300">Decisive</span>
@@ -317,7 +315,7 @@
 
 			<!-- Length correlation — sanity check for "longer answers tend to win" hypothesis. -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Avg response length (chars)</h3>
+				<h3 class="magi-subhead">Avg response length (chars)</h3>
 				<div class="flex justify-between text-xs">
 					<span class="text-gray-300">Winners</span>
 					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
@@ -337,7 +335,7 @@
 		{#if agg.debate.total > 0}
 			{@const dbt = agg.debate}
 			<div class="mt-1 border-t border-gray-800 pt-2">
-				<span class="text-xs font-semibold tracking-wide text-gray-400">
+				<span class="magi-section-header text-gray-400">
 					🗣️ Multi-Round Debate
 					<span class="font-normal text-gray-500">({dbt.total} runs)</span>
 				</span>
@@ -345,7 +343,7 @@
 
 			<!-- Verdict distribution — how often does debate actually converge? -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Verdict distribution</h3>
+				<h3 class="magi-subhead">Verdict distribution</h3>
 				{#each verdictOrder as verdict (verdict)}
 					{@const count = dbt.verdictCounts[verdict] ?? 0}
 					<div class="flex items-center gap-2 text-xs">
@@ -366,7 +364,7 @@
 			<!-- Convergence speed + stalemate rate, when there's anything to report. -->
 			{#if dbt.verdictCounts.consensus > 0 || dbt.hitLimitCount > 0}
 				<section class="flex flex-col gap-1">
-					<h3 class="text-xs font-semibold text-gray-400">Convergence</h3>
+					<h3 class="magi-subhead">Convergence</h3>
 					{#if dbt.verdictCounts.consensus > 0}
 						<div class="flex justify-between text-xs">
 							<span class="text-gray-300">Avg rounds to converge</span>
@@ -388,7 +386,7 @@
 
 			<!-- Revision rate by node — which nodes are most willing to revise their answer. -->
 			<section class="flex flex-col gap-1">
-				<h3 class="text-xs font-semibold text-gray-400">Revision rate by node</h3>
+				<h3 class="magi-subhead">Revision rate by node</h3>
 				{#each nodeOrder as node (node)}
 					{@const r = dbt.revisionRateByNode[node]}
 					<div class="flex items-center gap-2 text-xs">
@@ -406,7 +404,7 @@
 			<!-- Dissenter — when a clean 2-vs-1 split happened, who was the holdout? -->
 			{#if nodeOrder.some((n) => dbt.dissenterByNode[n] > 0)}
 				<section class="flex flex-col gap-1">
-					<h3 class="text-xs font-semibold text-gray-400">
+					<h3 class="magi-subhead">
 						Dissenter
 						<span class="font-normal text-gray-500"
 							>({nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)} 2-vs-1 splits)</span

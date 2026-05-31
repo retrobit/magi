@@ -123,7 +123,7 @@
 
 <div class="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
 	<div class="flex items-center justify-between">
-		<span class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-amber-400">
+		<span class="flex items-center gap-1.5 magi-section-header magi-warn">
 			<Bug size={13} /> DEBUG · dev only
 		</span>
 		<button
@@ -135,15 +135,13 @@
 			<X size={14} />
 		</button>
 	</div>
-	<p class="mt-1 text-[10px] text-gray-500">
-		Inject error and context-limit UI states without a live request.
-	</p>
+	<p class="mt-1 magi-meta">Inject error and context-limit UI states without a live request.</p>
 
 	<!-- Per-node error + context controls -->
 	<div class="mt-3 flex flex-col gap-1.5">
 		{#each assignments as assignment (assignment.node)}
 			<div class="flex items-center gap-2">
-				<span class="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-gray-300">
+				<span class="flex min-w-0 flex-1 items-center gap-1.5 magi-label">
 					<span
 						class="h-2 w-2 shrink-0 rounded-full"
 						style="background: {NODE_HEX_COLORS[assignment.node]}"
@@ -194,7 +192,7 @@
 	<!-- Consensus + global states -->
 	<div class="mt-3 flex flex-col gap-2">
 		<div class="flex items-center gap-2">
-			<span class="flex-1 text-xs font-medium text-gray-300">Consensus</span>
+			<span class="flex-1 magi-label">Consensus</span>
 			<button
 				type="button"
 				{disabled}
@@ -218,11 +216,11 @@
 			</select>
 		</div>
 		<div class="flex items-center justify-between">
-			<span class="text-xs font-medium text-gray-300">Global error banner</span>
+			<span class="magi-label">Global error banner</span>
 			{@render toggle(scenario.globalError, (v) => onchange({ ...scenario, globalError: v }))}
 		</div>
 		<div class="flex items-center justify-between">
-			<span class="text-xs font-medium text-gray-300">Partial-consensus warning</span>
+			<span class="magi-label">Partial-consensus warning</span>
 			{@render toggle(scenario.partialConsensus, (v) =>
 				onchange({ ...scenario, partialConsensus: v })
 			)}
@@ -232,7 +230,7 @@
 	<button
 		type="button"
 		{disabled}
-		class="mt-3 w-full rounded bg-gray-800 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+		class="mt-3 w-full rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
 		onclick={() => onchange(freshDebugScenario())}
 	>
 		Reset all

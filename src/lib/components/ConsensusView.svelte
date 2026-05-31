@@ -350,9 +350,9 @@
      palette and ⚠ symbol — only the layout/sizing matches the node error card. -->
 {#snippet warningCard(message: string)}
 	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
-		<AlertTriangle size={24} class="text-amber-400" />
-		<p class="text-sm font-medium text-amber-400">Partial consensus</p>
-		<p class="text-xs text-gray-500">{message}</p>
+		<AlertTriangle size={24} class="magi-warn" />
+		<p class="text-sm font-medium magi-warn">Partial consensus</p>
+		<p class="magi-banner-detail">{message}</p>
 	</div>
 {/snippet}
 
@@ -363,9 +363,7 @@
 	{#if verdict === 'consensus'}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<span class="text-sm font-bold tracking-wide uppercase" style={gradientText}>
-					Consensus reached
-				</span>
+				<span class="magi-banner-headline" style={gradientText}> Consensus reached </span>
 				<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
 			</div>
 			<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
@@ -373,10 +371,10 @@
 	{:else if verdict === 'split'}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<span class="text-sm font-bold tracking-wide text-amber-400 uppercase">Split decision</span>
+				<span class="magi-banner-headline magi-warn">Split decision</span>
 				<span class="text-xs" aria-hidden="true">⚖️</span>
 			</div>
-			<p class="text-xs text-gray-500">
+			<p class="magi-banner-detail">
 				{#if summary}No full consensus — {summary}.{:else}The MAGI did not fully agree — the
 					differing positions are laid out below.{/if}
 			</p>
@@ -405,10 +403,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span
-						class="flex items-center font-mono text-[10px] text-gray-500"
-						use:tooltip={tokensTooltip}
-					>
+					<span class="flex items-center magi-numeric text-gray-500" use:tooltip={tokensTooltip}>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
@@ -426,7 +421,7 @@
 				{#if loading && !allModelsResponded}
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
 				{:else if loading}
-					<LoaderCircle size={14} class="animate-spin text-yellow-400" />
+					<LoaderCircle size={14} class="animate-spin magi-pending" />
 				{:else if hasConsensus}
 					<div class="flex items-center gap-2">
 						{#if fullText}
@@ -436,13 +431,13 @@
 								title="Copy consensus"
 							>
 								{#if copied}
-									<Check size={14} class="text-green-400" />
+									<Check size={14} class="magi-success" />
 								{:else}
 									<Copy size={14} />
 								{/if}
 							</button>
 						{/if}
-						<CircleCheck size={14} class="text-green-400" />
+						<CircleCheck size={14} class="magi-success" />
 					</div>
 				{:else}
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
@@ -551,7 +546,7 @@
 	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
-				<p class="text-sm text-gray-600">Consensus will appear after all three MAGI respond</p>
+				<p class="magi-placeholder">Consensus will appear after all three MAGI respond</p>
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div
@@ -569,7 +564,7 @@
 								<Markdown source={turn.consensus} />
 							</div>
 						{:else}
-							<p class="text-sm text-gray-600">No consensus</p>
+							<p class="magi-placeholder">No consensus</p>
 						{/if}
 						{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}
 					</div>
@@ -588,19 +583,17 @@
 						{#if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}
-							<p class="font-mono text-xs text-gray-500">{consensusLoadingText}…</p>
+							<p class="magi-loader-text">{consensusLoadingText}…</p>
 						{:else if text}
 							{#if debateComplete}{@render debateBanner(debateVerdict, debateSummary)}{/if}
 							<div class="prose prose-sm max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
 							{#if debateRounding}
-								<p class="font-mono text-xs text-gray-500">{consensusLoadingText}…</p>
+								<p class="magi-loader-text">{consensusLoadingText}…</p>
 							{/if}
 						{:else}
-							<p class="text-sm text-gray-600">
-								Consensus will appear after all three MAGI respond
-							</p>
+							<p class="magi-placeholder">Consensus will appear after all three MAGI respond</p>
 						{/if}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>
