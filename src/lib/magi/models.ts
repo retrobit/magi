@@ -26,12 +26,16 @@ function getClient(gateway: GatewayName) {
 				apiKey: requireKey('GOOGLE_GENERATIVE_AI_API_KEY')
 			}));
 		case 'openrouter':
+			// OpenRouter uses HTTP-Referer + X-Title for attribution on its
+			// rankings/dashboards. Defaults point at the canonical repo, but
+			// deployed instances should override via env so traffic isn't
+			// misattributed to upstream.
 			return (_openrouter ??= createOpenAI({
 				apiKey: requireKey('OPENROUTER_API_KEY'),
 				baseURL: 'https://openrouter.ai/api/v1',
 				headers: {
-					'HTTP-Referer': 'https://github.com/retrobit/magi',
-					'X-Title': 'MAGI'
+					'HTTP-Referer': env.OPENROUTER_REFERER || 'https://github.com/retrobit/magi',
+					'X-Title': env.OPENROUTER_TITLE || 'MAGI'
 				}
 			}));
 	}
