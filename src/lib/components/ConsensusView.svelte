@@ -607,7 +607,7 @@
 							</div>
 						{:else if turn.strategy === 'none'}
 							<p class="magi-placeholder">
-								No consensus — enjoy reading the individual model responses.
+								Consensus strategy chosen as "None" — enjoy reading the individual model responses.
 							</p>
 						{:else}
 							<p class="magi-placeholder">No consensus</p>
@@ -632,7 +632,7 @@
 							     are in, settle into the placeholder rather than waiting
 							     forever on a synthesis that won't come. -->
 							<p class="magi-placeholder">
-								No consensus — enjoy reading the individual model responses.
+								Consensus strategy chosen as "None" — enjoy reading the individual model responses.
 							</p>
 						{:else if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
