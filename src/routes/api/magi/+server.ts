@@ -85,36 +85,52 @@ function buildNodeMessages(
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const requestTimer = startTimer();
+	// 8-hex correlation ID — stamped on every log line for this request and
+	// returned to the client as X-Request-Id so the same trace can be grepped
+	// from either side. Short on purpose; not security-sensitive.
+	const requestId = crypto.randomUUID().slice(0, 8);
+	const ip = getClientAddress();
+
+	// All JSON error responses carry X-Request-Id so callers can quote it when
+	// reporting bugs. The SSE response sets the header separately.
+	const errResp = (body: object, status: number): Response =>
+		json(body, { status, headers: { 'X-Request-Id': requestId } });
+
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
 	const authFail = checkApiKey(request);
-	if (authFail) return authFail;
+	if (authFail) {
+		logEvent('warn', 'request.unauthorized', { requestId, ip });
+		return authFail;
+	}
 
 	// Rate limiting (sliding window per IP)
-	if (isRateLimited(getClientAddress())) {
-		return json({ error: 'Too many requests' }, { status: 429 });
+	if (isRateLimited(ip)) {
+		logEvent('warn', 'request.rate_limited', { requestId, ip });
+		return errResp({ error: 'Too many requests' }, 429);
 	}
 
 	// Content-Type validation
 	if (!request.headers.get('content-type')?.includes('application/json')) {
-		return json({ error: 'Content-Type must be application/json' }, { status: 415 });
+		logEvent('warn', 'request.unsupported_media_type', { requestId, ip });
+		return errResp({ error: 'Content-Type must be application/json' }, 415);
 	}
 
 	const body = await request.json().catch((err: unknown) => {
 		logEvent('error', 'request.parse_failed', {
+			requestId,
 			error: err instanceof Error ? err.message : String(err)
 		});
 		return null;
 	});
 	if (!body) {
-		return json({ error: 'Invalid JSON' }, { status: 400 });
+		return errResp({ error: 'Invalid JSON' }, 400);
 	}
 
 	const parsed = magiRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		return json(
-			{ error: 'Invalid request', details: parsed.error.issues.map((i) => i.message) },
-			{ status: 400 }
-		);
+		const details = parsed.error.issues.map((i) => i.message);
+		logEvent('warn', 'request.invalid', { requestId, details: details.join('; ') });
+		return errResp({ error: 'Invalid request', details }, 400);
 	}
 
 	const {
@@ -131,6 +147,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	} = parsed.data;
 
 	logEvent('info', 'request', {
+		requestId,
+		ip,
 		tier,
 		strategy: strategyName,
 		temperaments: useTemperaments ?? false,
@@ -160,14 +178,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const entry = findModelEntry(a.gateway, a.modelId, tier);
 				if (!entry) {
 					const exists = findModelEntry(a.gateway, a.modelId);
-					return json(
-						{
-							error: exists
-								? `Model "${a.modelId}" is not available in the "${tier}" tier`
-								: `Unknown model "${a.modelId}" for gateway "${a.gateway}"`
-						},
-						{ status: 400 }
-					);
+					const reason = exists
+						? `Model "${a.modelId}" is not available in the "${tier}" tier`
+						: `Unknown model "${a.modelId}" for gateway "${a.gateway}"`;
+					logEvent('warn', 'request.invalid_assignment', { requestId, reason });
+					return errResp({ error: reason }, 400);
 				}
 				sanitized.push({ ...a, provider: entry.provider });
 			}
@@ -176,12 +191,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		try {
 			validateConfig(config);
 		} catch (err) {
-			return json(
-				{
-					error: `Invalid assignments: ${err instanceof Error ? err.message : 'validation failed'}`
-				},
-				{ status: 400 }
-			);
+			const reason = err instanceof Error ? err.message : 'validation failed';
+			logEvent('warn', 'request.invalid_assignment', { requestId, reason });
+			return errResp({ error: `Invalid assignments: ${reason}` }, 400);
 		}
 	} else if (tier === 'free') {
 		// Resolve free tier dynamically from OpenRouter
@@ -200,10 +212,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		: 0;
 
 	if (consensusNodeIndex === -1) {
-		return json(
-			{ error: `Invalid consensusNode: "${requestedConsensusNode}" is not in the current config` },
-			{ status: 400 }
-		);
+		const reason = `Invalid consensusNode: "${requestedConsensusNode}" is not in the current config`;
+		logEvent('warn', 'request.invalid_assignment', { requestId, reason });
+		return errResp({ error: reason }, 400);
 	}
 
 	const abortController = new AbortController();
@@ -270,6 +281,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				for (const h of nodeHealth) {
 					if (!h.healthy) {
 						logEvent('warn', 'node.unhealthy', {
+							requestId,
 							node: h.node,
 							model: h.modelId,
 							reason: h.reason
@@ -286,7 +298,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const healthyNodes = nodeHealth.filter((h) => h.healthy);
 
 				if (healthyNodes.length === 0) {
-					logEvent('error', 'request.aborted', { reason: 'all models unhealthy' });
+					logEvent('error', 'request.aborted', {
+						requestId,
+						reason: 'all models unhealthy'
+					});
 					send('error', { message: 'All three models are unavailable' });
 					close();
 					return;
@@ -294,6 +309,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				// Phase 1: Dispatch only to healthy MAGI nodes in parallel (streaming)
 				logEvent('info', 'phase1.dispatch', {
+					requestId,
 					nodes: healthyNodes.map((c) => `${c.node}/${c.modelId}`).join(',')
 				});
 				const results = await Promise.allSettled(
@@ -348,6 +364,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							const usage = await result.usage;
 							const cached = usage.cachedInputTokens ?? 0;
 							logEvent('info', 'node.complete', {
+								requestId,
 								node,
 								model: modelId,
 								ttftMs: ttftMs ?? nodeTimer(),
@@ -373,7 +390,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								throw err;
 							}
 							const message = _extractErrorMessage(err);
-							logEvent('error', 'node.failed', { node, model: modelId, error: message });
+							logEvent('error', 'node.failed', {
+								requestId,
+								node,
+								model: modelId,
+								error: message
+							});
 							markUnhealthy(modelId, message);
 							send('model-error', { node, gateway, provider, error: message });
 							throw err;
@@ -388,13 +410,17 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const totalNodes = config.length;
 
 				logEvent('info', 'phase1.complete', {
+					requestId,
 					responded: responses.length,
 					skipped: nodeHealth.filter((h) => !h.healthy).length,
 					elapsedMs: requestTimer()
 				});
 
 				if (responses.length === 0) {
-					logEvent('error', 'request.aborted', { reason: 'all dispatched models failed' });
+					logEvent('error', 'request.aborted', {
+						requestId,
+						reason: 'all dispatched models failed'
+					});
 					send('error', { message: 'All models failed to respond' });
 					close();
 					return;
@@ -407,6 +433,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// already surfaced any failed nodes upstream.
 				if (strategyName === 'none') {
 					logEvent('info', 'request.complete', {
+						requestId,
 						elapsedMs: requestTimer(),
 						strategy: 'none'
 					});
@@ -416,6 +443,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				if (responses.length < totalNodes) {
 					logEvent('warn', 'consensus.partial', {
+						requestId,
 						responded: responses.length,
 						total: totalNodes
 					});
@@ -460,6 +488,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							break;
 						case 'usage':
 							logEvent('info', 'consensus.complete', {
+								requestId,
 								strategy: strategyName,
 								node: consensusSeat.node,
 								model: consensusSeat.modelId,
@@ -493,6 +522,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									return out;
 								});
 								logEvent('info', 'vote.complete', {
+									requestId,
 									strategy: s.strategy,
 									tier: s.tier,
 									temperaments: s.temperaments,
@@ -521,9 +551,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							break;
 					}
 				}
-				logEvent('info', 'request.complete', { elapsedMs: requestTimer() });
+				logEvent('info', 'request.complete', { requestId, elapsedMs: requestTimer() });
 			} catch (err) {
 				logEvent('error', 'request.failed', {
+					requestId,
 					error: err instanceof Error ? err.message : String(err),
 					elapsedMs: requestTimer()
 				});
@@ -542,7 +573,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache'
+			'Cache-Control': 'no-cache',
+			'X-Request-Id': requestId
 		}
 	});
 };

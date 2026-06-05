@@ -27,7 +27,12 @@ function call(init: { headers?: Record<string, string>; force?: boolean } = {}) 
 		method: 'GET',
 		headers: init.headers
 	});
-	return GET({ request, url } as unknown as Parameters<RequestHandler>[0]);
+	const getClientAddress = () => '127.0.0.1';
+	return GET({
+		request,
+		url,
+		getClientAddress
+	} as unknown as Parameters<RequestHandler>[0]);
 }
 
 beforeEach(() => {
