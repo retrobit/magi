@@ -146,7 +146,15 @@ function gatewayLabel(g: string): string {
 }
 
 export function aggregate(records: RunStatRecord[]): AggregatedStats {
-	const byStrategy = { synthesis: 0, voting: 0, debate: 0 } as Record<StrategyName, number>;
+	// `none` skips the consensus phase entirely so it never produces a
+	// `run-stats` event — the key still exists in the type, so initialize it to
+	// keep the cast honest.
+	const byStrategy: Record<StrategyName, number> = {
+		none: 0,
+		synthesis: 0,
+		voting: 0,
+		debate: 0
+	};
 	const usageByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
 	const usageGateway = new Map<string, CountEntry>();
 	const usageProvider = new Map<string, CountEntry>();

@@ -35,9 +35,21 @@
 		records = loadRunStats();
 	});
 
-	const agg = $derived(aggregate(records));
+	// Strategy filter — `'all'` is the default; selecting a specific strategy
+	// re-aggregates over only that strategy's records, so every breakdown
+	// (usage, voting deep-dive, debate deep-dive) recomputes automatically.
+	// `none` is omitted from the filter — it never produces a run-stats event.
+	type StrategyFilter = StrategyName | 'all';
+	const FILTERABLE_STRATEGIES: StrategyName[] = ['synthesis', 'voting', 'debate'];
+	const FILTER_OPTIONS: StrategyFilter[] = ['all', ...FILTERABLE_STRATEGIES];
+	let filter = $state<StrategyFilter>('all');
+	const filteredRecords = $derived(
+		filter === 'all' ? records : records.filter((r) => r.stats.strategy === filter)
+	);
+
+	const agg = $derived(aggregate(filteredRecords));
 	const nodeOrder: MagiNodeName[] = ['MELCHIOR', 'BALTHASAR', 'CASPAR'];
-	const strategyOrder: StrategyName[] = ['synthesis', 'voting', 'debate'];
+	const strategyOrder: StrategyName[] = FILTERABLE_STRATEGIES;
 	const verdictOrder: DebateVerdict[] = ['consensus', 'split', 'walkover'];
 	const VERDICT_LABELS: Record<DebateVerdict, string> = {
 		consensus: 'Consensus',
@@ -91,28 +103,56 @@
 		</div>
 	</div>
 
-	{#if agg.total === 0}
-		<p class="magi-meta">Run a query — stats accumulate here as each consensus completes.</p>
-	{:else}
-		<!-- ===== Usage (every run, both strategies) ===== -->
-		<section class="flex flex-col gap-1">
-			<h3 class="magi-subhead">Runs by strategy</h3>
-			{#each strategyOrder as s (s)}
-				{@const count = agg.byStrategy[s] ?? 0}
-				<div class="flex items-center gap-2 text-xs">
-					<span class="w-28 text-gray-300">{STRATEGY_LABELS[s]}</span>
-					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
-						<div
-							class="h-full bg-indigo-500/80"
-							style="width: {agg.total > 0 ? ((count / agg.total) * 100).toFixed(1) : 0}%"
-						></div>
-					</div>
-					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
-						{count} ({pct(count, agg.total)})
-					</span>
-				</div>
+	{#if records.length > 0}
+		<!-- Strategy filter — chips sit above the breakdowns. Hidden when there
+		     are no records at all (the empty-state CTA below carries the panel). -->
+		<div class="flex flex-wrap items-center gap-1">
+			{#each FILTER_OPTIONS as opt (opt)}
+				<button
+					type="button"
+					class="rounded px-2 py-0.5 text-xs transition-colors {filter === opt
+						? 'bg-gray-600 text-white'
+						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}"
+					onclick={() => (filter = opt)}
+				>
+					{opt === 'all' ? 'All' : STRATEGY_LABELS[opt]}
+				</button>
 			{/each}
-		</section>
+		</div>
+	{/if}
+
+	{#if records.length === 0}
+		<p class="magi-meta">Run a query — stats accumulate here as each consensus completes.</p>
+	{:else if agg.total === 0}
+		<!-- Filter excludes everything — distinct from the never-ran-a-query
+		     empty state so the user knows it's their filter, not missing data. -->
+		<p class="magi-meta">
+			No {filter === 'all' ? '' : STRATEGY_LABELS[filter as StrategyName] + ' '}runs recorded yet.
+		</p>
+	{:else}
+		<!-- ===== Usage (every run, both strategies) =====
+		     Hidden when a specific strategy is selected — the breakdown is always
+		     100% on that strategy, so the row carries no information. -->
+		{#if filter === 'all'}
+			<section class="flex flex-col gap-1">
+				<h3 class="magi-subhead">Runs by strategy</h3>
+				{#each strategyOrder as s (s)}
+					{@const count = agg.byStrategy[s] ?? 0}
+					<div class="flex items-center gap-2 text-xs">
+						<span class="w-28 text-gray-300">{STRATEGY_LABELS[s]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+							<div
+								class="h-full bg-indigo-500/80"
+								style="width: {agg.total > 0 ? ((count / agg.total) * 100).toFixed(1) : 0}%"
+							></div>
+						</div>
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+							{count} ({pct(count, agg.total)})
+						</span>
+					</div>
+				{/each}
+			</section>
+		{/if}
 
 		<!-- Usage by gateway -->
 		<section class="flex flex-col gap-1">
