@@ -68,6 +68,14 @@ export function clearRunStats(): void {
 	safeStorage()?.removeItem(STORAGE_KEY);
 }
 
+/** Pretty-printed JSON envelope (version + records) for offline analysis or
+ *  cross-tier transfer. Always emits the full record set — filter scoping
+ *  happens at read time, so a partial export would be lossy at re-import. */
+export function exportRunStats(): string {
+	const envelope: StoredEnvelope = { version: 1, records: loadRunStats() };
+	return JSON.stringify(envelope, null, 2);
+}
+
 // ---------- aggregation helpers (pure, easy to test) ----------
 
 type VotingTiebreak = NonNullable<RunStats['voting']>['tiebreak'];

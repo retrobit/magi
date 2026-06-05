@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { X, Trash2 } from 'lucide-svelte';
+	import { X, Trash2, Download } from 'lucide-svelte';
 	import {
 		loadRunStats,
 		clearRunStats,
+		exportRunStats,
 		aggregate,
 		type CountEntry,
 		type RunStatRecord
@@ -67,6 +68,24 @@
 		records = [];
 	}
 
+	// Download the full stored envelope as a date-stamped JSON file. Always
+	// exports every record regardless of the active strategy filter — a partial
+	// export would be lossy at re-import. Users wanting a filtered slice can
+	// apply the filter externally.
+	function exportJson() {
+		const blob = new Blob([exportRunStats()], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		// Local-date `YYYY-MM-DD` — readable in the filename without timezone math.
+		const stamp = new Date().toISOString().slice(0, 10);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `magi-stats-${stamp}.json`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
 	// A usage axis renders the same way each time: label, bar, count (share).
 	function topN(entries: CountEntry[], n = 6): CountEntry[] {
 		return entries.slice(0, n);
@@ -82,6 +101,16 @@
 			<span class="font-normal text-gray-500">({agg.total} runs)</span>
 		</span>
 		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="text-gray-500 transition-colors hover:text-green-400 disabled:opacity-40"
+				onclick={exportJson}
+				disabled={records.length === 0}
+				aria-label="Export stats as JSON"
+				title="Download all stats as JSON"
+			>
+				<Download size={14} />
+			</button>
 			<button
 				type="button"
 				class="text-gray-500 transition-colors hover:text-red-400 disabled:opacity-40"
