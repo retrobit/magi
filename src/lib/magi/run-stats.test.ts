@@ -3,6 +3,7 @@ import {
 	loadRunStats,
 	appendRunStat,
 	clearRunStats,
+	exportRunStats,
 	aggregate,
 	type RunStatRecord
 } from './run-stats';
@@ -128,6 +129,25 @@ describe('run-stats persistence', () => {
 			JSON.stringify({ version: 99, records: [] })
 		);
 		expect(loadRunStats()).toEqual([]);
+	});
+
+	it('exports the stored envelope as pretty-printed JSON', () => {
+		appendRunStat(makeRun({ voting: makeVoting({ winnerTotal: 17 }) }));
+		appendRunStat(makeRun());
+		const json = exportRunStats();
+		// Pretty-printed (2-space indent) so it reads as inspectable JSON.
+		expect(json).toContain('\n  "version": 1');
+		expect(json).toContain('\n  "records": [');
+		const parsed = JSON.parse(json);
+		expect(parsed.version).toBe(1);
+		expect(parsed.records).toHaveLength(2);
+		expect(parsed.records[0].stats.voting.winnerTotal).toBe(17);
+		expect(typeof parsed.records[0].ts).toBe('number');
+	});
+
+	it('exports a valid empty envelope when nothing has been stored', () => {
+		const parsed = JSON.parse(exportRunStats());
+		expect(parsed).toEqual({ version: 1, records: [] });
 	});
 });
 
