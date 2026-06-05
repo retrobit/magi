@@ -12,7 +12,7 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Model Management
 
-- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-05-23.
+- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-06-05 (internal consistency only — re-synced TIER_CONFIGS to match the post-2026-05-23 Gemini upgrades in the registry; full external re-check vs current provider docs still due).
 
 ## Clients
 
