@@ -2,10 +2,6 @@
 
 Planned features, improvements, and known items for the MAGI project.
 
-## Consensus Strategies
-
-- **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
-
 ## UI / UX
 
 - **UI/UX overhaul — re-evaluate color use, geometric background, splash** — At the very least, audit the current use/overuse of color across the UI. The RGB-per-node identity is core, but everything _around_ it (buttons, accents, hover states, secondary chrome) should defer to it instead of competing. A primarily-blue accent scheme, for example, would clash with CASPAR's blue and dilute the three-MAGI signal — any new dominant hue has to be chosen with the RGB triad in mind. Likely direction: lead with neutral grays as the primary palette and reserve color almost entirely for the node identifiers themselves. Also: replace the aurora orbs / RGB columns with something more geometric (grids, hex meshes, isometric tiles) or pattern-based, and consider an animated ASCII intro / splash page that establishes the three-MAGI identity before the main UI hydrates. This is a larger redesign pass than the individual UI polish items above — break into a separate design exploration before committing to a direction. Update [[feedback-ui-design]] when the new direction lands.
@@ -17,7 +13,6 @@ Planned features, improvements, and known items for the MAGI project.
 ## Model Management
 
 - **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-05-23.
-- **Provider budget readout — Anthropic & OpenAI admin APIs** — The readout already ships with OpenRouter live and a graceful "unavailable" status for the rest. Next step: actually call Anthropic's `/v1/organizations/cost_report` and OpenAI's `/v1/organization/usage/...` when `ANTHROPIC_ADMIN_KEY` / `OPENAI_ADMIN_KEY` are configured, instead of returning the "coming soon" placeholder.
 
 ## Clients
 
