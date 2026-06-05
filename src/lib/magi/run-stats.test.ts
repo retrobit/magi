@@ -139,7 +139,7 @@ describe('run-stats aggregate', () => {
 	it('returns zeros for an empty input', () => {
 		const agg = aggregate([]);
 		expect(agg.total).toBe(0);
-		expect(agg.byStrategy).toEqual({ synthesis: 0, voting: 0, debate: 0 });
+		expect(agg.byStrategy).toEqual({ none: 0, synthesis: 0, voting: 0, debate: 0 });
 		expect(agg.usageByGateway).toEqual([]);
 		expect(agg.usageByNode).toEqual({ MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 });
 		expect(agg.voting.total).toBe(0);
@@ -158,7 +158,7 @@ describe('run-stats aggregate', () => {
 			record({ strategy: 'debate', voting: undefined, debate: makeDebate() })
 		]);
 		expect(agg.total).toBe(4);
-		expect(agg.byStrategy).toEqual({ synthesis: 2, voting: 1, debate: 1 });
+		expect(agg.byStrategy).toEqual({ none: 0, synthesis: 2, voting: 1, debate: 1 });
 		// Only the voting run contributes to the voting deep-dive.
 		expect(agg.voting.total).toBe(1);
 		// Only the debate run contributes to the debate deep-dive.
