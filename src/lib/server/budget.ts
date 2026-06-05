@@ -9,6 +9,7 @@
 // "unavailable" with a clear reason where we can't.
 
 import { env } from '$env/dynamic/private';
+import { logEvent } from './logger';
 
 export type ProviderName = 'openrouter' | 'anthropic' | 'openai' | 'google';
 export type BudgetStatus = 'ok' | 'unavailable' | 'error';
@@ -57,10 +58,15 @@ export async function getProviderBudgets(options?: { force?: boolean }): Promise
 			try {
 				return await fetchOne(provider);
 			} catch (err) {
+				const reason = err instanceof Error ? err.message : 'Unknown error';
+				// The error already surfaces to the UI via `status: 'error'`, but
+				// the server side needs its own breadcrumb — a misbehaving admin
+				// key is otherwise invisible to whoever runs the deployment.
+				logEvent('warn', 'budget.provider_failed', { provider, error: reason });
 				return {
 					provider,
 					status: 'error' as const,
-					reason: err instanceof Error ? err.message : 'Unknown error'
+					reason
 				};
 			}
 		})

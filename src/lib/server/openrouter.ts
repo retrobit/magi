@@ -1,4 +1,5 @@
 import type { AvailableModel, GatewayName } from '$lib/magi/types';
+import { logEvent } from './logger';
 
 interface OpenRouterApiModel {
 	id: string;
@@ -43,7 +44,14 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 
 		cachedAt = now;
 		return cachedModels;
-	} catch {
+	} catch (err) {
+		// Surface OpenRouter outages instead of silently degrading to a stale or
+		// empty list — when the free tier suddenly has no models, this is the
+		// breadcrumb that explains why.
+		logEvent('warn', 'openrouter.fetch_failed', {
+			error: err instanceof Error ? err.message : String(err),
+			cached: !!cachedModels
+		});
 		return cachedModels ?? [];
 	}
 }
