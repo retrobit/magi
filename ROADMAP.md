@@ -41,5 +41,4 @@ Support more model routers beyond OpenRouter. The dynamic model discovery patter
 
 ## API
 
-- **OpenAPI spec** — Machine-readable API description (JSON/YAML) for the existing `POST /api/magi` endpoint, enabling auto-generated clients, Swagger UI testing, and Postman import.
 - **Webhook/callback mode** — Alternative to SSE for environments that don't support streaming.

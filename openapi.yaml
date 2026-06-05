@@ -1,0 +1,651 @@
+openapi: 3.1.0
+
+info:
+  title: MAGI API
+  version: 1.0.0
+  summary: Three frontier models in parallel, one reasoned consensus.
+  description: |
+    MAGI runs three models from different providers in parallel and reaches a single
+    answer via one of four consensus strategies. The flagship endpoint streams over
+    Server-Sent Events; two helper endpoints expose the model catalog and per-provider
+    budget readout.
+
+    **Authentication.** Auth is opt-in. When `MAGI_API_KEY` is set in the server
+    environment, every protected endpoint requires `Authorization: Bearer <key>`.
+    When unset, the same endpoints accept anonymous requests — useful in dev. The
+    `bearerAuth` scheme below describes the header format; whether it is enforced is
+    a deployment-time decision.
+
+    **Streaming format.** `POST /api/magi` returns `text/event-stream`. Each event is
+    one SSE frame: an `event:` line, a `data:` line carrying a JSON payload, and a
+    blank-line terminator. The named event types and their payload shapes are
+    enumerated under `components.schemas` (see every schema prefixed `SseEvent_*`).
+    OpenAPI cannot natively express a heterogeneous event stream, so the response
+    body is described as a text stream and the event taxonomy is documented here.
+
+    **Source of truth.** The canonical schemas live in [src/lib/magi/validation.ts](src/lib/magi/validation.ts)
+    (request) and [src/lib/magi/stream-events.ts](src/lib/magi/stream-events.ts) (events).
+    This spec is hand-maintained to match — keep them in sync.
+  license:
+    name: MIT
+    identifier: MIT
+  contact:
+    name: MAGI on GitHub
+    url: https://github.com/retrobit/magi
+
+servers:
+  - url: /
+    description: Same-origin (default — the spec is served alongside the app)
+
+tags:
+  - name: consensus
+    description: The flagship streaming endpoint.
+  - name: catalog
+    description: Tier-scoped model discovery.
+  - name: budget
+    description: Per-provider spend and remaining credit.
+
+paths:
+  /api/magi:
+    post:
+      tags: [consensus]
+      summary: Run a MAGI query and stream the result.
+      description: |
+        Dispatches the query to three nodes (MELCHIOR, BALTHASAR, CASPAR) in parallel,
+        then runs the requested consensus strategy. Responses are streamed live as SSE
+        events — see every `SseEvent_*` schema for the per-event payload shape.
+
+        The event order is: one `config`; then, interleaved, `model-chunk`/`model-response`/
+        `model-error`/`model-usage` per node; then (unless `strategy: none`) optionally
+        `partial-consensus`, then `consensus-chunk` deltas, `consensus-complete`, and
+        `consensus-usage`. Voting and debate runs additionally emit one `run-stats`
+        event; debate runs interleave `node-round` events during the multi-round phase.
+        A fatal failure emits a single `error` event and closes the stream.
+      operationId: runMagi
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagiRequest'
+            examples:
+              minimal:
+                summary: Minimal request (tier preset, default synthesis)
+                value:
+                  query: What is consciousness?
+                  tier: free
+                  strategy: synthesis
+              fullyOverridden:
+                summary: Custom assignments + debate strategy
+                value:
+                  query: Defend the strongest argument against open-source AI.
+                  tier: balanced
+                  strategy: debate
+                  consensusNode: MELCHIOR
+                  temperaments: true
+                  consensusTemperament: false
+                  temperamentAwareness: true
+                  genericLabels: false
+                  assignments:
+                    - node: MELCHIOR
+                      gateway: anthropic
+                      provider: anthropic
+                      modelId: claude-sonnet-4-6
+                    - node: BALTHASAR
+                      gateway: openai
+                      provider: openai
+                      modelId: gpt-5.4
+                    - node: CASPAR
+                      gateway: google
+                      provider: google
+                      modelId: gemini-3.5-flash
+      responses:
+        '200':
+          description: |
+            SSE stream of events. The response body is `text/event-stream`; the schema
+            below describes the JSON shape of each event's `data:` line, as a `oneOf`
+            over every event payload. The wire format wraps each payload in an SSE
+            frame: `event: <name>\ndata: <JSON>\n\n`.
+          headers:
+            Content-Type:
+              schema: { type: string, const: text/event-stream }
+            Cache-Control:
+              schema: { type: string, const: no-cache }
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/SseEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/magi/models:
+    get:
+      tags: [catalog]
+      summary: List available models for a tier.
+      description: |
+        Paid tiers return entries from the static registry. The `free` tier resolves
+        dynamically from OpenRouter and filters out models marked unhealthy by
+        previous failures.
+
+        This endpoint is intentionally unauthenticated even when `MAGI_API_KEY` is
+        set — the model catalog is non-sensitive and the UI must be able to load it
+        before the user provides any credentials.
+      operationId: listModels
+      security: []
+      parameters:
+        - name: tier
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/TierName'
+      responses:
+        '200':
+          description: Available models for the requested tier.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [models]
+                additionalProperties: false
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AvailableModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/magi/budget:
+    get:
+      tags: [budget]
+      summary: Per-provider spend and remaining credit.
+      description: |
+        Returns each paid provider's current usage. OpenRouter is reported live; the
+        others degrade gracefully when admin credentials aren't configured (Anthropic
+        and OpenAI) or no public usage API exists (Google). Responses are cached
+        server-side for 60 seconds; pass `force=1` to bypass.
+      operationId: getBudget
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: force
+          in: query
+          required: false
+          description: Set to `1` to bypass the 60-second server-side cache.
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          description: Provider budgets.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'private, max-age=60' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                additionalProperties: false
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderBudget'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Upstream budget fetch failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorBody' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Set via `MAGI_API_KEY`. When the env var is unset the bearer header is
+        ignored and requests pass through.
+
+  responses:
+    BadRequest:
+      description: Invalid JSON, missing fields, or values failing Zod validation.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorBody' }
+    Unauthorized:
+      description: Bearer token missing or wrong (only when `MAGI_API_KEY` is set).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorBody' }
+    UnsupportedMediaType:
+      description: '`Content-Type` is not `application/json`.'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorBody' }
+    RateLimited:
+      description: Sliding-window rate limit exceeded (10 req/min per IP by default).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorBody' }
+
+  schemas:
+    # ----- shared enums -----
+
+    TierName:
+      type: string
+      enum: [free, budget, balanced, frontier]
+      description: |
+        Pricing/quality tier. `free` resolves models dynamically from OpenRouter at
+        request time; the others are pinned by the server-side registry.
+
+    StrategyName:
+      type: string
+      enum: [none, synthesis, voting, debate]
+      description: |
+        - `none` — skip consensus, just stream the three node responses.
+        - `synthesis` (default) — a consensus model writes one unified answer.
+        - `voting` — peers score each other 0–10; highest wins, shown verbatim.
+        - `debate` (flagship) — multi-round revision until convergence, then synthesis.
+
+    GatewayName:
+      type: string
+      enum: [anthropic, openai, google, openrouter]
+
+    MagiNodeName:
+      type: string
+      enum: [MELCHIOR, BALTHASAR, CASPAR]
+
+    DebateVerdict:
+      type: string
+      enum: [consensus, split, walkover]
+
+    VotingTiebreak:
+      type: string
+      enum: [none, best-score, node-order, walkover]
+
+    # ----- request body -----
+
+    NodeAssignment:
+      type: object
+      required: [node, gateway, provider, modelId]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        gateway: { $ref: '#/components/schemas/GatewayName' }
+        provider:
+          type: string
+          minLength: 1
+          description: |
+            The model provider slug. For direct gateways this is the gateway label
+            (`anthropic`, `openai`, `google`); for OpenRouter it is the leading
+            segment of the model ID (`qwen/qwen3-coder:free` → `qwen`). The server
+            re-derives this from an authoritative source before validating.
+        modelId: { type: string, minLength: 1 }
+
+    HistoryNodeResponse:
+      type: object
+      required: [node, text]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        text: { type: string, maxLength: 50000 }
+
+    HistoryTurn:
+      type: object
+      required: [query, nodeResponses, consensus]
+      additionalProperties: false
+      properties:
+        query: { type: string, minLength: 1, maxLength: 10000 }
+        nodeResponses:
+          type: array
+          items: { $ref: '#/components/schemas/HistoryNodeResponse' }
+        consensus: { type: string, maxLength: 50000 }
+
+    MagiRequest:
+      type: object
+      required: [query, tier, strategy]
+      additionalProperties: false
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        tier: { $ref: '#/components/schemas/TierName' }
+        strategy: { $ref: '#/components/schemas/StrategyName' }
+        consensusNode:
+          allOf: [{ $ref: '#/components/schemas/MagiNodeName' }]
+          description: |
+            Which node's model writes the consensus (when the strategy needs one).
+            Defaults to the first node in the resolved config.
+        assignments:
+          type: array
+          minItems: 3
+          maxItems: 3
+          description: |
+            Tuple of three `NodeAssignment` objects — one per canonical node. When
+            omitted, the tier preset (or dynamic free-tier resolution) is used.
+            Each must reference a model that exists for the requested tier.
+          items: { $ref: '#/components/schemas/NodeAssignment' }
+        temperaments:
+          type: boolean
+          default: false
+          description: Give each node its dispositional lens (Rationalist / Caretaker / Individualist).
+        consensusTemperament:
+          type: boolean
+          default: false
+          description: Give the consensus synthesizer its own dispositional lens.
+        temperamentAwareness:
+          type: boolean
+          default: false
+          description: Tell the synthesizer about each node's lens so it can surface why they diverge.
+        genericLabels:
+          type: boolean
+          default: true
+          description: Use `MAGI 1/2/3` rather than `MELCHIOR/BALTHASAR/CASPAR` in consensus prompts.
+        history:
+          type: array
+          maxItems: 50
+          description: Prior conversation turns for multi-turn context.
+          items: { $ref: '#/components/schemas/HistoryTurn' }
+
+    # ----- error body -----
+
+    ErrorBody:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error: { type: string }
+        details:
+          type: array
+          items: { type: string }
+          description: Field-level messages from Zod validation (400 only).
+
+    # ----- catalog + budget responses -----
+
+    AvailableModel:
+      type: object
+      required: [id, gateway, provider, displayName]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        gateway: { $ref: '#/components/schemas/GatewayName' }
+        provider: { type: string }
+        displayName: { type: string }
+        contextLength:
+          type: integer
+          minimum: 0
+          description: Context window in tokens, when reported by the provider.
+
+    ProviderBudget:
+      type: object
+      required: [provider, status]
+      additionalProperties: true
+      properties:
+        provider:
+          type: string
+          description: Provider slug (`openrouter`, `anthropic`, `openai`, `google`).
+        status:
+          type: string
+          enum: [ok, unavailable, error]
+        label: { type: string }
+        usage: { type: number }
+        limit: { type: number }
+        remaining: { type: number }
+        isFreeKey: { type: boolean }
+        reason:
+          type: string
+          description: Why the readout is unavailable (only when `status != ok`).
+
+    # ----- SSE event payloads -----
+    # The server emits each event with `event: <name>\ndata: <JSON of one of these>`.
+
+    SseEvent:
+      description: |
+        Discriminated union of every event payload that `POST /api/magi` can emit.
+        Order is fixed per stream — see the endpoint description. Codegen tools
+        should generate one type per `SseEvent_*` variant plus a union of them.
+      oneOf:
+        - $ref: '#/components/schemas/SseEvent_config'
+        - $ref: '#/components/schemas/SseEvent_model-chunk'
+        - $ref: '#/components/schemas/SseEvent_model-response'
+        - $ref: '#/components/schemas/SseEvent_model-error'
+        - $ref: '#/components/schemas/SseEvent_model-usage'
+        - $ref: '#/components/schemas/SseEvent_partial-consensus'
+        - $ref: '#/components/schemas/SseEvent_consensus-chunk'
+        - $ref: '#/components/schemas/SseEvent_consensus-complete'
+        - $ref: '#/components/schemas/SseEvent_consensus-usage'
+        - $ref: '#/components/schemas/SseEvent_run-stats'
+        - $ref: '#/components/schemas/SseEvent_node-round'
+        - $ref: '#/components/schemas/SseEvent_error'
+
+    SseEvent_config:
+      description: |
+        Emitted once at the start of the stream. Carries the resolved 3-node
+        assignment (after free-tier resolution, client overrides, and validation).
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { $ref: '#/components/schemas/NodeAssignment' }
+
+    SseEvent_model-chunk:
+      description: Streaming text delta from one node.
+      type: object
+      required: [node, text]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        text: { type: string }
+
+    SseEvent_model-response:
+      description: A node's full response once its stream finishes.
+      type: object
+      required: [node, gateway, provider, text]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        gateway: { $ref: '#/components/schemas/GatewayName' }
+        provider: { type: string }
+        text: { type: string }
+
+    SseEvent_model-error:
+      description: A single node's call failed. Other nodes continue.
+      type: object
+      required: [node, gateway, provider, error]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        gateway: { $ref: '#/components/schemas/GatewayName' }
+        provider: { type: string }
+        error: { type: string }
+
+    SseEvent_model-usage:
+      description: Token usage for a completed node.
+      type: object
+      required: [node, inputTokens, outputTokens, cachedInputTokens]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        inputTokens: { type: integer, minimum: 0 }
+        outputTokens: { type: integer, minimum: 0 }
+        cachedInputTokens: { type: integer, minimum: 0 }
+
+    SseEvent_partial-consensus:
+      description: |
+        Emitted when at least one node failed but at least one responded — the
+        consensus that follows is based on partial data. Not emitted when
+        `strategy: none`.
+      type: object
+      required: [responded, total]
+      additionalProperties: false
+      properties:
+        responded: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 1 }
+
+    SseEvent_consensus-chunk:
+      description: Streaming consensus text delta.
+      type: object
+      required: [text]
+      additionalProperties: false
+      properties:
+        text: { type: string }
+
+    SseEvent_consensus-complete:
+      description: Full consensus text + optional debate verdict.
+      type: object
+      required: [text]
+      additionalProperties: false
+      properties:
+        text: { type: string }
+        debateVerdict: { $ref: '#/components/schemas/DebateVerdict' }
+        debateSummary:
+          type: string
+          description: Coalition shape on a 2-vs-1 split (e.g. `MELCHIOR & BALTHASAR aligned; CASPAR dissents`).
+
+    SseEvent_consensus-usage:
+      description: Token usage for the consensus call.
+      type: object
+      required: [inputTokens, outputTokens, cachedInputTokens]
+      additionalProperties: false
+      properties:
+        inputTokens: { type: integer, minimum: 0 }
+        outputTokens: { type: integer, minimum: 0 }
+        cachedInputTokens: { type: integer, minimum: 0 }
+
+    SseEvent_run-stats:
+      description: |
+        Per-run aggregate stats — every consensus run emits exactly one. Voting runs
+        fill `voting`; debate runs fill `debate`. Synthesis runs carry neither.
+      type: object
+      required: [strategy, tier, temperaments, consensusTemperament, nodes]
+      additionalProperties: false
+      properties:
+        strategy: { $ref: '#/components/schemas/StrategyName' }
+        tier: { type: string }
+        temperaments: { type: boolean }
+        consensusTemperament: { type: boolean }
+        nodes:
+          type: object
+          additionalProperties:
+            type: object
+            required: [gateway, provider, model]
+            additionalProperties: false
+            properties:
+              gateway: { $ref: '#/components/schemas/GatewayName' }
+              provider: { type: string }
+              model: { type: string }
+        voting:
+          type: object
+          required:
+            [
+              winner,
+              winnerModel,
+              winnerTotal,
+              tiebreak,
+              totals,
+              lengths,
+              models,
+              jurors,
+              positionBias
+            ]
+          additionalProperties: false
+          properties:
+            winner: { $ref: '#/components/schemas/MagiNodeName' }
+            winnerModel: { type: string }
+            winnerTotal: { type: number }
+            tiebreak: { $ref: '#/components/schemas/VotingTiebreak' }
+            totals:
+              type: object
+              additionalProperties: { type: number }
+            lengths:
+              type: object
+              additionalProperties: { type: integer, minimum: 0 }
+            models:
+              type: object
+              additionalProperties: { type: string }
+            jurors:
+              type: array
+              items:
+                type: object
+                required: [juror, jurorModel, candidateA]
+                additionalProperties: false
+                properties:
+                  juror: { $ref: '#/components/schemas/MagiNodeName' }
+                  jurorModel: { type: string }
+                  candidateA:
+                    type: object
+                    required: [node, score]
+                    additionalProperties: false
+                    properties:
+                      node: { $ref: '#/components/schemas/MagiNodeName' }
+                      score: { type: [number, 'null'] }
+                  candidateB:
+                    type: object
+                    required: [node, score]
+                    additionalProperties: false
+                    properties:
+                      node: { $ref: '#/components/schemas/MagiNodeName' }
+                      score: { type: [number, 'null'] }
+            positionBias:
+              type: object
+              required: [avgA, avgB, n]
+              additionalProperties: false
+              properties:
+                avgA: { type: number }
+                avgB: { type: number }
+                n: { type: integer, minimum: 0 }
+        debate:
+          type: object
+          required: [verdict, hitLimit, rounds, revisions, models, dissenter]
+          additionalProperties: false
+          properties:
+            verdict: { $ref: '#/components/schemas/DebateVerdict' }
+            hitLimit: { type: boolean }
+            rounds: { type: integer, minimum: 0 }
+            revisions:
+              type: object
+              additionalProperties: { type: integer, minimum: 0 }
+            models:
+              type: object
+              additionalProperties: { type: string }
+            dissenter:
+              oneOf:
+                - { $ref: '#/components/schemas/MagiNodeName' }
+                - { type: 'null' }
+
+    SseEvent_node-round:
+      description: |
+        A debater's revised answer for one round, routed into that node's panel.
+        Only the debate strategy emits these.
+      type: object
+      required: [node, entry]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
+        entry:
+          type: object
+          required: [round, prompt, response]
+          additionalProperties: false
+          properties:
+            round: { type: integer, minimum: 0 }
+            prompt: { type: string }
+            response: { type: string }
+
+    SseEvent_error:
+      description: Fatal error — emitted once, then the stream closes.
+      type: object
+      required: [message]
+      additionalProperties: false
+      properties:
+        message: { type: string }

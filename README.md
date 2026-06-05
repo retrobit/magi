@@ -169,6 +169,8 @@ In dev mode (`bun run dev`), a 🐞 button next to the settings gear opens a **d
 
 ## 🔌 API
 
+A machine-readable description of every endpoint below lives in [openapi.yaml](openapi.yaml) (OpenAPI 3.1). Run `bunx @redocly/cli lint openapi.yaml` to validate it, or feed it to Swagger UI / Postman / your codegen of choice to auto-generate clients.
+
 ### `GET /api/magi/models`
 
 Returns available models for a given tier. Paid tiers return from the static registry; the free tier fetches dynamically from OpenRouter.
@@ -278,7 +280,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | ---------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `query`                | string  | Yes      | 1–10,000 characters                                                                                                             |
 | `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
-| `strategy`             | string  | Yes      | `synthesis` or `voting`                                                                                                         |
+| `strategy`             | string  | Yes      | `none`, `synthesis`, `voting`, or `debate`                                                                                      |
 | `consensusNode`        | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
 | `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
 | `temperaments`         | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
