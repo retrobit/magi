@@ -46,6 +46,21 @@ export const synthesisStrategy: ConsensusStrategy = {
 			})
 			.join('\n\n');
 
+		// Name the absentees so the synthesizer can acknowledge them in the
+		// reply — readers expect three perspectives, and a silent two-of-three
+		// consensus reads as if nothing went wrong.
+		const missingLabels = nodeAssignments
+			.filter((a) => !responses.some((r) => r.node === a.node))
+			.map((a) => nodeLabels[a.node]);
+		const missingClause =
+			missingLabels.length > 0
+				? `\n\nUnavailable for this query: ${missingLabels.join(', ')}. Acknowledge ${
+						missingLabels.length === 1 ? 'this absence' : 'these absences'
+					} briefly so the reader knows the consensus is missing ${
+						missingLabels.length === 1 ? 'a perspective' : 'perspectives'
+					} — do not let absent MAGI vanish silently.`
+				: '';
+
 		const assignment = nodeAssignments[consensusNodeIndex];
 		const model = getModel(assignment.gateway, assignment.modelId);
 
@@ -73,7 +88,7 @@ When perspectives diverge, surface WHY they diverge — which dispositional lens
 
 The ${n === 3 ? 'three' : n} MAGI responses:
 
-${formattedResponses}
+${formattedResponses}${missingClause}
 
 Provide the synthesized consensus response.`;
 

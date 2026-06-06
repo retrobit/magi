@@ -187,4 +187,33 @@ describe('synthesisStrategy.execute', () => {
 		await collect(synthesisStrategy.execute(ctx));
 		expect(lastArgs().system).toContain('2 of three');
 	});
+
+	it('names the unavailable MAGI in the synthesis prompt when one is missing', async () => {
+		const ctx = baseContext();
+		// MELCHIOR + BALTHASAR respond, CASPAR does not.
+		ctx.responses = responses.slice(0, 2);
+		await collect(synthesisStrategy.execute(ctx));
+		const messages = lastArgs().messages as ModelMessage[];
+		const prompt = messages.at(-1)!.content as string;
+		expect(prompt).toContain('Unavailable for this query:');
+		expect(prompt).toContain('CASPAR');
+		expect(prompt).toMatch(/do not let absent MAGI vanish silently/i);
+	});
+
+	it('uses generic labels for unavailable MAGI when genericLabels is true', async () => {
+		const ctx = baseContext({ genericLabels: true });
+		ctx.responses = responses.slice(0, 2);
+		await collect(synthesisStrategy.execute(ctx));
+		const messages = lastArgs().messages as ModelMessage[];
+		const prompt = messages.at(-1)!.content as string;
+		expect(prompt).toContain('Unavailable for this query:');
+		expect(prompt).not.toContain('CASPAR');
+	});
+
+	it('omits the missing-node clause when every MAGI responded', async () => {
+		await collect(synthesisStrategy.execute(baseContext()));
+		const messages = lastArgs().messages as ModelMessage[];
+		const prompt = messages.at(-1)!.content as string;
+		expect(prompt).not.toContain('Unavailable for this query:');
+	});
 });

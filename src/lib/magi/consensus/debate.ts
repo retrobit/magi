@@ -527,11 +527,26 @@ export const debateStrategy: ConsensusStrategy = {
 			.map((r) => `=== ${labels[r.node]} (${r.provider}) ===\n${current.get(r.node) ?? r.text}`)
 			.join('\n\n');
 
+		// Name the absentees so the synthesizer can acknowledge them in the
+		// reply — readers expect three perspectives, and a silent two-of-three
+		// consensus reads as if nothing went wrong.
+		const missingLabels = nodeAssignments
+			.filter((a) => !responses.some((r) => r.node === a.node))
+			.map((a) => labels[a.node]);
+		const missingClause =
+			missingLabels.length > 0
+				? `\n\nUnavailable for this debate: ${missingLabels.join(', ')}. Acknowledge ${
+						missingLabels.length === 1 ? 'this absence' : 'these absences'
+					} briefly so the reader knows the consensus is missing ${
+						missingLabels.length === 1 ? 'a perspective' : 'perspectives'
+					} — do not let absent MAGI vanish silently.`
+				: '';
+
 		const synthesisPrompt = `Original query: ${query}
 
 After a multi-round debate, the ${n === 3 ? 'three' : n} MAGI hold these ${n === 1 ? 'answer' : 'answers'}:
 
-${formatted}
+${formatted}${missingClause}
 
 ${
 	verdict === 'split'
