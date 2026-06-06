@@ -427,7 +427,7 @@
 <div
 	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
+		: 'min-h-72 md:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
