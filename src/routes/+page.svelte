@@ -107,10 +107,10 @@
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
 	// Focus accordion between the node row and the consensus. The status-bar layout
-	// control sets one of three states: nodes expanded, consensus expanded (the
-	// default — the synthesized answer is what most users came for), or a balanced
-	// split where both zones share the view.
-	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('consensus');
+	// control sets one of three states: nodes expanded, consensus expanded, or a
+	// balanced split (the default — both zones share the view so neither buries
+	// the other before the user has decided where to focus).
+	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
 	const setLayoutFocus = (focus: 'balanced' | 'nodes' | 'consensus') => (layoutFocus = focus);
