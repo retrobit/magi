@@ -436,6 +436,7 @@
 		theme = s.theme;
 		bgVariant = s.bgVariant;
 		scrollMode = s.scrollMode;
+		if (s.layoutFocus) layoutFocus = s.layoutFocus;
 	}
 
 	// A persisted snapshot is usable only if every model it names still exists.
@@ -510,7 +511,8 @@
 			genericLabels,
 			theme,
 			bgVariant,
-			scrollMode
+			scrollMode,
+			layoutFocus
 		};
 		if (!prefsHydrated) return;
 		persistedSnapshots[activeTier] = snap;

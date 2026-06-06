@@ -31,6 +31,9 @@ export interface PersistedSettings {
 	theme: 'dark' | 'light';
 	bgVariant: 'columns' | 'orbs' | 'off';
 	scrollMode: ScrollMode;
+	/** Focus accordion state. Optional for back-compat with payloads saved
+	 *  before this field existed — those simply fall back to the in-code default. */
+	layoutFocus?: 'balanced' | 'nodes' | 'consensus';
 }
 
 /** Top-level shape stored in localStorage: the last active tier, a per-tier
@@ -70,7 +73,8 @@ const persistedSettingsSchema = z.object({
 	genericLabels: z.boolean(),
 	theme: z.enum(['dark', 'light']),
 	bgVariant: z.enum(['columns', 'orbs', 'off']),
-	scrollMode: z.enum(['off', 'follow', 'snap'])
+	scrollMode: z.enum(['off', 'follow', 'snap']),
+	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional()
 });
 
 const debateRoundSchema = z.object({
