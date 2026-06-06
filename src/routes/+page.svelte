@@ -935,8 +935,7 @@
 </svelte:head>
 
 <div
-	class="magi-bg flex h-screen flex-col overflow-y-auto bg-gray-950 text-white md:overflow-hidden {theme ===
-	'light'
+	class="magi-bg flex min-h-screen flex-col bg-gray-950 text-white {theme === 'light'
 		? 'light'
 		: ''}"
 >
