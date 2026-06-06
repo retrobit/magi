@@ -306,23 +306,31 @@
 	{#if rounds.length > 0}
 		<div class="flex flex-col gap-2">
 			{#each rounds as r, idx (r.round)}
-				<div
-					class="magi-round flex flex-col gap-1 rounded-md border border-gray-800 bg-gray-900/40 p-2"
+				<!-- Each round is itself a collapsible block — open by default so the
+				     live debate reads top-to-bottom, but readers can fold completed
+				     rounds away to focus on the final answer or a specific round. The
+				     inputs are a nested sub-collapsible underneath. -->
+				<details
+					class="magi-round group/round flex flex-col gap-1 rounded-md border border-gray-800 bg-gray-900/40 p-2 open:gap-1"
 					style:min-height={live && scrollMode === 'snap' && idx === rounds.length - 1
 						? snapMinHeight
 						: undefined}
+					open
 				>
-					<span class="magi-badge text-gray-500">
+					<summary
+						class="flex cursor-pointer items-center gap-1 magi-badge text-gray-500 select-none hover:text-gray-300"
+					>
+						<ChevronRight size={11} class="transition-transform group-open/round:rotate-90" />
 						Round {r.round}
-					</span>
+					</summary>
 					<div class="prose prose-sm max-w-none prose-invert">
 						<Markdown source={r.response} />
 					</div>
-					<details class="group">
+					<details class="group/inputs">
 						<summary
 							class="flex cursor-pointer items-center gap-1 text-[11px] font-medium text-gray-500 select-none hover:text-gray-300"
 						>
-							<ChevronRight size={11} class="transition-transform group-open:rotate-90" />
+							<ChevronRight size={11} class="transition-transform group-open/inputs:rotate-90" />
 							Inputs this round
 						</summary>
 						<!-- Quoted, tinted block so the debate inputs read as a distinct aside,
@@ -335,7 +343,7 @@
 							</div>
 						</div>
 					</details>
-				</div>
+				</details>
 			{/each}
 		</div>
 	{/if}
