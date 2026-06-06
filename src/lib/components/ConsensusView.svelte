@@ -566,8 +566,7 @@
 								: 'cursor-not-allowed opacity-40'}"
 							onclick={() =>
 								consensusTempApplies && onconsensustemperamentchange(!consensusTemperament)}
-							{disabled}
-							aria-disabled={!consensusTempApplies}
+							disabled={disabled || !consensusTempApplies}
 							use:tooltip={!consensusTempApplies
 								? consensusSkipped
 									? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
@@ -589,8 +588,7 @@
 								? ''
 								: 'cursor-not-allowed opacity-40'}"
 							onclick={() => awarenessApplies && onawarenesschange(!temperamentAwareness)}
-							{disabled}
-							aria-disabled={!awarenessApplies}
+							disabled={disabled || !awarenessApplies}
 							use:tooltip={!awarenessApplies
 								? strategy === 'debate'
 									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'
