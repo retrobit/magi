@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { RefreshCw, LoaderCircle } from 'lucide-svelte';
+	import { RefreshCw } from 'lucide-svelte';
 
 	type ProviderName = 'openrouter' | 'anthropic' | 'openai' | 'google';
 	type BudgetStatus = 'ok' | 'unavailable' | 'error';
@@ -84,11 +84,7 @@
 		aria-label="Refresh budgets"
 		title="Refresh"
 	>
-		{#if loading}
-			<LoaderCircle size={12} class="animate-spin" />
-		{:else}
-			<RefreshCw size={12} />
-		{/if}
+		<RefreshCw size={12} class={loading ? 'animate-spin' : ''} />
 	</button>
 </div>
 
