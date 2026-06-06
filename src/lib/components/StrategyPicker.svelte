@@ -25,7 +25,16 @@
 	// get clipped by ConsensusView's `overflow-hidden` root (needed for its
 	// rounded internal scroll area). Fixed positioning escapes that entirely.
 	let triggerEl = $state<HTMLButtonElement | null>(null);
-	let menuPos = $state({ top: 0, left: 0 });
+	// Either `top` or `bottom` is set, never both — `placement === 'up'` puts
+	// the menu above the trigger (anchored to its top) so it doesn't run off
+	// the viewport bottom on a short window.
+	let menuPos = $state<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+
+	// Rough menu height for the smart-flip decision — 4 strategies × ~50px each
+	// plus padding. Re-measuring after render to be exact would mean a paint
+	// flicker; an estimate just decides direction.
+	const ESTIMATED_MENU_HEIGHT = 220;
+	const PLACEMENT_GAP = 4;
 
 	// Gradient-clipped text for the flagship marker — the three-MAGI triad,
 	// reusing the consensus gradient rather than introducing a new accent hue.
@@ -34,8 +43,14 @@
 	function measure() {
 		if (!triggerEl) return;
 		const r = triggerEl.getBoundingClientRect();
-		// 4px gap (mt-1 was the original) below the trigger.
-		menuPos = { top: r.bottom + 4, left: r.left };
+		const spaceBelow = window.innerHeight - r.bottom;
+		const spaceAbove = r.top;
+		// Flip up when there isn't room below AND there IS room above. This
+		// avoids the dumb case where both are cramped and we pick the worse one.
+		const flipUp = spaceBelow < ESTIMATED_MENU_HEIGHT && spaceAbove > spaceBelow;
+		menuPos = flipUp
+			? { bottom: window.innerHeight - r.top + PLACEMENT_GAP, left: r.left }
+			: { top: r.bottom + PLACEMENT_GAP, left: r.left };
 	}
 
 	function toggleOpen() {
@@ -100,7 +115,8 @@
 		></button>
 		<div
 			class="fixed z-50 flex w-72 flex-col gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-1 shadow-xl"
-			style:top="{menuPos.top}px"
+			style:top={menuPos.top !== undefined ? `${menuPos.top}px` : undefined}
+			style:bottom={menuPos.bottom !== undefined ? `${menuPos.bottom}px` : undefined}
 			style:left="{menuPos.left}px"
 			role="listbox"
 			aria-label="Consensus strategy"
