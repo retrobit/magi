@@ -426,7 +426,7 @@
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
-			class="flex items-center justify-between"
+			class="flex items-center justify-between select-none"
 			class:cursor-pointer={onheadertoggle}
 			onclick={onHeaderRowClick}
 			onkeydown={onHeaderRowKeydown}
