@@ -20,10 +20,28 @@
 	let { strategy, disabled = false, onchange }: Props = $props();
 
 	let open = $state(false);
+	// Trigger ref + measured position. The menu uses `position: fixed` and
+	// coordinates anchored to the trigger's bounding rect — `absolute` would
+	// get clipped by ConsensusView's `overflow-hidden` root (needed for its
+	// rounded internal scroll area). Fixed positioning escapes that entirely.
+	let triggerEl = $state<HTMLButtonElement | null>(null);
+	let menuPos = $state({ top: 0, left: 0 });
 
 	// Gradient-clipped text for the flagship marker — the three-MAGI triad,
 	// reusing the consensus gradient rather than introducing a new accent hue.
 	const gradientText = `${CONSENSUS_GRADIENT}; -webkit-background-clip: text; background-clip: text; color: transparent;`;
+
+	function measure() {
+		if (!triggerEl) return;
+		const r = triggerEl.getBoundingClientRect();
+		// 4px gap (mt-1 was the original) below the trigger.
+		menuPos = { top: r.bottom + 4, left: r.left };
+	}
+
+	function toggleOpen() {
+		if (!open) measure();
+		open = !open;
+	}
 
 	function select(s: StrategyName) {
 		onchange(s);
@@ -33,15 +51,27 @@
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') open = false;
 	}
+	// Re-measure on resize so the menu doesn't detach from the trigger if the
+	// layout reflows while it's open. Scroll inside an overflow-hidden ancestor
+	// doesn't fire window scroll, but viewport scroll does — close on that
+	// rather than chase the trigger.
+	function onWindowScroll() {
+		open = false;
+	}
 </script>
 
-<svelte:window onkeydown={open ? onKeydown : undefined} />
+<svelte:window
+	onkeydown={open ? onKeydown : undefined}
+	onresize={open ? measure : undefined}
+	onscroll={open ? onWindowScroll : undefined}
+/>
 
-<div class="relative inline-block">
+<div class="inline-block">
 	<button
 		type="button"
+		bind:this={triggerEl}
 		class="magi-select flex items-center gap-1 rounded bg-gray-800 py-0.5 pr-1.5 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-		onclick={() => (open = !open)}
+		onclick={toggleOpen}
 		{disabled}
 		aria-haspopup="listbox"
 		aria-expanded={open}
@@ -69,7 +99,9 @@
 			aria-label="Close strategy picker"
 		></button>
 		<div
-			class="absolute left-0 z-50 mt-1 flex w-72 flex-col gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-1 shadow-xl"
+			class="fixed z-50 flex w-72 flex-col gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-1 shadow-xl"
+			style:top="{menuPos.top}px"
+			style:left="{menuPos.left}px"
 			role="listbox"
 			aria-label="Consensus strategy"
 		>
