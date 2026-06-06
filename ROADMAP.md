@@ -14,6 +14,10 @@ Planned features, improvements, and known items for the MAGI project.
 
 - **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-06-05 (internal consistency only — re-synced TIER_CONFIGS to match the post-2026-05-23 Gemini upgrades in the registry; full external re-check vs current provider docs still due).
 
+## Temperaments
+
+- **Per-node temperament customization** — Today the three temperaments (Rationalist / Caretaker / Individualist) are hardcoded prompt templates in `temperaments.ts` and the mapping from node → temperament is fixed in `NODE_TEMPERAMENTS`. Let users override per node: the title, the system prompt body, and any other knobs (cold-vs-warm tone, exemplar phrasings, etc.). Persist customizations in localStorage alongside the rest of the per-tier prefs. Sensible defaults remain available via a reset, and the hover badges/tooltips should pick up the user's labels. Decide whether customizations are global or per-tier before designing the storage shape.
+
 ## Clients
 
 Build order matters here — each step forces the right abstraction for the next.
