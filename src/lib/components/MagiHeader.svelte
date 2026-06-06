@@ -26,9 +26,6 @@
 		/** Fires when the user picks a new debug scenario from the Debug panel —
 		 *  the parent owns the side effect of injecting it into live state. */
 		ondebugchange: (next: DebugScenario) => void;
-		/** Clicking the header bar (outside any control) fires this — the page
-		 *  uses it to advance the focus accordion through all three states. */
-		onheadertoggle?: () => void;
 	}
 
 	let {
@@ -40,41 +37,14 @@
 		loading,
 		debugScenario,
 		statsNonce,
-		ondebugchange,
-		onheadertoggle
+		ondebugchange
 	}: Props = $props();
 
 	let openPanel = $state<HeaderPanel | null>(null);
 	const togglePanel = (panel: HeaderPanel) => (openPanel = openPanel === panel ? null : panel);
-
-	function isControlClick(e: Event): boolean {
-		const t = e.target;
-		return t instanceof HTMLElement && !!t.closest('button, select, a, input, textarea');
-	}
-	function onHeaderClick(e: MouseEvent) {
-		if (!onheadertoggle || isControlClick(e)) return;
-		onheadertoggle();
-	}
-	function onHeaderKeydown(e: KeyboardEvent) {
-		if (!onheadertoggle) return;
-		if (e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			onheadertoggle();
-		}
-	}
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<header
-	class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950 select-none"
-	class:cursor-pointer={onheadertoggle}
-	onclick={onHeaderClick}
-	onkeydown={onHeaderKeydown}
-	role={onheadertoggle ? 'button' : undefined}
-	tabindex={onheadertoggle ? 0 : undefined}
-	aria-label={onheadertoggle ? 'Cycle layout focus' : undefined}
->
+<header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
 	<div class="relative mx-auto max-w-7xl px-4 py-4 md:px-6">
 		<h1 class="text-center magi-headline">
 			MAGI <span class="text-lg">🔺🔻🔺</span>

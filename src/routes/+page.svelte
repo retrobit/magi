@@ -121,11 +121,28 @@
 		const other = prefer === 'nodes' ? 'consensus' : 'nodes';
 		layoutFocus = layoutFocus === 'balanced' ? prefer : layoutFocus === prefer ? other : 'balanced';
 	}
-	// Main-header click has no zone preference — it just advances through the
-	// cycle in a fixed order. Clean "next state" affordance for the title bar.
+	// Status-bar click has no zone preference — it just advances through the
+	// cycle in a fixed order. Filter out clicks that landed on a button or
+	// other interactive descendant (New Conversation, LayoutToggle segments)
+	// so the existing controls still work.
 	function advanceLayout() {
 		layoutFocus =
 			layoutFocus === 'balanced' ? 'nodes' : layoutFocus === 'nodes' ? 'consensus' : 'balanced';
+	}
+	function isControlClick(e: Event): boolean {
+		const t = e.target;
+		return t instanceof HTMLElement && !!t.closest('button, select, a, input, textarea');
+	}
+	function onStatusBarClick(e: MouseEvent) {
+		if (isControlClick(e)) return;
+		advanceLayout();
+	}
+	function onStatusBarKeydown(e: KeyboardEvent) {
+		if (e.target !== e.currentTarget) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			advanceLayout();
+		}
 	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
@@ -938,7 +955,6 @@
 			debugScenario = next;
 			applyDebugScenario(next);
 		}}
-		onheadertoggle={advanceLayout}
 	/>
 
 	<!-- Control strip -->
@@ -1036,7 +1052,12 @@
 		     inner `sm:contents` wrapper disappears at sm+ so its children become
 		     direct grid items again. -->
 		<div
-			class="magi-panel flex shrink-0 flex-col gap-2 rounded-lg bg-gray-900/70 px-4 py-2 text-xs sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
+			class="magi-panel flex shrink-0 cursor-pointer flex-col gap-2 rounded-lg bg-gray-900/70 px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
+			onclick={onStatusBarClick}
+			onkeydown={onStatusBarKeydown}
+			role="button"
+			tabindex="0"
+			aria-label="Cycle layout focus"
 		>
 			<div class="flex items-center justify-between sm:contents">
 				<button
