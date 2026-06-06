@@ -46,7 +46,8 @@
 
 	let copied = $state(false);
 	function copyText() {
-		navigator.clipboard.writeText(text).catch(() => {});
+		if (!copyTarget) return;
+		navigator.clipboard.writeText(copyTarget).catch(() => {});
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
 	}
@@ -136,6 +137,15 @@
 	}
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
+
+	// What the copy button writes to the clipboard. `text` is the live-state
+	// prop — empty after a turn commits to the transcript — so without the
+	// transcript fallback the button would only appear in the brief
+	// post-stream / pre-commit window.
+	const lastTranscriptResponse = $derived(
+		[...transcript].reverse().find((t) => t.response)?.response ?? ''
+	);
+	const copyTarget = $derived(text || lastTranscriptResponse);
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
@@ -421,7 +431,7 @@
 						{/if}
 					</span>
 				{/if}
-				{#if status === 'success' && text}
+				{#if status === 'success' && copyTarget}
 					<button
 						class="text-gray-400 transition-colors hover:text-white"
 						onclick={copyText}
