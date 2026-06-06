@@ -121,6 +121,12 @@
 		const other = prefer === 'nodes' ? 'consensus' : 'nodes';
 		layoutFocus = layoutFocus === 'balanced' ? prefer : layoutFocus === prefer ? other : 'balanced';
 	}
+	// Main-header click has no zone preference — it just advances through the
+	// cycle in a fixed order. Clean "next state" affordance for the title bar.
+	function advanceLayout() {
+		layoutFocus =
+			layoutFocus === 'balanced' ? 'nodes' : layoutFocus === 'nodes' ? 'consensus' : 'balanced';
+	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
@@ -932,6 +938,7 @@
 			debugScenario = next;
 			applyDebugScenario(next);
 		}}
+		onheadertoggle={advanceLayout}
 	/>
 
 	<!-- Control strip -->
