@@ -37,7 +37,8 @@
 
 	let copied = $state(false);
 	function copyConsensus() {
-		navigator.clipboard.writeText(fullText).catch(() => {});
+		if (!copyTarget) return;
+		navigator.clipboard.writeText(copyTarget).catch(() => {});
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
 	}
@@ -160,8 +161,14 @@
 	// A consensus exists if it's streaming live or was committed to the transcript.
 	// Lets the header's done-check (and the debate banner) survive the live-state
 	// reset that fires when a turn commits.
-	const lastTurnConsensus = $derived(!!transcript[transcript.length - 1]?.consensus);
+	const lastTurnConsensusText = $derived(transcript[transcript.length - 1]?.consensus ?? '');
+	const lastTurnConsensus = $derived(!!lastTurnConsensusText);
 	const hasConsensus = $derived(text !== '' || lastTurnConsensus);
+	// What the copy button actually writes to the clipboard. `fullText` is the
+	// live-state final, which is reset to '' when a turn commits to the
+	// transcript — so without the transcript fallback the button would only
+	// appear in the brief post-stream / pre-commit window.
+	const copyTarget = $derived(fullText || lastTurnConsensusText);
 
 	// A finished debate earns a headline banner — the rounds are done and a final
 	// synthesis is on screen. Gradient-clipped text reuses the three-MAGI triad.
@@ -467,7 +474,7 @@
 					<LoaderCircle size={14} class="animate-spin magi-pending" />
 				{:else if hasConsensus}
 					<div class="flex items-center gap-2">
-						{#if fullText}
+						{#if copyTarget}
 							<button
 								class="text-gray-400 transition-colors hover:text-white"
 								onclick={copyConsensus}
