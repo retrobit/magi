@@ -32,25 +32,16 @@
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
+	import CopyScopeButton from './CopyScopeButton.svelte';
 	import {
 		Shuffle,
 		CircleAlert,
 		LoaderCircle,
 		CircleCheck,
 		CircleHelp,
-		Copy,
-		Check,
 		ChevronRight,
 		X
 	} from 'lucide-svelte';
-
-	let copied = $state(false);
-	function copyText() {
-		if (!copyTarget) return;
-		navigator.clipboard.writeText(copyTarget).catch(() => {});
-		copied = true;
-		setTimeout(() => (copied = false), 1500);
-	}
 
 	interface Props {
 		name: MagiNodeName;
@@ -138,14 +129,48 @@
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 
-	// What the copy button writes to the clipboard. `text` is the live-state
-	// prop — empty after a turn commits to the transcript — so without the
-	// transcript fallback the button would only appear in the brief
-	// post-stream / pre-commit window.
-	const lastTranscriptResponse = $derived(
-		[...transcript].reverse().find((t) => t.response)?.response ?? ''
+	// The latest entry that has actual content for this node. Used to fall back
+	// to the transcript after live state resets at turn commit.
+	const lastEntry = $derived([...transcript].reverse().find((t) => t.response));
+	// Final response — falls back to the most recent transcript entry once the
+	// live state is cleared.
+	const copyTarget = $derived(text || lastEntry?.response || '');
+	// Original query for the current/most-recent turn.
+	const copyQuery = $derived(liveQuery || lastEntry?.query || '');
+	// Debate rounds for the current/most-recent turn (live state holds them
+	// while a turn is in flight; transcript holds them after commit).
+	const copyRounds = $derived<DebateRoundEntry[]>(
+		debateRounds.length > 0 ? debateRounds : (lastEntry?.debateRounds ?? [])
 	);
-	const copyTarget = $derived(text || lastTranscriptResponse);
+
+	function formatRoundsBlock(rounds: DebateRoundEntry[]): string {
+		return rounds.map((r) => `Round ${r.round}:\n${r.response}`).join('\n\n');
+	}
+	// Materialized scope contents. Empty strings disable the corresponding
+	// option in the dropdown menu.
+	const copyScopes = $derived.by(() => {
+		const final = copyTarget;
+		const query = copyQuery;
+		const rounds = copyRounds;
+		const haveRounds = rounds.length > 0;
+		const queryAndFinal = query && final ? `Query:\n${query}\n\nFinal response:\n${final}` : '';
+		const finalAndRounds =
+			haveRounds && final ? `${formatRoundsBlock(rounds)}\n\nFinal response:\n${final}` : '';
+		const everything =
+			haveRounds && query && final
+				? `Query:\n${query}\n\n${formatRoundsBlock(rounds)}\n\nFinal response:\n${final}`
+				: '';
+		return [
+			{ id: 'final', label: 'Final response', content: final },
+			{ id: 'queryFinal', label: 'Query + final', content: queryAndFinal },
+			...(haveRounds
+				? [
+						{ id: 'finalRounds', label: 'Final + rounds', content: finalAndRounds },
+						{ id: 'everything', label: 'Everything', content: everything }
+					]
+				: [])
+		];
+	});
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
@@ -432,17 +457,7 @@
 					</span>
 				{/if}
 				{#if status === 'success' && copyTarget}
-					<button
-						class="text-gray-400 transition-colors hover:text-white"
-						onclick={copyText}
-						title="Copy response"
-					>
-						{#if copied}
-							<Check size={14} class="magi-success" />
-						{:else}
-							<Copy size={14} />
-						{/if}
-					</button>
+					<CopyScopeButton defaultId="final" scopes={copyScopes} title="Copy response" />
 				{/if}
 				{#if status === 'error'}
 					<X size={14} class="magi-error" />
