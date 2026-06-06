@@ -114,6 +114,13 @@
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
 	const setLayoutFocus = (focus: 'balanced' | 'nodes' | 'consensus') => (layoutFocus = focus);
+	// Each header's click advances through all three layout states, leading
+	// with that zone first: clicking a node header goes balanced → nodes →
+	// consensus → balanced, and clicking the consensus header mirrors it.
+	function cycleLayout(prefer: 'nodes' | 'consensus') {
+		const other = prefer === 'nodes' ? 'consensus' : 'nodes';
+		layoutFocus = layoutFocus === 'balanced' ? prefer : layoutFocus === prefer ? other : 'balanced';
+	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
@@ -1123,7 +1130,7 @@
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={() => (genericLabels = !genericLabels)}
-					onheadertoggle={() => (layoutFocus = layoutFocus === 'nodes' ? 'balanced' : 'nodes')}
+					onheadertoggle={() => cycleLayout('nodes')}
 				/>
 			{/each}
 		</div>
@@ -1163,8 +1170,7 @@
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
 				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}
-				onheadertoggle={() =>
-					(layoutFocus = layoutFocus === 'consensus' ? 'balanced' : 'consensus')}
+				onheadertoggle={() => cycleLayout('consensus')}
 			/>
 		</div>
 	</main>
