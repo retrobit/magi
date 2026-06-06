@@ -78,6 +78,9 @@
 		onawarenesschange?: (value: boolean) => void;
 		/** Collapsed to just the header (focus accordion). */
 		collapsed?: boolean;
+		/** Clicking the header strip (outside any control) fires this — the page
+		 *  uses it to toggle the focus accordion between balanced and consensus-expanded. */
+		onheadertoggle?: () => void;
 	}
 
 	let {
@@ -112,8 +115,26 @@
 		onconsensuschange,
 		onconsensustemperamentchange,
 		onawarenesschange,
-		collapsed = false
+		collapsed = false,
+		onheadertoggle
 	}: Props = $props();
+
+	function isControlClick(e: Event): boolean {
+		const t = e.target;
+		return t instanceof HTMLElement && !!t.closest('button, select, a, input, textarea');
+	}
+	function onHeaderRowClick(e: MouseEvent) {
+		if (!onheadertoggle || isControlClick(e)) return;
+		onheadertoggle();
+	}
+	function onHeaderRowKeydown(e: KeyboardEvent) {
+		if (!onheadertoggle) return;
+		if (e.target !== e.currentTarget) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onheadertoggle();
+		}
+	}
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
@@ -403,7 +424,16 @@
 >
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
-		<div class="flex items-center justify-between">
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div
+			class="flex items-center justify-between"
+			class:cursor-pointer={onheadertoggle}
+			onclick={onHeaderRowClick}
+			onkeydown={onHeaderRowKeydown}
+			role={onheadertoggle ? 'button' : undefined}
+			tabindex={onheadertoggle ? 0 : undefined}
+			aria-label={onheadertoggle ? 'Toggle consensus focus' : undefined}
+		>
 			<div class="flex items-center gap-2">
 				<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}

@@ -1123,6 +1123,7 @@
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={() => (genericLabels = !genericLabels)}
+					onheadertoggle={() => (layoutFocus = layoutFocus === 'nodes' ? 'balanced' : 'nodes')}
 				/>
 			{/each}
 		</div>
@@ -1162,6 +1163,8 @@
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
 				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}
+				onheadertoggle={() =>
+					(layoutFocus = layoutFocus === 'consensus' ? 'balanced' : 'consensus')}
 			/>
 		</div>
 	</main>
