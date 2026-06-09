@@ -24,31 +24,37 @@
 {/if}
 
 <style>
+	/* The soft glow comes from gradients that fade to transparent — NOT from
+	   `filter: blur()`. A large-radius blur on a half-viewport element is
+	   re-rasterized every animation frame (and isn't reliably GPU-accelerated on
+	   WebKit/macOS), which pegged a CPU core for as long as the app stayed open.
+	   A pre-faded gradient is painted once; the drift animation below only moves
+	   that cached layer via `transform`, which the compositor handles cheaply. */
+
 	/* Columns variant */
 	.aurora-col {
 		position: absolute;
 		top: 0;
 		bottom: 0;
 		width: 40%;
-		filter: blur(100px);
 		opacity: 0.12;
 		will-change: transform;
 	}
 
 	.aurora-col.aurora-red {
-		background: #ef4444;
+		background: linear-gradient(to right, transparent, #ef4444, transparent);
 		left: -5%;
 		animation: drift-col-left 20s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-green {
-		background: #34d399;
+		background: linear-gradient(to right, transparent, #34d399, transparent);
 		left: 30%;
 		animation: drift-col-center 24s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-blue {
-		background: #3b82f6;
+		background: linear-gradient(to right, transparent, #3b82f6, transparent);
 		right: -5%;
 		animation: drift-col-right 22s ease-in-out infinite;
 	}
@@ -88,28 +94,26 @@
 		position: absolute;
 		width: 50%;
 		height: 50%;
-		border-radius: 50%;
-		filter: blur(120px);
 		opacity: 0.12;
 		will-change: transform;
 	}
 
 	.aurora-blob.aurora-red {
-		background: #ef4444;
+		background: radial-gradient(circle, #ef4444 0%, transparent 70%);
 		bottom: -5%;
 		left: -10%;
 		animation: drift-orb-left 24s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-green {
-		background: #34d399;
+		background: radial-gradient(circle, #34d399 0%, transparent 70%);
 		top: -10%;
 		left: 25%;
 		animation: drift-orb-center 20s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-blue {
-		background: #3b82f6;
+		background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
 		bottom: -5%;
 		right: -10%;
 		animation: drift-orb-right 22s ease-in-out infinite;
@@ -151,6 +155,15 @@
 		}
 		66% {
 			transform: translate(-5%, -8%) scale(0.9);
+		}
+	}
+
+	/* Honor a reduced-motion preference by holding the aurora still. With the
+	   drift stopped the gradients are pure static paints — zero per-frame cost. */
+	@media (prefers-reduced-motion: reduce) {
+		.aurora-col,
+		.aurora-blob {
+			animation: none;
 		}
 	}
 </style>
