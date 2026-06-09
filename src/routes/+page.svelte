@@ -1,5 +1,6 @@
 <script lang="ts">
 	import MagiBackground from '$lib/components/MagiBackground.svelte';
+	import PerfOverlay from '$lib/components/PerfOverlay.svelte';
 	import TierSelector from '$lib/components/TierSelector.svelte';
 	import MagiPanel from '$lib/components/MagiPanel.svelte';
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
@@ -940,6 +941,10 @@
 		: ''}"
 >
 	<MagiBackground variant={bgVariant} />
+
+	{#if import.meta.env.DEV}
+		<PerfOverlay />
+	{/if}
 
 	<MagiHeader
 		bind:theme
