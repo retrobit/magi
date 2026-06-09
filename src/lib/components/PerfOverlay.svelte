@@ -21,7 +21,8 @@
 	let fps = $state(0);
 	let longTaskCount = $state(0);
 	let longTaskMs = $state(0);
-	let pressure = $state<string | null>(null);
+	let cpuPressure = $state<string | null>(null);
+	let gpuPressure = $state<string | null>(null);
 	let collapsed = $state(false);
 
 	function fpsColor(v: number): string {
@@ -96,29 +97,42 @@
 
 	// The Compute Pressure API has no DOM lib types yet — describe the slice we use.
 	interface PressureRecord {
+		source: string;
 		state: string;
 	}
 	interface PressureObserverLike {
-		observe(source: string, options?: { sampleInterval?: number }): void;
+		observe(source: string, options?: { sampleInterval?: number }): Promise<void> | void;
 		disconnect(): void;
 	}
-	type PressureObserverCtor = new (
-		callback: (records: PressureRecord[]) => void
-	) => PressureObserverLike;
+	type PressureObserverCtor = {
+		new (callback: (records: PressureRecord[]) => void): PressureObserverLike;
+		knownSources?: readonly string[];
+	};
 
 	$effect(() => {
 		const Ctor = (globalThis as unknown as { PressureObserver?: PressureObserverCtor })
 			.PressureObserver;
 		if (!Ctor) return;
+		// Only "cpu" ships today; "gpu" is a future source named in the spec. Observe
+		// whichever the browser advertises so the GPU row lights up automatically if
+		// it ever lands — until then it reads "n/a". knownSources is a hint, so an
+		// observe() can still reject; swallow that per-source.
+		const known = Ctor.knownSources ?? [];
 		let observer: PressureObserverLike;
 		try {
 			observer = new Ctor((records) => {
-				const latest = records[records.length - 1];
-				if (latest) pressure = latest.state;
+				for (const r of records) {
+					if (r.source === 'cpu') cpuPressure = r.state;
+					else if (r.source === 'gpu') gpuPressure = r.state;
+				}
 			});
-			observer.observe('cpu', { sampleInterval: 1000 });
+			for (const source of ['cpu', 'gpu'] as const) {
+				if (known.includes(source)) {
+					Promise.resolve(observer.observe(source, { sampleInterval: 1000 })).catch(() => {});
+				}
+			}
 		} catch {
-			// Source unsupported or blocked by permissions policy — show n/a.
+			// Constructor unsupported or blocked by permissions policy — show n/a.
 			return;
 		}
 		return () => observer.disconnect();
@@ -164,7 +178,11 @@
 		</div>
 		<div class="flex justify-between">
 			<span>CPU</span>
-			<span class={pressureColor(pressure)}>{pressure ?? 'n/a'}</span>
+			<span class={pressureColor(cpuPressure)}>{cpuPressure ?? 'n/a'}</span>
+		</div>
+		<div class="flex justify-between">
+			<span>GPU</span>
+			<span class={pressureColor(gpuPressure)}>{gpuPressure ?? 'n/a'}</span>
 		</div>
 	</div>
 {/if}
