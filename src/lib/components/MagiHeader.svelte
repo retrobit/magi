@@ -4,10 +4,13 @@
 	// is ever open at a time — that's a UI invariant the parent doesn't need to
 	// know about.
 	import type { Snippet } from 'svelte';
-	import { Settings, Bug, BarChart3, Wallet, X, Menu } from 'lucide-svelte';
+	import { Settings, Bug, BarChart3, Wallet, X, Menu, RotateCcw } from 'lucide-svelte';
 	import BudgetReadout from './BudgetReadout.svelte';
 	import StatsPanel from './StatsPanel.svelte';
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
+	import ConfirmModal from './ConfirmModal.svelte';
+	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
+	import { clearRunStats } from '$lib/magi/run-stats';
 	import type { NodeAssignment } from '$lib/magi/config';
 	import type { ScrollMode } from '$lib/magi/types';
 
@@ -42,6 +45,18 @@
 
 	let openPanel = $state<HeaderPanel | null>(null);
 	const togglePanel = (panel: HeaderPanel) => (openPanel = openPanel === panel ? null : panel);
+
+	let showResetConfirm = $state(false);
+
+	// Wipe every persisted slice — global settings + per-tier model snapshots
+	// (prefs), conversation history, and run stats — then reload so in-memory
+	// state is rebuilt from the now-empty storage, restoring in-code defaults.
+	function resetToDefaults() {
+		clearPrefs();
+		clearConversations();
+		clearRunStats();
+		location.reload();
+	}
 </script>
 
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
@@ -253,6 +268,18 @@
 				Off
 			</button>
 		</div>
+		<div class="mt-3 border-t border-gray-800 pt-3">
+			<button
+				type="button"
+				class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-red-400 transition-colors hover:bg-red-950/40 hover:text-red-300"
+				onclick={() => {
+					openPanel = null;
+					showResetConfirm = true;
+				}}
+			>
+				<RotateCcw size={13} /> Reset to defaults
+			</button>
+		</div>
 	</div>
 {/snippet}
 
@@ -298,3 +325,13 @@
 {#snippet statsBody()}
 	<StatsPanel nonce={statsNonce} {genericLabels} onclose={() => (openPanel = null)} />
 {/snippet}
+
+{#if showResetConfirm}
+	<ConfirmModal
+		title="Reset everything?"
+		message="This clears all saved settings, per-tier model selections, conversation history, and run stats, then reloads. This can't be undone."
+		confirmLabel="Reset"
+		onconfirm={resetToDefaults}
+		oncancel={() => (showResetConfirm = false)}
+	/>
+{/if}

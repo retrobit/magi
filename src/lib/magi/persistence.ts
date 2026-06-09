@@ -191,3 +191,13 @@ export function saveConversations(
 		// Quota exceeded or storage disabled — non-fatal.
 	}
 }
+
+/** Discard all saved conversations across every tier (used by "reset to defaults"). */
+export function clearConversations(): void {
+	if (!storageAvailable()) return;
+	try {
+		localStorage.removeItem(CONVERSATION_KEY);
+	} catch {
+		// Non-fatal.
+	}
+}

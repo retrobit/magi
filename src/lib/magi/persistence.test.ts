@@ -5,6 +5,7 @@ import {
 	clearPrefs,
 	loadConversations,
 	saveConversations,
+	clearConversations,
 	type MagiPrefs,
 	type PersistedSettings
 } from './persistence';
@@ -243,5 +244,18 @@ describe('loadConversations / saveConversations', () => {
 			removeItem: () => {}
 		});
 		expect(() => saveConversations({ balanced: [validTurn] })).not.toThrow();
+	});
+});
+
+describe('clearConversations', () => {
+	it('removes all stored conversations', () => {
+		saveConversations({ balanced: [validTurn] });
+		clearConversations();
+		expect(loadConversations()).toEqual({});
+	});
+
+	it('is a no-op when storage is unavailable', () => {
+		removeStorage();
+		expect(() => clearConversations()).not.toThrow();
 	});
 });
