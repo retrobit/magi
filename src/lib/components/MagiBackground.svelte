@@ -192,7 +192,7 @@
 						<stop offset="0%" stop-color="#bcd6ff" stop-opacity="0.05" />
 						<stop offset="48%" stop-color="#bcd6ff" stop-opacity="0.01" />
 						<stop offset="66%" stop-color="#000" stop-opacity="0" />
-						<stop offset="84%" stop-color="#000" stop-opacity="0.1" />
+						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.1" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
 					</radialGradient>
 				</defs>
@@ -443,10 +443,21 @@
 	   lines flip darker than the #e8eaef surface so the grid stays visible;
 	   the glow stays warm-neutral. No page-bg duplication anywhere — the
 	   translucent strokes composite over whatever the real page bg is. */
+	/* The dome's dark shadow rim (a faint vignette ~370px out) is invisible on the
+	   near-black page but reads as a gray "circle outline" over the light surface.
+	   Nearly zero it in light mode — the bright core still gives the lit-bump look,
+	   just without the dark ring at the edge. */
+	:global(.light) .hex-dome-rim {
+		stop-opacity: 0.015;
+	}
+
 	:global(.light) .hex-svg {
 		--hex-line: #4b5563; /* gray-600 */
 		--hex-line-hot: #3b6aa8; /* deeper blue glow, legible on the light surface */
-		--hex-base-opacity: 0.08;
-		--hex-glow-opacity: 0.18;
+		/* A dark stroke over a light surface needs more opacity than the inverse to
+		   read with the same presence — dark mode's lattice was far more visible by
+		   eye, so the light values are lifted to close the gap without going noisy. */
+		--hex-base-opacity: 0.12;
+		--hex-glow-opacity: 0.24;
 	}
 </style>
