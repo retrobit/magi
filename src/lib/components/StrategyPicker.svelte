@@ -8,7 +8,7 @@
 		type StrategyName
 	} from '$lib/magi/consensus';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { ChevronDown, Check } from 'lucide-svelte';
+	import { Check } from 'lucide-svelte';
 
 	interface Props {
 		strategy: StrategyName;
@@ -27,7 +27,10 @@
 	// Either `top` or `bottom` is set, never both — `placement === 'up'` puts
 	// the menu above the trigger (anchored to its top) so it doesn't run off
 	// the viewport bottom on a short window.
-	let menuPos = $state<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+	let menuPos = $state<{ top?: number; bottom?: number; left: number; maxHeight: number }>({
+		left: 0,
+		maxHeight: 0
+	});
 
 	// Rough menu height for the smart-flip decision — 4 strategies × ~50px each
 	// plus padding. Re-measuring after render to be exact would mean a paint
@@ -46,9 +49,13 @@
 		// Flip up when there isn't room below AND there IS room above. This
 		// avoids the dumb case where both are cramped and we pick the worse one.
 		const flipUp = spaceBelow < ESTIMATED_MENU_HEIGHT && spaceAbove > spaceBelow;
+		// Cap the menu to the space in the chosen direction (less an 8px margin)
+		// and let it scroll — otherwise a trigger low in a short viewport clips
+		// the last strategy off the bottom with no way to reach it.
+		const maxHeight = Math.max(120, (flipUp ? spaceAbove : spaceBelow) - PLACEMENT_GAP - 8);
 		menuPos = flipUp
-			? { bottom: window.innerHeight - r.top + PLACEMENT_GAP, left: r.left }
-			: { top: r.bottom + PLACEMENT_GAP, left: r.left };
+			? { bottom: window.innerHeight - r.top + PLACEMENT_GAP, left: r.left, maxHeight }
+			: { top: r.bottom + PLACEMENT_GAP, left: r.left, maxHeight };
 	}
 
 	function toggleOpen() {
@@ -83,7 +90,7 @@
 	<button
 		type="button"
 		bind:this={triggerEl}
-		class="magi-select flex items-center gap-1 rounded py-0.5 pr-1.5 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+		class="magi-select flex items-center gap-1 rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 		onclick={toggleOpen}
 		{disabled}
 		aria-haspopup="listbox"
@@ -101,7 +108,6 @@
 		{:else}
 			<span>{STRATEGY_LABELS[strategy]}</span>
 		{/if}
-		<ChevronDown size={12} class="text-gray-500" />
 	</button>
 
 	{#if open}
@@ -112,10 +118,11 @@
 			aria-label="Close strategy picker"
 		></button>
 		<div
-			class="fixed z-50 flex w-72 flex-col gap-0.5 magi-popover p-1"
+			class="fixed z-50 flex w-72 flex-col gap-0.5 overflow-y-auto magi-popover p-1"
 			style:top={menuPos.top !== undefined ? `${menuPos.top}px` : undefined}
 			style:bottom={menuPos.bottom !== undefined ? `${menuPos.bottom}px` : undefined}
 			style:left="{menuPos.left}px"
+			style:max-height="{menuPos.maxHeight}px"
 			role="listbox"
 			aria-label="Consensus strategy"
 		>
