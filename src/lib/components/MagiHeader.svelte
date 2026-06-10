@@ -63,7 +63,15 @@
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
 	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
 		<h1 class="text-center magi-headline">
-			MAGI <span class="text-lg">🔺🔻🔺</span>
+			<a
+				href="https://github.com/retrobit/magi"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="inline-block transition-opacity hover:opacity-80"
+				title="View MAGI on GitHub"
+			>
+				MAGI <span class="text-lg">🔺🔻🔺</span>
+			</a>
 		</h1>
 		<div class="absolute top-1/2 right-4 -translate-y-1/2 md:right-6">
 			<!-- Mobile: single hamburger that opens a menu listing every section -->
