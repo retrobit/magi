@@ -346,8 +346,8 @@
 		inset: 0;
 		--hex-line: #9ca3af; /* gray-400 on the gray-950 page */
 		--hex-line-hot: #d6d3d1; /* stone-300: faint neutral-warm accent */
-		--hex-base-opacity: 0.06;
-		--hex-glow-opacity: 0.22;
+		--hex-base-opacity: 0.11;
+		--hex-glow-opacity: 0.28;
 	}
 
 	.hex-base {

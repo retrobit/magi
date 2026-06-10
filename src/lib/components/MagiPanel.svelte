@@ -29,7 +29,6 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { isControlClick } from '$lib/actions/click-guard';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -73,9 +72,6 @@
 		usedProviders?: string[];
 		onchange?: (gateway: GatewayName, provider: string, modelId: string) => void;
 		onlabelclick?: () => void;
-		/** Clicking the header strip (outside any control) fires this — the page
-		 *  uses it to toggle the focus accordion between balanced and nodes-expanded. */
-		onheadertoggle?: () => void;
 	}
 
 	let {
@@ -104,25 +100,8 @@
 		disabled = false,
 		usedProviders = [],
 		onchange,
-		onlabelclick,
-		onheadertoggle
+		onlabelclick
 	}: Props = $props();
-
-	// Fire `onheadertoggle` for clicks that land on the header strip itself
-	// (not on a button/select/anchor child). Same handler covers the keyboard
-	// path so the strip is keyboard-operable when a callback is wired.
-	function onHeaderRowClick(e: MouseEvent) {
-		if (!onheadertoggle || isControlClick(e)) return;
-		onheadertoggle();
-	}
-	function onHeaderRowKeydown(e: KeyboardEvent) {
-		if (!onheadertoggle) return;
-		if (e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			onheadertoggle();
-		}
-	}
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 
@@ -436,16 +415,7 @@
 >
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<div
-			class="flex items-center justify-between select-none"
-			class:cursor-pointer={onheadertoggle}
-			onclick={onHeaderRowClick}
-			onkeydown={onHeaderRowKeydown}
-			role={onheadertoggle ? 'button' : undefined}
-			tabindex={onheadertoggle ? 0 : undefined}
-			aria-label={onheadertoggle ? 'Toggle node focus' : undefined}
-		>
+		<div class="flex items-center justify-between select-none">
 			<div class="flex items-center gap-2">
 				<button
 					type="button"

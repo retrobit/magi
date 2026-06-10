@@ -29,7 +29,6 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { isControlClick } from '$lib/actions/click-guard';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -89,9 +88,6 @@
 		onawarenesschange?: (value: boolean) => void;
 		/** Collapsed to just the header (focus accordion). */
 		collapsed?: boolean;
-		/** Clicking the header strip (outside any control) fires this — the page
-		 *  uses it to toggle the focus accordion between balanced and consensus-expanded. */
-		onheadertoggle?: () => void;
 	}
 
 	let {
@@ -127,22 +123,8 @@
 		onconsensuschange,
 		onconsensustemperamentchange,
 		onawarenesschange,
-		collapsed = false,
-		onheadertoggle
+		collapsed = false
 	}: Props = $props();
-
-	function onHeaderRowClick(e: MouseEvent) {
-		if (!onheadertoggle || isControlClick(e)) return;
-		onheadertoggle();
-	}
-	function onHeaderRowKeydown(e: KeyboardEvent) {
-		if (!onheadertoggle) return;
-		if (e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			onheadertoggle();
-		}
-	}
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
@@ -453,16 +435,7 @@
 >
 	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<div
-			class="flex items-center justify-between select-none"
-			class:cursor-pointer={onheadertoggle}
-			onclick={onHeaderRowClick}
-			onkeydown={onHeaderRowKeydown}
-			role={onheadertoggle ? 'button' : undefined}
-			tabindex={onheadertoggle ? 0 : undefined}
-			aria-label={onheadertoggle ? 'Toggle consensus focus' : undefined}
-		>
+		<div class="flex items-center justify-between select-none">
 			<div class="flex items-center gap-2">
 				<h3 class="magi-gradient-text text-base font-bold">MAGI CONSENSUS</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}

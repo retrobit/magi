@@ -9,7 +9,6 @@
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { isControlClick } from '$lib/actions/click-guard';
 	import {
 		freshDebugScenario,
 		isDebugScenarioActive,
@@ -108,7 +107,7 @@
 	let copiedQuery = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
-	let bgVariant = $state<BgVariant>('orbs');
+	let bgVariant = $state<BgVariant>('hex');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
 	// Focus accordion between the node row and the consensus. The status-bar layout
@@ -118,26 +117,8 @@
 	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
+	// The LayoutToggle segmented control is the sole way to change layout focus.
 	const setLayoutFocus = (focus: 'balanced' | 'nodes' | 'consensus') => (layoutFocus = focus);
-	// Each header's click advances through all three layout states, leading
-	// with that zone first: clicking a node header goes balanced → nodes →
-	// consensus → balanced, and clicking the consensus header mirrors it.
-	function cycleLayout(prefer: 'nodes' | 'consensus') {
-		const other = prefer === 'nodes' ? 'consensus' : 'nodes';
-		layoutFocus = layoutFocus === 'balanced' ? prefer : layoutFocus === prefer ? other : 'balanced';
-	}
-	// Status-bar click has no zone preference — it just advances through the
-	// cycle in a fixed order. Filter out clicks that landed on a button or
-	// other interactive descendant (New Conversation, LayoutToggle segments)
-	// so the existing controls still work.
-	function advanceLayout() {
-		layoutFocus =
-			layoutFocus === 'balanced' ? 'nodes' : layoutFocus === 'nodes' ? 'consensus' : 'balanced';
-	}
-	function onStatusBarClick(e: MouseEvent) {
-		if (isControlClick(e)) return;
-		advanceLayout();
-	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
@@ -1117,7 +1098,7 @@
 			</div>
 			<button
 				type="button"
-				class="magi-randomize flex shrink-0 items-center justify-center rounded-lg px-3 transition-colors disabled:opacity-50"
+				class="magi-input flex w-12 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-(--magi-text) disabled:opacity-50"
 				onclick={fillRandomPrompt}
 				disabled={loading}
 				use:tooltip={'Fill the input with a random prompt — review it, then Execute'}
@@ -1164,10 +1145,8 @@
 		     button + toggle share row 1 and the counters get row 2 alone — the
 		     inner `sm:contents` wrapper disappears at sm+ so its children become
 		     direct grid items again. -->
-		<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 		<div
-			class="magi-panel flex shrink-0 cursor-pointer flex-col gap-2 rounded-lg px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
-			onclick={onStatusBarClick}
+			class="magi-panel flex shrink-0 flex-col gap-2 rounded-lg px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
 		>
 			<div class="flex items-center justify-between sm:contents">
 				<button
@@ -1243,7 +1222,7 @@
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
-					<div class="hidden pt-16 md:flex md:items-start">
+					<div class="hidden md:flex md:items-center">
 						<button
 							type="button"
 							onclick={() => handleSwap(i - 1, i)}
@@ -1282,7 +1261,6 @@
 					usedProviders={getUsedProviders(i)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={() => (genericLabels = !genericLabels)}
-					onheadertoggle={() => cycleLayout('nodes')}
 				/>
 			{/each}
 		</div>
@@ -1323,7 +1301,6 @@
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
 				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}
-				onheadertoggle={() => cycleLayout('consensus')}
 			/>
 		</div>
 	</main>

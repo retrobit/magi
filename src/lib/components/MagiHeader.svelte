@@ -216,6 +216,14 @@
 		<span class="mt-3 magi-label-muted">Background</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				onclick={() => (bgVariant = 'hex')}
+			>
+				Hex
+			</button>
+			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
@@ -230,14 +238,6 @@
 				onclick={() => (bgVariant = 'columns')}
 			>
 				Columns
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				onclick={() => (bgVariant = 'hex')}
-			>
-				Hex
 			</button>
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
