@@ -67,245 +67,264 @@
 	@apply text-sm text-gray-600;
 }
 @utility magi-warn {
-	@apply text-amber-400;
+	color: var(--magi-color-warn);
 }
 @utility magi-pending {
-	@apply text-yellow-400;
+	color: var(--magi-color-pending);
 }
 @utility magi-error {
-	@apply text-red-400;
+	color: var(--magi-color-error);
 }
 @utility magi-success {
-	@apply text-green-400;
+	color: var(--magi-color-success);
 }
 @utility magi-unknown {
-	@apply text-orange-400;
+	color: var(--magi-color-unknown);
+}
+
+/* ── Shared surface & rule utilities ── */
+
+/* Every floating surface (header popovers, menus, the confirm modal) uses this
+   one recipe; light mode themes them all by overriding two variables. */
+@utility magi-popover {
+	@apply rounded-lg border shadow-xl;
+	background-color: var(--magi-popover-bg);
+	border-color: var(--magi-popover-border);
+}
+
+/* Interior rules (panel-header dividers, turn separators). Compose with
+   border-b / border-t at the call site. */
+@utility magi-divider {
+	border-color: var(--magi-border-subtle);
+}
+
+/* The RGB-triad gradient clipped to text (consensus headline, Flagship chip). */
+@utility magi-gradient-text {
+	background: var(--magi-consensus-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* ── Theme variables ──
+   Dark is the base theme: every themed surface reads a --magi-* variable
+   declared here, and light mode is (almost) purely the variable override
+   block at the bottom of this section. Two hard rules, learned the painful
+   way:
+   1. No un-layered `.light <selector>` remaps of utility-styled elements —
+      un-layered CSS beats every Tailwind utility regardless of specificity,
+      and such remaps rot silently (the old `.light .text-*-400` block
+      matched almost nothing by the time it was deleted).
+   2. The `.light` class lives on <html> (toggled in +page.svelte), so
+      body-portaled elements like the tooltip inherit the overridden vars. */
+:root {
+	/* Node identity triad — keep in lockstep with NODE_HEX_COLORS in types.ts */
+	--magi-node-red: #ef4444;
+	--magi-node-green: #34d399;
+	--magi-node-blue: #3b82f6;
+	--magi-consensus-gradient: linear-gradient(
+		to right,
+		var(--magi-node-red),
+		var(--magi-node-green),
+		var(--magi-node-blue)
+	);
+
+	/* Page & panel surfaces */
+	--magi-page-bg: var(--color-gray-950);
+	--magi-text: #ffffff;
+	--magi-text-secondary: var(--color-gray-300);
+	--magi-text-muted: var(--color-gray-500);
+	--magi-text-faint: var(--color-gray-500);
+	--magi-panel-bg: color-mix(in oklab, var(--color-gray-900) 70%, transparent);
+	--magi-panel-shadow: none;
+	/* Outlines vs interior rules: the subtle var must never read stronger
+	   than the outline — the old gray-700 header dividers inside gray-800
+	   panel borders had the hierarchy inverted. */
+	--magi-border: var(--color-gray-800);
+	--magi-border-subtle: var(--color-gray-800);
+
+	/* Controls */
+	--magi-surface-bg: var(--color-gray-800);
+	--magi-surface-hover: var(--color-gray-700);
+	--magi-control-border: var(--color-gray-500);
+	--magi-input-bg: var(--color-gray-900);
+	--magi-input-border: var(--color-gray-700);
+	--magi-btn-bg: var(--color-gray-600);
+	--magi-toggle-on-bg: color-mix(in oklab, var(--color-gray-600) 30%, transparent);
+	--magi-token-split-color: var(--color-gray-500);
+	--magi-token-total-color: var(--color-gray-500);
+
+	/* Floating surfaces (header popovers, menus, tooltip, modal) */
+	--magi-popover-bg: var(--color-gray-900);
+	--magi-popover-border: var(--color-gray-700);
+
+	/* Status colors — light mode darkens these for white surfaces */
+	--magi-color-error: var(--color-red-400);
+	--magi-color-warn: var(--color-amber-400);
+	--magi-color-pending: var(--color-yellow-400);
+	--magi-color-success: var(--color-green-400);
+	--magi-color-unknown: var(--color-orange-400);
 }
 
 /* ── Hover tooltip (use:tooltip action) ──
    Typography composes the `magi-meta` size tier so retuning the small-text
-   scale propagates here automatically. Color stays gray-200 for contrast on
-   the dark tooltip background — overrides magi-meta's gray-500 default. */
+   scale propagates here automatically; the color override keeps contrast on
+   the popover surface in both themes. Portaled to <body>, which is why the
+   theme class must live on <html>. */
 .magi-tooltip {
 	position: fixed;
 	z-index: 100;
 	max-width: 16rem;
 	padding: 0.375rem 0.5rem;
 	border-radius: 0.375rem;
-	background: #1f2937; /* gray-800 */
-	border: 1px solid #374151; /* gray-700 */
+	background: var(--magi-popover-bg);
+	border: 1px solid var(--magi-popover-border);
 	box-shadow: 0 4px 12px rgb(0 0 0 / 0.4);
 	pointer-events: none;
 	white-space: normal;
-	@apply magi-meta text-gray-200;
+	@apply magi-meta;
+	color: var(--magi-text);
 	line-height: 1rem;
 }
 
-/* ── MAGI background effect ── */
-.magi-bg {
-	position: relative;
-}
-
-/* Layer content above the absolute-positioned MagiBackground. Lives in the
-   `components` layer so Tailwind utilities (e.g. `fixed`, `z-50`) on direct
-   children — like the header popovers — override it naturally. */
+/* ── Component surfaces ──
+   Inside @layer components so Tailwind utilities at a call site win when a
+   one-off needs to deviate (un-layered rules would silently overpower them). */
 @layer components {
+	/* Layer content above the fixed-position MagiBackground. */
 	.magi-bg > *:not([aria-hidden]) {
 		position: relative;
 		z-index: 1;
 	}
+
+	.magi-bg {
+		position: relative;
+		background-color: var(--magi-page-bg);
+		color: var(--magi-text);
+	}
+
+	/* Header + controls strip stay dark in both themes (their backgrounds are
+	   dark utilities at the call sites); pin light text so the page-level
+	   inherited color flipping dark in light mode can't reach them. */
+	.magi-header,
+	.magi-controls {
+		color: #fff;
+	}
+
+	.magi-panel {
+		border: 1px solid var(--magi-border);
+		background-color: var(--magi-panel-bg);
+		box-shadow: var(--magi-panel-shadow);
+	}
+
+	.magi-turn-divider {
+		border-color: var(--magi-border-subtle);
+	}
+
+	/* Randomize button — match the auto-bordered <select> controls */
+	.magi-randomize {
+		border: 1px solid var(--magi-control-border);
+		background-color: var(--magi-surface-bg);
+		color: var(--magi-text-muted);
+	}
+
+	.magi-randomize:hover:not(:disabled) {
+		background-color: var(--magi-surface-hover);
+		color: var(--magi-text);
+	}
+
+	.magi-newconv-btn {
+		border: 1px solid var(--magi-control-border);
+		background-color: var(--magi-surface-bg);
+		color: var(--magi-text-secondary);
+	}
+
+	.magi-newconv-btn:hover:not(:disabled) {
+		background-color: var(--magi-surface-hover);
+		color: var(--magi-text);
+	}
+
+	.magi-input {
+		background-color: var(--magi-input-bg);
+		border: 1px solid var(--magi-input-border);
+		color: var(--magi-text);
+	}
+
+	.magi-input::placeholder {
+		color: var(--magi-text-faint);
+	}
+
+	.magi-select {
+		background-color: var(--magi-surface-bg);
+		color: var(--magi-text-secondary);
+	}
+
+	.magi-btn {
+		background-color: var(--magi-btn-bg);
+		color: #fff;
+	}
+
+	.magi-temperament-toggle {
+		background-color: var(--magi-surface-bg);
+		color: var(--magi-text-muted);
+	}
+
+	.magi-temperament-toggle:hover:not(:disabled) {
+		background-color: var(--magi-surface-hover);
+		color: var(--magi-text-secondary);
+	}
+
+	.magi-temperament-toggle-on {
+		background-color: var(--magi-toggle-on-bg);
+		color: var(--magi-text);
+	}
+
+	.magi-temperament-badge {
+		color: var(--magi-text-secondary);
+	}
+
+	/* Token counts — dark shows per-turn splits at the same weight as the
+	   total; light dims the total below the splits (original weighting). */
+	.magi-token-split {
+		color: var(--magi-token-split-color);
+	}
+
+	.magi-token-total {
+		color: var(--magi-token-total-color);
+	}
 }
 
-/* ── Panel & control definition (both themes) ── */
-.magi-panel {
-	border: 1px solid #1f2937;
-}
-
-/* Randomize button — match the auto-bordered <select> controls */
-.magi-randomize {
-	border: 1px solid #6b7280;
-}
-
-/* "New conversation" button */
-.magi-newconv-btn {
-	border: 1px solid #4b5563;
-}
-
-/* ── Light mode overrides ── */
+/* ── Light mode ──
+   A variable override block, nothing more. Custom-property declarations
+   don't fight Tailwind utilities, so this stays un-layered safely. */
 .light {
 	--magi-page-bg: #e8eaef;
-	--magi-panel-bg: rgba(255, 255, 255, 0.9);
-	--magi-surface-bg: #f3f4f6;
-	--magi-border: #d1d5db;
 	--magi-text: #111827;
+	--magi-text-secondary: #374151;
 	--magi-text-muted: #6b7280;
 	--magi-text-faint: #9ca3af;
-}
-
-.light.magi-bg {
-	background-color: var(--magi-page-bg);
-	color: var(--magi-text);
-}
-
-/* Header stays dark */
-.light .magi-header {
-	background-color: #030712;
-	border-color: #1f2937;
-	color: white;
-}
-
-.light .magi-controls {
-	background-color: #030712;
-	border-color: #1f2937;
-	color: white;
-}
-
-.light .magi-controls span {
-	color: #9ca3af;
-}
-
-/* Temperament/tier buttons inherit white text from dark controls strip */
-.light .magi-controls button {
-	color: white;
-}
-
-.light .magi-panel {
-	background-color: var(--magi-panel-bg);
-	border-color: var(--magi-border);
-	box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
-}
-
-.light .magi-panel .border-b {
-	border-color: var(--magi-border);
-}
-
-.light .magi-panel .border-t {
-	border-color: var(--magi-border);
-}
-
-/* Conversation turn separators */
-.light .magi-turn-divider {
-	border-color: var(--magi-border);
-}
-
-/* Temperament badges & consensus toggles — readable on the light panel */
-.light .magi-temperament-badge {
-	color: #374151;
-}
-
-.light .magi-temperament-toggle {
-	background-color: var(--magi-surface-bg);
-	color: var(--magi-text-muted);
-}
-
-.light .magi-temperament-toggle:hover {
-	background-color: #e5e7eb;
-	color: var(--magi-text);
-}
-
-.light .magi-temperament-toggle-on {
-	background-color: #d1d5db;
-	color: var(--magi-text);
-}
-
-/* "New conversation" button — light surface so it isn't dark-on-dark */
-.light .magi-newconv-btn {
-	background-color: var(--magi-surface-bg);
-	border-color: #9ca3af;
-}
-
-.light .magi-newconv-btn:hover {
-	background-color: #e5e7eb;
-}
-
-/* Token counts — dark theme shows per-turn splits brighter than the running
-   total; light theme keeps the original weighting (splits dimmer). */
-.light .magi-token-split {
-	color: #4b5563;
-}
-
-.light .magi-token-total {
-	color: #9ca3af;
-}
-
-.light .magi-panel button,
-.light .magi-panel h3 {
-	color: var(--magi-text);
-}
-
-/* Status colors — the dark-tuned -400/-500 shades wash out on a light panel,
-   so remap them to darker shades that stay legible in both themes. */
-.light .text-red-400,
-.light .text-red-500 {
-	color: #dc2626;
-}
-
-.light .text-orange-400,
-.light .text-orange-500 {
-	color: #ea580c;
-}
-
-.light .text-amber-400 {
-	color: #b45309;
-}
-
-.light .text-yellow-400 {
-	color: #a16207;
-}
-
-.light .text-green-400 {
-	color: #16a34a;
-}
-
-.light .magi-input {
-	background-color: white;
-	border-color: #d1d5db;
-	color: var(--magi-text);
-}
-
-.light .magi-input::placeholder {
-	color: var(--magi-text-faint);
-}
-
-.light .magi-select {
-	background-color: var(--magi-surface-bg);
-	color: var(--magi-text);
-}
-
-.light .magi-btn {
-	background-color: #4b5563;
-}
-
-.light .magi-btn:hover {
-	background-color: #374151;
-}
-
-/* Tier selector — stays on dark control strip, no override needed */
-
-/* Temperament toggle — stays on dark control strip, no override needed */
-
-/* Randomize / shuffle button */
-.light .magi-panel .magi-randomize {
-	background-color: var(--magi-surface-bg);
-	color: var(--magi-text-muted);
-	border-color: #9ca3af;
-}
-
-.light .magi-panel .magi-randomize:hover {
-	background-color: #e5e7eb;
-	color: var(--magi-text);
-}
-
-/* Consensus selects */
-.light .magi-panel select {
-	background-color: var(--magi-surface-bg);
-	color: var(--magi-text);
-}
-
-/* Settings dropdown in light mode */
-.light ~ .magi-settings-dropdown {
-	background-color: white;
-	border-color: var(--magi-border);
+	/* Opaque — translucent white let aurora orbs ghost through content as
+	   dirty-screen arcs and degraded every muted-text contrast figure. */
+	--magi-panel-bg: #ffffff;
+	--magi-panel-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
+	--magi-border: #d1d5db;
+	--magi-border-subtle: #e5e7eb;
+	--magi-surface-bg: #f3f4f6;
+	--magi-surface-hover: #e5e7eb;
+	--magi-control-border: #9ca3af;
+	--magi-input-bg: #ffffff;
+	--magi-input-border: #d1d5db;
+	--magi-btn-bg: #4b5563;
+	--magi-toggle-on-bg: #d1d5db;
+	--magi-token-split-color: #4b5563;
+	--magi-token-total-color: #9ca3af;
+	--magi-popover-bg: #ffffff;
+	--magi-popover-border: #d1d5db;
+	--magi-color-error: #dc2626;
+	--magi-color-warn: #b45309;
+	--magi-color-pending: #a16207;
+	--magi-color-success: #16a34a;
+	--magi-color-unknown: #ea580c;
 }
 
 .light .prose {

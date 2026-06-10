@@ -544,6 +544,12 @@
 		savePrefs({ tier: activeTier, snapshots: persistedSnapshots, settings });
 	});
 
+	// The theme class lives on <html>, not the page root, so body-portaled
+	// elements (the tooltip) inherit the light-mode variable overrides too.
+	$effect(() => {
+		document.documentElement.classList.toggle('light', theme === 'light');
+	});
+
 	// Persist the active tier's conversation thread on every change.
 	$effect(() => {
 		const activeTier = tier;
@@ -936,11 +942,7 @@
 	<title>MAGI</title>
 </svelte:head>
 
-<div
-	class="magi-bg flex h-screen flex-col overflow-y-auto bg-gray-950 text-white {theme === 'light'
-		? 'light'
-		: ''}"
->
+<div class="magi-bg flex h-screen flex-col overflow-y-auto">
 	<MagiBackground variant={bgVariant} />
 
 	{#if import.meta.env.DEV}
@@ -1001,7 +1003,7 @@
 					type="text"
 					placeholder={queryPlaceholder}
 					disabled={loading}
-					class="magi-input w-full overflow-hidden rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 pr-10 text-ellipsis whitespace-nowrap text-white placeholder-gray-500 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+					class="magi-input w-full overflow-hidden rounded-lg px-4 py-3 pr-10 text-ellipsis whitespace-nowrap focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
 				{#if query.trim()}
 					<button
@@ -1023,7 +1025,7 @@
 					type="button"
 					onclick={() => abortController?.abort()}
 					aria-label="Abort"
-					class="magi-btn group flex w-12 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-red-600 sm:w-40"
+					class="magi-btn group flex w-12 items-center justify-center gap-2 rounded-lg py-3 font-medium transition-colors hover:bg-red-600 sm:w-40"
 				>
 					<span class="flex items-center gap-2 group-hover:hidden">
 						<LoaderCircle size={16} class="animate-spin" />
@@ -1039,7 +1041,7 @@
 					type="submit"
 					disabled={!allConfigured || modelsLoading}
 					aria-label="Execute"
-					class="magi-btn flex w-12 items-center justify-center gap-2 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-gray-600 sm:w-40"
+					class="magi-btn flex w-12 items-center justify-center gap-2 rounded-lg py-3 font-medium transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-(--magi-btn-bg) sm:w-40"
 				>
 					<Triangle size={14} class="rotate-90 fill-current" />
 					<span class="hidden sm:inline">Execute</span>
@@ -1057,7 +1059,7 @@
 		     inner `sm:contents` wrapper disappears at sm+ so its children become
 		     direct grid items again. -->
 		<div
-			class="magi-panel flex shrink-0 cursor-pointer flex-col gap-2 rounded-lg bg-gray-900/70 px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
+			class="magi-panel flex shrink-0 cursor-pointer flex-col gap-2 rounded-lg px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
 			onclick={onStatusBarClick}
 			onkeydown={onStatusBarKeydown}
 			role="button"
@@ -1069,7 +1071,7 @@
 					type="button"
 					onclick={handleNewConversation}
 					disabled={loading || conversation.length === 0}
-					class="magi-newconv-btn flex w-fit items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1 font-medium text-gray-300 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+					class="magi-newconv-btn flex w-fit items-center gap-1.5 rounded-lg px-3 py-1 font-medium transition-colors disabled:opacity-50"
 				>
 					<MessageSquarePlus size={12} /> New conversation
 				</button>
@@ -1085,7 +1087,7 @@
 						>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span
 					>
 					<span class="text-gray-500">·</span>
-					<span class="magi-token-total text-gray-500" use:tooltip={conversationTokensTooltip}>
+					<span class="magi-token-total" use:tooltip={conversationTokensTooltip}>
 						<TokenCount
 							input={conversationUsage.input}
 							output={conversationUsage.output}

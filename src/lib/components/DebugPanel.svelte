@@ -121,14 +121,14 @@
 	</button>
 {/snippet}
 
-<div class="w-full rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+<div class="w-full magi-popover p-3">
 	<div class="flex items-center justify-between">
 		<span class="flex items-center gap-1.5 magi-section-header magi-warn">
 			<Bug size={13} /> DEBUG · dev only
 		</span>
 		<button
 			type="button"
-			class="text-gray-500 transition-colors hover:text-white"
+			class="text-gray-500 transition-colors hover:text-(--magi-text)"
 			onclick={onclose}
 			aria-label="Close debug panel"
 		>

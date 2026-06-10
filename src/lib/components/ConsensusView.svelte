@@ -380,7 +380,7 @@
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
-		<p class="magi-token-split text-[10px] text-gray-500">
+		<p class="magi-token-split text-[10px]">
 			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
@@ -425,12 +425,12 @@
 {/snippet}
 
 <div
-	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
+	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
 		? 'min-h-0'
 		: 'min-h-72 md:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
 	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
-	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
+	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			class="flex items-center justify-between select-none"
@@ -442,10 +442,10 @@
 			aria-label={onheadertoggle ? 'Toggle consensus focus' : undefined}
 		>
 			<div class="flex items-center gap-2">
-				<h3 class="text-sm font-bold text-white">MAGI CONSENSUS</h3>
+				<h3 class="text-sm font-bold text-(--magi-text)">MAGI CONSENSUS</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-gray-500/30"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
@@ -476,7 +476,7 @@
 					<div class="flex items-center gap-2">
 						{#if copyTarget}
 							<button
-								class="text-gray-400 transition-colors hover:text-white"
+								class="text-gray-400 transition-colors hover:text-(--magi-text)"
 								onclick={copyConsensus}
 								title="Copy consensus"
 							>
@@ -494,7 +494,7 @@
 				{/if}
 			</div>
 		</div>
-		<div class="border-t border-gray-700"></div>
+		<div class="-mx-4 border-t magi-divider"></div>
 		<!-- Mobile: stack Strategy/Node/Model on their own row above
 		     Temperament/Awareness. sm+: side-by-side, wrap as needed. -->
 		<div
@@ -521,7 +521,7 @@
 								<span class="text-xs text-gray-500">Node</span>
 								{#if consensusNodeApplies}
 									<select
-										class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										class="magi-select rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
 										value={consensusNode}
 										onchange={handleNodeChange}
 										{disabled}
@@ -537,7 +537,7 @@
 									     The original `consensusNode` state is kept so it returns
 									     when the user switches back to Synthesis. -->
 									<select
-										class="magi-select rounded bg-gray-800 py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										class="magi-select rounded py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
 										disabled
 										title={consensusSkipped
 											? 'No consensus is computed in None mode — the three model responses stand on their own, so there is no node to assign.'
@@ -567,10 +567,8 @@
 						<button
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
-								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} {consensusTempApplies
-								? ''
-								: 'cursor-not-allowed opacity-40'}"
+								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
+								: ''} {consensusTempApplies ? '' : 'cursor-not-allowed opacity-40'}"
 							onclick={() =>
 								consensusTempApplies && onconsensustemperamentchange(!consensusTemperament)}
 							disabled={disabled || !consensusTempApplies}
@@ -590,10 +588,8 @@
 						<button
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
-								? 'magi-temperament-toggle-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-								: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} {awarenessApplies
-								? ''
-								: 'cursor-not-allowed opacity-40'}"
+								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
+								: ''} {awarenessApplies ? '' : 'cursor-not-allowed opacity-40'}"
 							onclick={() => awarenessApplies && onawarenesschange(!temperamentAwareness)}
 							disabled={disabled || !awarenessApplies}
 							use:tooltip={!awarenessApplies
@@ -626,11 +622,7 @@
 				<p class="magi-placeholder">Consensus will appear after all three MAGI respond</p>
 			{:else}
 				{#each transcript as turn, i (i)}
-					<div
-						class="flex flex-col gap-1.5 {i > 0
-							? 'magi-turn-divider border-t border-gray-800 pt-3'
-							: ''}"
-					>
+					<div class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}">
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
 						{#if turn.consensus}
 							{#if turn.strategy === 'debate'}{@render debateBanner(
@@ -654,7 +646,7 @@
 					<div
 						bind:this={liveTurnEl}
 						class="flex flex-col gap-1.5 {transcript.length > 0
-							? 'magi-turn-divider border-t border-gray-800 pt-3'
+							? 'magi-turn-divider border-t pt-3'
 							: ''}"
 					>
 						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>

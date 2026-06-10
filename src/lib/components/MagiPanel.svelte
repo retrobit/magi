@@ -355,7 +355,7 @@
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
-		<p class="magi-token-split text-[10px] text-gray-500">
+		<p class="magi-token-split text-[10px]">
 			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
@@ -409,13 +409,13 @@
 {/snippet}
 
 <div
-	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg bg-gray-900/70 md:max-h-none {collapsed
+	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
 		? 'min-h-0'
 		: 'min-h-72 md:min-h-0'} {status === 'pending' ? 'pulse-glow' : ''}"
 	style:--node-color={NODE_HEX_COLORS[name]}
 >
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
-	<div class="flex shrink-0 flex-col gap-2 border-b border-gray-700 px-4 py-3">
+	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			class="flex items-center justify-between select-none"
@@ -429,12 +429,12 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="text-sm font-bold text-white transition-colors hover:text-gray-300"
+					class="text-sm font-bold text-(--magi-text) transition-colors hover:text-gray-400"
 					onclick={() => onlabelclick?.()}>{displayLabel}</button
 				>
 				{#if temperament}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium text-gray-300 ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-gray-500/30"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
@@ -474,12 +474,12 @@
 		</div>
 
 		{#if onchange}
-			<div class="border-t border-gray-700"></div>
+			<div class="-mx-4 border-t magi-divider"></div>
 			<div class="flex gap-1.5">
 				<div class="flex flex-1 flex-col gap-1.5">
 					<!-- Gateway / Provider selector -->
 					<select
-						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={gateway}
 						onchange={handleGatewayChange}
 						{disabled}
@@ -495,7 +495,7 @@
 
 					<!-- Provider selector (always rendered for consistent height) -->
 					<select
-						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
+						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
 						!showRouterProvider
 							? 'text-gray-600'
 							: ''}"
@@ -519,7 +519,7 @@
 
 					<!-- Model selector -->
 					<select
-						class="magi-select w-full rounded bg-gray-800 px-2 py-1 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={modelId}
 						onchange={handleModelChange}
 						{disabled}
@@ -536,7 +536,7 @@
 					type="button"
 					onclick={handleRandomize}
 					{disabled}
-					class="magi-randomize flex items-center justify-center rounded bg-gray-800 px-2 text-gray-500 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+					class="magi-randomize flex items-center justify-center rounded px-2 transition-colors disabled:opacity-50"
 					title="Randomize selection"
 				>
 					<Shuffle size={14} />
@@ -559,9 +559,7 @@
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div
-						class="flex flex-col gap-1.5 {i > 0
-							? 'magi-turn-divider border-t border-gray-800 pt-3'
-							: ''}"
+						class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}"
 						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
 						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
@@ -581,7 +579,7 @@
 				{#if liveQuery}
 					<div
 						class="flex flex-col gap-1.5 {transcript.length > 0
-							? 'magi-turn-divider border-t border-gray-800 pt-3'
+							? 'magi-turn-divider border-t pt-3'
 							: ''}"
 						style:min-height={debateRounds.length > 0 ? undefined : snapMinHeight}
 					>

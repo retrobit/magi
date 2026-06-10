@@ -137,7 +137,7 @@
 {#snippet menuBody()}
 	<!-- No explicit close button: the menu is mobile-only and the hamburger
 	     itself toggles it; tapping the backdrop also dismisses via panelShell. -->
-	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+	<div class="magi-popover p-3">
 		<div class="mb-3">
 			<span class="magi-section-header text-gray-400">MENU</span>
 		</div>
@@ -145,7 +145,7 @@
 			{#if import.meta.env.DEV}
 				<button
 					type="button"
-					class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-amber-400"
+					class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-amber-400"
 					onclick={() => (openPanel = 'debug')}
 				>
 					<Bug size={14} /> Debug
@@ -153,21 +153,21 @@
 			{/if}
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-green-400"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-green-400"
 				onclick={() => (openPanel = 'stats')}
 			>
 				<BarChart3 size={14} /> Stats
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-green-400"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-green-400"
 				onclick={() => (openPanel = 'budget')}
 			>
 				<Wallet size={14} /> Budget
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-white"
 				onclick={() => (openPanel = 'settings')}
 			>
 				<Settings size={14} /> Settings
@@ -180,14 +180,14 @@
 	{@render panelShell('w-48', settingsBody)}
 {/if}
 {#snippet settingsBody()}
-	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+	<div class="magi-popover p-3">
 		<div class="mb-3 flex items-center justify-between">
 			<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
 				<Settings size={13} /> SETTINGS
 			</span>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-white"
+				class="text-gray-500 transition-colors hover:text-(--magi-text)"
 				onclick={() => (openPanel = null)}
 				aria-label="Close settings"
 			>
@@ -199,7 +199,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (theme = 'dark')}
 			>
 				Dark
@@ -207,7 +207,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'light'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (theme = 'light')}
 			>
 				Light
@@ -218,7 +218,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (bgVariant = 'orbs')}
 			>
 				Orbs
@@ -226,7 +226,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (bgVariant = 'columns')}
 			>
 				Columns
@@ -234,7 +234,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (bgVariant = 'hex')}
 			>
 				Hex
@@ -242,7 +242,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (bgVariant = 'off')}
 			>
 				Off
@@ -253,7 +253,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (scrollMode = 'snap')}
 			>
 				Snap to top
@@ -261,7 +261,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (scrollMode = 'follow')}
 			>
 				Follow
@@ -269,7 +269,7 @@
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'
 					? 'bg-gray-600 text-white'
-					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
 				onclick={() => (scrollMode = 'off')}
 			>
 				Off
@@ -294,14 +294,14 @@
 	{@render panelShell('w-64', budgetBody)}
 {/if}
 {#snippet budgetBody()}
-	<div class="rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl">
+	<div class="magi-popover p-3">
 		<div class="mb-3 flex items-center justify-between">
 			<span class="flex items-center gap-1.5 magi-section-header magi-success">
 				<Wallet size={13} /> BUDGET
 			</span>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-white"
+				class="text-gray-500 transition-colors hover:text-(--magi-text)"
 				onclick={() => (openPanel = null)}
 				aria-label="Close budget"
 			>

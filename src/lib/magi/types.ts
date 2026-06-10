@@ -109,12 +109,13 @@ export function estimateTokens(text: string): number {
 	return Math.ceil(text.length / 4);
 }
 
-/** Tailwind text colour for a context-window usage gauge: red near full,
- *  amber when getting close, neutral otherwise. */
+/** Semantic text-colour class for a context-window usage gauge: red near
+ *  full, amber when getting close, neutral otherwise. Returns the magi-*
+ *  utilities (not raw Tailwind colours) so both themes stay legible. */
 export function contextUsageClass(used: number, window: number | undefined): string {
 	const ratio = window ? used / window : 0;
-	if (ratio >= 0.9) return 'text-red-400';
-	if (ratio >= 0.75) return 'text-amber-400';
+	if (ratio >= 0.9) return 'magi-error';
+	if (ratio >= 0.75) return 'magi-warn';
 	return 'text-gray-500';
 }
 

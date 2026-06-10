@@ -93,7 +93,7 @@
 </script>
 
 <div
-	class="flex max-h-[80vh] flex-col gap-3 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 p-4 text-sm text-gray-200 shadow-xl"
+	class="flex max-h-[80vh] flex-col gap-3 overflow-y-auto magi-popover p-4 text-sm text-(--magi-text-secondary)"
 >
 	<div class="flex items-center justify-between">
 		<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
@@ -123,7 +123,7 @@
 			</button>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-white"
+				class="text-gray-500 transition-colors hover:text-(--magi-text)"
 				onclick={onclose}
 				aria-label="Close stats panel"
 			>
@@ -141,7 +141,7 @@
 					type="button"
 					class="rounded px-2 py-0.5 text-xs transition-colors {filter === opt
 						? 'bg-gray-600 text-white'
-						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}"
+						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
 					onclick={() => (filter = opt)}
 				>
 					{opt === 'all' ? 'All' : STRATEGY_LABELS[opt]}

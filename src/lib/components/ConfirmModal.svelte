@@ -44,12 +44,12 @@
 ></button>
 <div class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
 	<div
-		class="pointer-events-auto w-full max-w-sm rounded-lg border border-gray-700 bg-gray-900 p-5 shadow-2xl"
+		class="pointer-events-auto w-full max-w-sm magi-popover p-5"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="confirm-modal-title"
 	>
-		<h2 id="confirm-modal-title" class="text-sm font-semibold text-white">{title}</h2>
+		<h2 id="confirm-modal-title" class="text-sm font-semibold text-(--magi-text)">{title}</h2>
 		<p class="mt-2 text-sm leading-relaxed text-gray-400">{message}</p>
 		<div class="mt-5 flex justify-end gap-2">
 			<button

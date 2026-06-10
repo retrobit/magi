@@ -85,7 +85,7 @@
 	<button
 		type="button"
 		bind:this={triggerEl}
-		class="magi-select flex items-center gap-1 rounded bg-gray-800 py-0.5 pr-1.5 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+		class="magi-select flex items-center gap-1 rounded py-0.5 pr-1.5 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 		onclick={toggleOpen}
 		{disabled}
 		aria-haspopup="listbox"
@@ -114,7 +114,7 @@
 			aria-label="Close strategy picker"
 		></button>
 		<div
-			class="fixed z-50 flex w-72 flex-col gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-1 shadow-xl"
+			class="fixed z-50 flex w-72 flex-col gap-0.5 magi-popover p-1"
 			style:top={menuPos.top !== undefined ? `${menuPos.top}px` : undefined}
 			style:bottom={menuPos.bottom !== undefined ? `${menuPos.bottom}px` : undefined}
 			style:left="{menuPos.left}px"
@@ -143,7 +143,9 @@
 					{/if}
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center justify-between gap-2">
-							<span class="flex items-center gap-1 text-xs font-semibold text-gray-200">
+							<span
+								class="flex items-center gap-1 text-xs font-semibold text-(--magi-text-secondary)"
+							>
 								{STRATEGY_LABELS[s]}
 								{#if flagship}
 									<span class="magi-badge" style={gradientText}>✦ Flagship</span>

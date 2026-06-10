@@ -106,7 +106,7 @@
 		aria-label="Close copy options"
 	></button>
 	<div
-		class="fixed z-50 flex w-56 flex-col gap-0.5 rounded-lg border border-gray-700 bg-gray-900 p-1 shadow-xl"
+		class="fixed z-50 flex w-56 flex-col gap-0.5 magi-popover p-1"
 		style:top="{menuPos.top}px"
 		style:right="{menuPos.right}px"
 		role="menu"
@@ -115,7 +115,7 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-gray-200 transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+				class="flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
 				onclick={() => onSelect(scope)}
 				disabled={!scope.content}
 			>
