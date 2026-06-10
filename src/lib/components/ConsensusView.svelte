@@ -14,7 +14,6 @@
 		NODE_TEMPERAMENTS,
 		TEMPERAMENT_LABELS,
 		TEMPERAMENT_TOOLTIPS,
-		CONSENSUS_GRADIENT,
 		contextUsageClass,
 		formatTokenCount,
 		tokenUsageTooltip,
@@ -173,7 +172,6 @@
 	// A finished debate earns a headline banner — the rounds are done and a final
 	// synthesis is on screen. Gradient-clipped text reuses the three-MAGI triad.
 	const debateComplete = $derived(strategy === 'debate' && !loading && text !== '');
-	const gradientText = `${CONSENSUS_GRADIENT}; -webkit-background-clip: text; background-clip: text; color: transparent;`;
 
 	// Debate streams its round ledger into `text`, then a `---` divider, then the
 	// synthesized answer. While the rounds are still running (no divider yet) the
@@ -363,8 +361,6 @@
 		return () => clearInterval(id);
 	});
 
-	const gradientStyle = CONSENSUS_GRADIENT;
-
 	const synthesisLabel = $derived.by(() => {
 		if (!consensusGateway || !consensusProvider || !consensusModelDisplayName) return null;
 		return isRouter(consensusGateway)
@@ -404,10 +400,13 @@
 	{#if verdict === 'consensus'}
 		<div class="flex flex-col gap-1">
 			<div class="flex items-center gap-2">
-				<span class="magi-banner-headline" style={gradientText}>Consensus reached</span>
+				<span class="magi-gradient-text magi-banner-headline">Consensus reached</span>
 				<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
 			</div>
-			<div class="h-0.5 w-full rounded-full" style={CONSENSUS_GRADIENT}></div>
+			<div
+				class="h-0.5 w-full rounded-full"
+				style="background: var(--magi-consensus-gradient)"
+			></div>
 		</div>
 	{:else if verdict === 'split'}
 		<div class="flex flex-col gap-1">
@@ -429,7 +428,7 @@
 		? 'min-h-0'
 		: 'min-h-72 md:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
-	<div class="h-0.5 shrink-0" style={gradientStyle}></div>
+	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
@@ -695,7 +694,6 @@
 		0%,
 		100% {
 			box-shadow: inset 0 0 0 0 transparent;
-			opacity: 0.7;
 		}
 		50% {
 			/* Softer than the node panels' all-sides glow — the consensus's two
@@ -703,9 +701,8 @@
 			   than any single node. The red/blue split keeps its left↔right
 			   identity; green lives in the top/bottom gradient bars below. */
 			box-shadow:
-				inset 10px 0 14px -6px #ef4444,
-				inset -10px 0 14px -6px #3b82f6;
-			opacity: 1;
+				inset 10px 0 14px -6px var(--magi-node-red),
+				inset -10px 0 14px -6px var(--magi-node-blue);
 		}
 	}
 
@@ -731,7 +728,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: linear-gradient(to right, #ef4444, #34d399, #3b82f6);
+		background: var(--magi-consensus-gradient);
 		filter: blur(4px);
 		pointer-events: none;
 		animation: pulse-top-glow 2s ease-in-out infinite;
@@ -744,7 +741,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: linear-gradient(to right, #ef4444, #34d399, #3b82f6);
+		background: var(--magi-consensus-gradient);
 		filter: blur(4px);
 		pointer-events: none;
 		animation: pulse-top-glow 2s ease-in-out infinite;

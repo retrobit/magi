@@ -611,11 +611,9 @@
 		0%,
 		100% {
 			box-shadow: inset 0 0 0 0 transparent;
-			opacity: 0.7;
 		}
 		50% {
 			box-shadow: inset 0 0 20px -4px var(--node-color);
-			opacity: 1;
 		}
 	}
 

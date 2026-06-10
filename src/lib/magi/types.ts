@@ -219,13 +219,15 @@ export const NODE_COLORS: Record<MagiNodeName, string> = {
 	CASPAR: 'border-blue-500'
 };
 
+/** Node identity hex triad. CSS consumers read the --magi-node-* variables in
+ *  layout.css instead — keep the two in lockstep when retuning. This map stays
+ *  for JS call sites that need a literal (inline style:--node-color, debug
+ *  swatches). */
 export const NODE_HEX_COLORS: Record<MagiNodeName, string> = {
 	MELCHIOR: '#ef4444',
 	BALTHASAR: '#34d399',
 	CASPAR: '#3b82f6'
 };
-
-export const CONSENSUS_GRADIENT = `background: linear-gradient(to right, ${MAGI_NODE_NAMES.map((n) => NODE_HEX_COLORS[n]).join(', ')})`;
 
 export const GATEWAY_LABELS: Record<GatewayName, string> = {
 	anthropic: 'Anthropic',

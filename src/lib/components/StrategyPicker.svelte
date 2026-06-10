@@ -7,7 +7,6 @@
 		FLAGSHIP_STRATEGY,
 		type StrategyName
 	} from '$lib/magi/consensus';
-	import { CONSENSUS_GRADIENT } from '$lib/magi/types';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { ChevronDown, Check } from 'lucide-svelte';
 
@@ -38,7 +37,6 @@
 
 	// Gradient-clipped text for the flagship marker — the three-MAGI triad,
 	// reusing the consensus gradient rather than introducing a new accent hue.
-	const gradientText = `${CONSENSUS_GRADIENT}; -webkit-background-clip: text; background-clip: text; color: transparent;`;
 
 	function measure() {
 		if (!triggerEl) return;
@@ -96,7 +94,7 @@
 			<!-- Once chosen, the flagship wears the three-MAGI gradient in the trigger.
 			     Star + label live in one clipped span so the gradient sweeps continuously
 			     across both rather than restarting per element. -->
-			<span class="font-semibold" style={gradientText}>
+			<span class="magi-gradient-text font-semibold">
 				<span aria-hidden="true">✦</span>
 				{STRATEGY_LABELS[strategy]}
 			</span>
@@ -137,7 +135,7 @@
 						<!-- RGB-triad strip marks the flagship without a new accent colour. -->
 						<span
 							class="absolute top-1.5 bottom-1.5 left-1 w-[3px] rounded-full"
-							style={CONSENSUS_GRADIENT}
+							style="background: var(--magi-consensus-gradient)"
 							aria-hidden="true"
 						></span>
 					{/if}
@@ -148,7 +146,7 @@
 							>
 								{STRATEGY_LABELS[s]}
 								{#if flagship}
-									<span class="magi-badge" style={gradientText}>✦ Flagship</span>
+									<span class="magi-gradient-text magi-badge">✦ Flagship</span>
 								{/if}
 							</span>
 							<!-- Relative cost / thoroughness meter. -->

@@ -13,7 +13,6 @@ export {
 	NODE_LABELS_GENERIC,
 	NODE_COLORS,
 	NODE_HEX_COLORS,
-	CONSENSUS_GRADIENT,
 	GATEWAY_LABELS,
 	getProviderLabel,
 	type TierName,

@@ -191,19 +191,19 @@
 	}
 
 	.aurora-col.aurora-red {
-		background: linear-gradient(to right, transparent, #ef4444, transparent);
+		background: linear-gradient(to right, transparent, var(--magi-node-red), transparent);
 		left: -5%;
 		animation: drift-col-left 20s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-green {
-		background: linear-gradient(to right, transparent, #34d399, transparent);
+		background: linear-gradient(to right, transparent, var(--magi-node-green), transparent);
 		left: 30%;
 		animation: drift-col-center 24s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-blue {
-		background: linear-gradient(to right, transparent, #3b82f6, transparent);
+		background: linear-gradient(to right, transparent, var(--magi-node-blue), transparent);
 		right: -5%;
 		animation: drift-col-right 22s ease-in-out infinite;
 	}
@@ -248,21 +248,21 @@
 	}
 
 	.aurora-blob.aurora-red {
-		background: radial-gradient(circle, #ef4444 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-node-red) 0%, transparent 70%);
 		bottom: -5%;
 		left: -10%;
 		animation: drift-orb-left 24s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-green {
-		background: radial-gradient(circle, #34d399 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-node-green) 0%, transparent 70%);
 		top: -10%;
 		left: 25%;
 		animation: drift-orb-center 20s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-blue {
-		background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-node-blue) 0%, transparent 70%);
 		bottom: -5%;
 		right: -10%;
 		animation: drift-orb-right 22s ease-in-out infinite;
