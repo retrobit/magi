@@ -9,6 +9,7 @@
 		type RunStatRecord
 	} from '$lib/magi/run-stats';
 	import { STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus/types';
+	import ConfirmModal from './ConfirmModal.svelte';
 	import {
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
@@ -44,9 +45,32 @@
 	const FILTERABLE_STRATEGIES: StrategyName[] = ['synthesis', 'voting', 'debate'];
 	const FILTER_OPTIONS: StrategyFilter[] = ['all', ...FILTERABLE_STRATEGIES];
 	let filter = $state<StrategyFilter>('all');
-	const filteredRecords = $derived(
-		filter === 'all' ? records : records.filter((r) => r.stats.strategy === filter)
-	);
+
+	// Date-range filter — rolling windows back from now (not calendar days, to
+	// dodge timezone-boundary fiddliness). Composes with the strategy filter.
+	type DateRange = 'all' | '24h' | '7d' | '30d';
+	const DATE_OPTIONS: { key: DateRange; label: string }[] = [
+		{ key: 'all', label: 'All time' },
+		{ key: '24h', label: '24h' },
+		{ key: '7d', label: '7d' },
+		{ key: '30d', label: '30d' }
+	];
+	const DAY_MS = 86_400_000;
+	const DATE_WINDOW_MS: Record<Exclude<DateRange, 'all'>, number> = {
+		'24h': DAY_MS,
+		'7d': 7 * DAY_MS,
+		'30d': 30 * DAY_MS
+	};
+	let dateRange = $state<DateRange>('all');
+
+	const filteredRecords = $derived.by(() => {
+		// Date.now() isn't reactive, but the cutoff only needs to be fresh when the
+		// user changes a filter or a new record lands — exactly when this recomputes.
+		const cutoff = dateRange === 'all' ? 0 : Date.now() - DATE_WINDOW_MS[dateRange];
+		return records.filter(
+			(r) => (filter === 'all' || r.stats.strategy === filter) && r.ts >= cutoff
+		);
+	});
 
 	const agg = $derived(aggregate(filteredRecords));
 	const nodeOrder: MagiNodeName[] = ['MELCHIOR', 'BALTHASAR', 'CASPAR'];
@@ -63,7 +87,11 @@
 		return `${((n / total) * 100).toFixed(0)}%`;
 	}
 
+	// Clearing is destructive and irreversible, so it routes through a confirm
+	// dialog rather than firing on the first click.
+	let confirmingClear = $state(false);
 	function reset() {
+		confirmingClear = false;
 		clearRunStats();
 		records = [];
 	}
@@ -114,7 +142,7 @@
 			<button
 				type="button"
 				class="text-gray-500 transition-colors hover:text-red-400 disabled:opacity-40"
-				onclick={reset}
+				onclick={() => (confirmingClear = true)}
 				disabled={agg.total === 0}
 				aria-label="Clear stats"
 				title="Clear all recorded stats"
@@ -133,8 +161,8 @@
 	</div>
 
 	{#if records.length > 0}
-		<!-- Strategy filter — chips sit above the breakdowns. Hidden when there
-		     are no records at all (the empty-state CTA below carries the panel). -->
+		<!-- Strategy + date filters — chip rows sit above the breakdowns. Hidden when
+		     there are no records at all (the empty-state CTA below carries the panel). -->
 		<div class="flex flex-wrap items-center gap-1">
 			{#each FILTER_OPTIONS as opt (opt)}
 				<button
@@ -148,6 +176,19 @@
 				</button>
 			{/each}
 		</div>
+		<div class="flex flex-wrap items-center gap-1">
+			{#each DATE_OPTIONS as opt (opt.key)}
+				<button
+					type="button"
+					class="rounded px-2 py-0.5 text-xs transition-colors {dateRange === opt.key
+						? 'bg-gray-600 text-white'
+						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
+					onclick={() => (dateRange = opt.key)}
+				>
+					{opt.label}
+				</button>
+			{/each}
+		</div>
 	{/if}
 
 	{#if records.length === 0}
@@ -156,7 +197,10 @@
 		<!-- Filter excludes everything — distinct from the never-ran-a-query
 		     empty state so the user knows it's their filter, not missing data. -->
 		<p class="magi-meta">
-			No {filter === 'all' ? '' : STRATEGY_LABELS[filter as StrategyName] + ' '}runs recorded yet.
+			No {filter === 'all' ? '' : STRATEGY_LABELS[filter as StrategyName] + ' '}runs{dateRange ===
+			'all'
+				? ' recorded yet'
+				: ` in the last ${DATE_OPTIONS.find((o) => o.key === dateRange)?.label}`}.
 		</p>
 	{:else}
 		<!-- ===== Usage (every run, both strategies) =====
@@ -338,8 +382,8 @@
 					>
 				</div>
 				<p class="magi-meta">
-					A &gt; B suggests jurors favor the first candidate shown — {nodeLabels.MELCHIOR} sits in slot
-					A whenever both other nodes vote.
+					A &gt; B suggests jurors favor the first candidate shown. Seat order is randomized per
+					turn, so a persistent gap points to a real first-position bias rather than any one node.
 				</p>
 			</section>
 
@@ -500,6 +544,16 @@
 		{/if}
 	{/if}
 </div>
+
+{#if confirmingClear}
+	<ConfirmModal
+		title="Clear all stats?"
+		message="This permanently deletes every recorded run stat from this browser. It can't be undone."
+		confirmLabel="Clear stats"
+		onconfirm={reset}
+		oncancel={() => (confirmingClear = false)}
+	/>
+{/if}
 
 <style>
 	/* Indent each section's rows under their heading so the breakdowns read as a
