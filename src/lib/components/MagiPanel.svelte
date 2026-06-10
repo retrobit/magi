@@ -53,6 +53,10 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
+		/** Pending-glow control: null = not thinking (no glow); a number = thinking,
+		 *  and its value is a restart key — when it changes (a new debate round
+		 *  begins) the glow re-triggers so each round reads as a fresh heartbeat. */
+		pulse?: number | null;
 		/** Live debate rounds for this node (Multi-Round Debate only). */
 		debateRounds?: DebateRoundEntry[];
 		/** Collapsed to just the header (focus accordion). */
@@ -84,6 +88,7 @@
 		text,
 		error,
 		status,
+		pulse = null,
 		debateRounds = [],
 		collapsed = false,
 		transcript = [],
@@ -410,9 +415,16 @@
 <div
 	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72 md:min-h-0'} {status === 'pending' ? 'pulse-glow' : ''}"
+		: 'min-h-72 md:min-h-0'} {pulse !== null ? 'pulse-glow' : ''}"
 	style:--node-color={`var(${NODE_COLOR_VARS[name]})`}
 >
+	{#if pulse !== null}
+		<!-- Static inset-glow overlay; only its opacity animates (compositor-cheap).
+		     Keyed on `pulse` so each new round of thinking restarts the pulse. -->
+		{#key pulse}
+			<div class="node-glow" aria-hidden="true"></div>
+		{/key}
+	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<div class="flex items-center justify-between select-none">
@@ -642,19 +654,19 @@
 </div>
 
 <style>
-	/* Pending glow. The glow itself is a STATIC inset box-shadow on a pseudo-
+	/* Thinking glow. The glow is a STATIC inset box-shadow on a dedicated overlay
 	   element; only its opacity animates, which the compositor handles without
 	   re-rasterizing the shadow each frame. Animating box-shadow directly (the
 	   old approach) repaints every frame and stuttered against the markdown
-	   streaming into the same panel. isolate + z-index:-1 keeps the pseudo above
-	   the panel background but behind content, matching the old look. */
+	   streaming into the same panel. The overlay is keyed on `pulse` so it
+	   re-mounts — and the animation restarts — at the start of each thinking
+	   round. isolate + z-index:-1 keeps it above the panel bg but behind content. */
 	.pulse-glow {
 		position: relative;
 		isolation: isolate;
 	}
 
-	.pulse-glow::before {
-		content: '';
+	.node-glow {
 		position: absolute;
 		inset: 0;
 		z-index: -1;
@@ -676,14 +688,14 @@
 		}
 	}
 
-	/* Hold the pending glow still when motion is reduced (OS preference or the
-	   in-app setting's class on <html>). */
+	/* Hold the glow still when motion is reduced (OS preference or the in-app
+	   setting's class on <html>) — it stays at opacity 0, i.e. invisible. */
 	@media (prefers-reduced-motion: reduce) {
-		.pulse-glow::before {
+		.node-glow {
 			animation: none;
 		}
 	}
-	:global(.reduce-motion) .pulse-glow::before {
+	:global(.reduce-motion) .node-glow {
 		animation: none;
 	}
 </style>

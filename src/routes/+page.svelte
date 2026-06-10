@@ -500,6 +500,30 @@
 		return 'idle';
 	}
 
+	// A node "thinks" while it actively generates: phase 1 (pending), and — in a
+	// Multi-Round Debate — through each round, until the final synthesis begins
+	// (that's the consensus node's work, not the debaters'). A debater is
+	// generating between round results, i.e. while the consensus has not yet
+	// streamed the `---` divider that separates the round ledger from the synthesis.
+	const DEBATE_DIVIDER = '\n\n---\n\n';
+	function nodeDebating(node: MagiNodeName): boolean {
+		return (
+			effectiveLoading &&
+			strategy === 'debate' &&
+			!!responseMap.get(node) &&
+			!live.consensusStream.includes(DEBATE_DIVIDER)
+		);
+	}
+
+	// Pulse-glow control for a node: null = not thinking. Otherwise a restart key —
+	// phase-1 thinking is 0; each debate round bumps it so the glow stops and
+	// restarts as the node begins deliberating the next round.
+	function nodePulse(node: MagiNodeName): number | null {
+		if (getNodeStatus(node) === 'pending') return 0;
+		if (nodeDebating(node)) return (live.debateRounds[node]?.length ?? 0) + 1;
+		return null;
+	}
+
 	function getModelDisplayName(assignment: NodeAssignment): string {
 		// Check static registry first, then dynamic models
 		const entry = findModelEntry(assignment.gateway, assignment.modelId);
@@ -1357,6 +1381,7 @@
 					collapsed={nodesCollapsed}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
+					pulse={nodePulse(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
 					{genericLabels}
 					{scrollMode}
