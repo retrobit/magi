@@ -53,10 +53,12 @@ graph TD
 - **Provider budget readout** — The settings panel shows each paid provider's spend so far today. OpenRouter reads its key's usage/limit out of the box; Anthropic and OpenAI report today's cost from their organization Cost APIs when an admin key is configured (with optional `*_MONTHLY_BUDGET` env vars as a bar denominator); Google falls back to a clear "unavailable" message since AI Studio exposes no public per-key usage.
 - **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
 - **Auto-scroll modes** — Off, Follow (pin to the newest streamed text while scrolled to the bottom), or Snap to top (jump each panel to the start of its latest response once that response finishes). Set in the ⚙️ settings menu.
-- **Background variants** — Animated RGB columns, orbs, or off (settings menu).
+- **Background variants** — Cursor-reactive hex mesh (default), animated orbs, RGB columns, or off — chosen in the ⚙️ settings menu. All motion can be paused with the **Reduce motion** toggle (also honored from the OS `prefers-reduced-motion` setting).
 - **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
-- **Random prompts** — Click Execute with an empty input to submit a random thought-provoking question.
-- **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input.
+- **Example & random prompts** — On a fresh conversation the consensus panel offers example-prompt chips and a 🎲 dice button that _fill_ the input without submitting; Execute stays disabled until the input is non-empty. If a conversation is already underway, picking one first confirms before starting over.
+- **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input. Node copy is a split button with a scope menu (final response, query + final, or — for debate — final + rounds / everything).
+- **Layout focus** — A toggle (plus panel-header / status-bar clicks) cycles the view between a balanced split, node-heavy, and consensus-heavy; the choice persists, and the switch animates. Nodes pulse while they're actively thinking each round.
+- **Reset to defaults** — A danger-styled action at the bottom of the ⚙️ settings menu clears saved preferences, conversations, and run stats after a confirmation.
 - **Responsive layout** — Panels stack vertically on narrow viewports with scrolling; desktop uses a fixed side-by-side layout.
 
 ## 🎭 Temperaments
@@ -81,9 +83,7 @@ Temperaments are **off by default** and can be toggled via the 🧠 button in th
 
 When temperaments are enabled, two additional controls appear in the consensus panel. Their effect depends on the active strategy:
 
-- **Consensus Temperament** — Active for both strategies.
-  - In **Synthesis**, gives the synthesizer the consensus node's lens (a Rationalist synthesis prioritizes logic; a Caretaker weighs human cost; an Individualist gives bold takes).
-  - In **Structured Voting**, each juror scores through _its own_ lens. Anonymity holds — a juror is told only its own temperament, never its peers'.
+- **Consensus Temperament** — **Synthesis only.** Gives the synthesizer the consensus node's lens (a Rationalist synthesis prioritizes logic; a Caretaker weighs human cost; an Individualist gives bold takes). For Structured Voting it's inert (greyed, with a tooltip): the winner is a tally of juror scores judged on substance, and a dispositional lens would only bias an otherwise objective vote.
 - **Temperament awareness** — Tells the synthesizer that each response came from a different lens, so it can surface _why_ perspectives diverge. **Synthesis only** — for Voting this toggle is greyed (with a tooltip), since voting has no single narrator to be "aware."
 
 Both are independent toggles and off by default. With **Structured Voting** selected, the Consensus Node dropdown is also greyed and the consensus-temperament badge next to the panel title is hidden — voting tallies all jurors equally and has no single consensus node.
@@ -109,11 +109,9 @@ Users can select a tier to control quality vs. cost:
 The consensus engine is pluggable. Available strategies:
 
 - **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusNode` request parameter (defaults to the first node, MELCHIOR).
-- **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table followed by the winning response **verbatim**. Voting therefore makes _no_ additional consensus-model call — only the three juror calls — so the Consensus Node dropdown shows "None" and is disabled. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier, including free OpenRouter models that don't support structured output. When **Consensus Temperament** is on, each juror scores through its own dispositional lens.
-
-Future strategies (planned):
-
-- **Multi-Round Debate** — Models critique each other's answers iteratively until convergence.
+- **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table followed by the winning response **verbatim**. Voting therefore makes _no_ additional consensus-model call — only the three juror calls — so the Consensus Node dropdown shows "None" and is disabled. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier, including free OpenRouter models that don't support structured output. Temperament toggles have no effect here — the vote is judged purely on each answer's substance.
+- **Multi-Round Debate** — Each node first stakes out an initial position, then reads anonymized peer responses and revises across one or more rounds before a final synthesis combines the converged positions. Each round is shown per node as a collapsible section, and a node's panel pulses while it's working that round.
+- **None** — Skips the consensus phase entirely. The three model responses stream side by side with no synthesis step — for when you just want to compare them yourself. No consensus tokens are spent.
 
 ## 📋 Prerequisites
 
@@ -404,6 +402,8 @@ src/
 │   │       ├── synthesis.test.ts
 │   │       ├── voting.ts           # Structured Voting strategy
 │   │       ├── voting.test.ts
+│   │       ├── debate.ts           # Multi-Round Debate strategy
+│   │       ├── debate.test.ts
 │   │       ├── consensus.test.ts
 │   │       └── index.ts            # Strategy registry
 │   └── components/
