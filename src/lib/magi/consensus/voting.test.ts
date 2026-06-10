@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText } from 'ai';
 import { votingStrategy } from './voting';
+import { seededShuffle } from './peer-order';
 import type { ConsensusContext, ConsensusEvent } from './types';
 import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
@@ -391,6 +392,36 @@ describe('votingStrategy stats event', () => {
 		expect(v.winner).toBe('MELCHIOR');
 		expect(v.positionBias.n).toBe(0);
 		expect(v.jurors).toEqual([]);
+	});
+
+	it('randomizes peer seating from peerOrderSeed without changing who wins', async () => {
+		// Find a seed whose seat order puts CASPAR ahead of BALTHASAR, so MELCHIOR's
+		// juror sees CASPAR in slot A — the opposite of the node-order default.
+		let seed = 0;
+		for (; seed < 200; seed += 1) {
+			const rank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
+			if ((rank.get('CASPAR') ?? 0) < (rank.get('BALTHASAR') ?? 0)) break;
+		}
+		// Every juror gives slot A=8, slot B=2. Because scores are keyed to slots,
+		// the winner depends purely on who the shuffle seats in slot A.
+		generateTextMock.mockResolvedValue(
+			jurorReply([
+				{ candidate: 'A', score: 8 },
+				{ candidate: 'B', score: 2 }
+			]) as never
+		);
+		const v = voting(await collect(votingStrategy.execute(context({ peerOrderSeed: seed }))));
+		const melchiorRow = v.jurors.find((j) => j.juror === 'MELCHIOR');
+		// Seat A flipped to CASPAR for this seed (vs BALTHASAR in node order).
+		expect(melchiorRow?.candidateA.node).toBe('CASPAR');
+		expect(melchiorRow?.candidateA.score).toBe(8);
+		expect(melchiorRow?.candidateB?.node).toBe('BALTHASAR');
+		// The breakdown's seat order matches the shared seeded shuffle exactly.
+		const seatRank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
+		for (const row of v.jurors) {
+			if (!row.candidateB) continue;
+			expect(seatRank.get(row.candidateA.node)!).toBeLessThan(seatRank.get(row.candidateB.node)!);
+		}
 	});
 
 	it('records null scores in the juror grid when a reply parses nothing', async () => {

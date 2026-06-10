@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText, streamText } from 'ai';
 import { debateStrategy, extractInitialSummary, stripSummaryTail } from './debate';
+import { seededShuffle } from './peer-order';
 import type { ConsensusContext, ConsensusEvent } from './types';
 import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
@@ -390,6 +391,39 @@ describe('debateStrategy.execute', () => {
 		// The AGREE line names each anonymized peer, not a single collective flag.
 		expect(String(generateTextMock.mock.calls[0]?.[0].prompt)).toContain('AGREE: Peer A');
 		expect(String(generateTextMock.mock.calls[0]?.[0].prompt)).toContain('Peer B');
+	});
+
+	it('seats debate peers in the seeded seat order, stable across rounds', async () => {
+		// Pick a seed whose seat order ranks CASPAR ahead of BALTHASAR, so MELCHIOR's
+		// debater sees CASPAR as Peer A — the reverse of the node-order default.
+		let seed = 0;
+		for (; seed < 200; seed += 1) {
+			const rank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
+			if ((rank.get('CASPAR') ?? 0) < (rank.get('BALTHASAR') ?? 0)) break;
+		}
+		// Keep debaters changing so we get multiple rounds; echo a node-stable answer
+		// (derived from the incoming "Your current answer") so peers stay identifiable
+		// across rounds even after they revise.
+		generateTextMock.mockImplementation((opts) => {
+			const own =
+				String((opts as { prompt: string }).prompt).match(/Your current answer:\n(.+)/)?.[1] ?? '';
+			const node = ['MELCHIOR', 'BALTHASAR', 'CASPAR'].find((n) => own.includes(n)) ?? 'X';
+			return Promise.resolve({
+				text: `CHANGED: yes\nNOTE: n\nANSWER:\nrevised-${node}`,
+				usage: { inputTokens: 1, outputTokens: 1, cachedInputTokens: 0 }
+			}) as never;
+		});
+
+		const events = await collect(debateStrategy.execute(context({ peerOrderSeed: seed })));
+		const melchiorRounds = events
+			.filter((e) => e.type === 'node-round' && e.node === 'MELCHIOR')
+			.map((e) => (e.type === 'node-round' ? e.entry.prompt : ''));
+		// More than one round actually ran (debaters never converge here).
+		expect(melchiorRounds.length).toBeGreaterThan(1);
+		// In every round, CASPAR (Peer A for this seed) precedes BALTHASAR (Peer B).
+		for (const prompt of melchiorRounds) {
+			expect(prompt.indexOf('CASPAR')).toBeLessThan(prompt.indexOf('BALTHASAR'));
+		}
 	});
 
 	it('emits a debate run-stats record with no voting block', async () => {

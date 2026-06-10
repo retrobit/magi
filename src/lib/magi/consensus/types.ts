@@ -12,9 +12,10 @@ import type { NodeAssignment } from '../config';
 export interface VotingJurorBreakdown {
 	juror: MagiNodeName;
 	jurorModel: string;
-	/** Score this juror gave Candidate A (the first peer in alphabetical-by-node order). */
+	/** Score this juror gave Candidate A (the first peer in this turn's seat order —
+	 *  node order when peer-order randomization is off, shuffled when it's on). */
 	candidateA: { node: MagiNodeName; score: number | null };
-	/** Score this juror gave Candidate B (the second peer). */
+	/** Score this juror gave Candidate B (the second peer in the seat order). */
 	candidateB?: { node: MagiNodeName; score: number | null };
 }
 
@@ -131,6 +132,11 @@ export interface ConsensusContext {
 	signal?: AbortSignal;
 	/** Tier label for stats annotation (purely informational; strategies don't branch on it). */
 	tier?: string;
+	/** Per-turn seed for peer-order randomization (which rival sits in slot A/B for
+	 *  voting jurors and debate peers). When omitted, peers keep strict node order —
+	 *  the path unit tests take. The server supplies a fresh random seed per request
+	 *  so real runs rotate the seating and position bias washes out. */
+	peerOrderSeed?: number;
 }
 
 export interface ConsensusStrategy {

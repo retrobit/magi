@@ -9,6 +9,7 @@ import {
 } from './types';
 import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
+import { makePeerOrderer } from './peer-order';
 
 interface Candidate {
 	label: string;
@@ -108,11 +109,16 @@ export const votingStrategy: ConsensusStrategy = {
 			temperaments,
 			genericLabels,
 			signal,
-			tier
+			tier,
+			peerOrderSeed
 		} = ctx;
 		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
 		const modelOf = (node: MagiNodeName): string =>
 			nodeAssignments.find((a) => a.node === node)?.modelId ?? 'unknown';
+		// This turn's seat order — rotates which peer is Candidate A/B so the
+		// position bias doesn't always favour the same node. Identity (node order)
+		// when no seed is supplied. Fixed for the whole vote, so every juror agrees.
+		const orderPeers = makePeerOrderer(responses, peerOrderSeed);
 
 		// With a single response there is nothing to vote on — it wins outright.
 		if (responses.length <= 1) {
@@ -167,9 +173,9 @@ export const votingStrategy: ConsensusStrategy = {
 			responses.map(async (juror) => {
 				const assignment = nodeAssignments.find((a) => a.node === juror.node);
 				if (!assignment) throw new Error(`No assignment for juror ${juror.node}`);
-				const candidates: Candidate[] = responses
-					.filter((r) => r.node !== juror.node)
-					.map((response, i) => ({ label: String.fromCharCode(65 + i), response }));
+				const candidates: Candidate[] = orderPeers(
+					responses.filter((r) => r.node !== juror.node)
+				).map((response, i) => ({ label: String.fromCharCode(65 + i), response }));
 				// Jurors always score neutrally — they're instructed to judge substance,
 				// so no temperament lens is applied (consensus temperament is inert for
 				// voting; a dispositional lens would bias an otherwise objective tally).

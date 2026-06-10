@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
+import { makePeerOrderer } from './peer-order';
 
 // Upper bound on debate rounds. Each round is one model call per responding node;
 // the debate stops early once a round produces no material change (convergence),
@@ -285,10 +286,15 @@ export const debateStrategy: ConsensusStrategy = {
 			nodeTemperaments,
 			genericLabels,
 			signal,
-			tier
+			tier,
+			peerOrderSeed
 		} = ctx;
 
 		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
+		// This turn's seat order for the anonymized Peer A/B presentation. Built once
+		// so every round assigns the same letter to the same peer (a stable mapping
+		// matters across rounds); identity (node order) when no seed is supplied.
+		const orderPeers = makePeerOrderer(responses, peerOrderSeed);
 		const usage: UsageTotals = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
 		const addUsage = (u?: {
 			inputTokens?: number;
@@ -405,7 +411,7 @@ export const debateStrategy: ConsensusStrategy = {
 						// Peers carry last round's rationale (empty in round 1). `peerNodes`
 						// records which actual node each anonymized Peer A/B is, so the
 						// per-peer AGREE stances can be mapped back into the agreement graph.
-						const peerResponses = responses.filter((p) => p.node !== r.node);
+						const peerResponses = orderPeers(responses.filter((p) => p.node !== r.node));
 						const peerNodes = peerResponses.map((p) => p.node);
 						const peers: PeerView[] = peerResponses.map((p) => ({
 							answer: current.get(p.node) ?? p.text,
