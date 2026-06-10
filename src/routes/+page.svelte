@@ -993,6 +993,7 @@
 				<input
 					bind:value={query}
 					type="text"
+					aria-label="Query the MAGI system"
 					placeholder="Ask the MAGI system…"
 					disabled={loading}
 					class="magi-input w-full overflow-hidden rounded-lg px-4 py-3 pr-10 text-ellipsis whitespace-nowrap focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
@@ -1130,15 +1131,15 @@
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
-					<div class="hidden items-center md:flex">
+					<div class="hidden pt-16 md:flex md:items-start">
 						<button
 							type="button"
 							onclick={() => handleSwap(i - 1, i)}
 							disabled={loading}
-							class="rounded p-1 text-gray-600 transition-colors hover:bg-gray-800 hover:text-white disabled:opacity-50"
+							class="magi-randomize rounded p-1 transition-colors disabled:opacity-50"
 							title="Swap configurations"
 						>
-							<ArrowLeftRight size={16} />
+							<ArrowLeftRight size={14} />
 						</button>
 					</div>
 				{/if}

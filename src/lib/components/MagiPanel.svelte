@@ -174,6 +174,19 @@
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
 
+	// Once a conversation starts, the three-select stack collapses to a one-line
+	// chip so responses own the panel; the chip re-expands it on demand. Idle
+	// panels keep the full stack — picking models IS the idle activity.
+	const inConversation = $derived(transcript.length > 0 || !!liveQuery);
+	let configExpanded = $state(false);
+	const chipLabel = $derived.by(() => {
+		if (!gateway) return 'Not configured';
+		const parts: string[] = [GATEWAY_LABELS[gateway as GatewayName]];
+		if (showRouterProvider && provider) parts.push(getProviderLabel(provider));
+		if (modelDisplayName) parts.push(modelDisplayName);
+		return parts.join(' · ');
+	});
+
 	// Cumulative tokens for this node: every completed turn plus the live turn.
 	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
 	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
@@ -476,73 +489,104 @@
 
 		{#if onchange}
 			<div class="-mx-4 border-t magi-divider"></div>
-			<div class="flex gap-1.5">
-				<div class="flex flex-1 flex-col gap-1.5">
-					<!-- Gateway / Provider selector -->
-					<select
-						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
-						value={gateway}
-						onchange={handleGatewayChange}
+			{#if inConversation}
+				<div class="flex items-center gap-1.5">
+					<button
+						type="button"
+						class="magi-select flex min-w-0 flex-1 items-center gap-1 rounded px-2 py-1 text-left text-xs transition-colors"
+						onclick={() => (configExpanded = !configExpanded)}
+						aria-label="{displayLabel} configuration"
+						aria-expanded={configExpanded}
+						use:tooltip={configExpanded ? 'Hide model configuration' : 'Show model configuration'}
+					>
+						<ChevronRight
+							size={12}
+							class="shrink-0 transition-transform {configExpanded ? 'rotate-90' : ''}"
+						/>
+						<span class="truncate">{chipLabel}</span>
+					</button>
+					<button
+						type="button"
+						onclick={handleRandomize}
 						{disabled}
+						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
+						title="Randomize selection"
 					>
-						<option disabled value="">{topDropdownLabel}</option>
-						<option disabled>───</option>
-						{#each availableGateways as gw (gw)}
-							<option value={gw} disabled={isGatewayDisabled(gw)}
-								>{GATEWAY_LABELS[gw]}{isRouter(gw) ? ' (router)' : ''}</option
-							>
-						{/each}
-					</select>
-
-					<!-- Provider selector (always rendered for consistent height) -->
-					<select
-						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
-						!showRouterProvider
-							? 'text-gray-600'
-							: ''}"
-						value={showRouterProvider ? provider : ''}
-						onchange={handleProviderChange}
-						disabled={disabled || !showRouterProvider}
-						tabindex={showRouterProvider ? 0 : -1}
-					>
-						{#if !gateway}
-							<option disabled value="">Provider</option>
-						{:else if showRouterProvider}
-							<option disabled value="">Provider</option>
-							<option disabled>───</option>
-							{#each availableProviders as p (p)}
-								<option value={p} disabled={isProviderDisabled(p)}>{getProviderLabel(p)}</option>
-							{/each}
-						{:else}
-							<option value="">N/A</option>
-						{/if}
-					</select>
-
-					<!-- Model selector -->
-					<select
-						class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
-						value={modelId}
-						onchange={handleModelChange}
-						{disabled}
-					>
-						<option disabled value="">Model</option>
-						<option disabled>───</option>
-						{#each availableModels as model (model.id)}
-							<option value={model.id}>{model.displayName}</option>
-						{/each}
-					</select>
+						<Shuffle size={12} />
+					</button>
 				</div>
-				<!-- Randomize -->
-				<button
-					type="button"
-					onclick={handleRandomize}
-					{disabled}
-					class="magi-randomize flex items-center justify-center rounded px-2 transition-colors disabled:opacity-50"
-					title="Randomize selection"
-				>
-					<Shuffle size={14} />
-				</button>
-			</div>
+			{/if}
+			{#if !inConversation || configExpanded}
+				<div class="flex gap-1.5">
+					<div class="flex flex-1 flex-col gap-1.5">
+						<!-- Gateway / Provider selector -->
+						<select
+							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							value={gateway}
+							onchange={handleGatewayChange}
+							{disabled}
+						>
+							<option disabled value="">{topDropdownLabel}</option>
+							<option disabled>───</option>
+							{#each availableGateways as gw (gw)}
+								<option value={gw} disabled={isGatewayDisabled(gw)}
+									>{GATEWAY_LABELS[gw]}{isRouter(gw) ? ' (router)' : ''}</option
+								>
+							{/each}
+						</select>
+
+						<!-- Provider selector (always rendered for consistent height) -->
+						<select
+							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
+							!showRouterProvider
+								? 'text-gray-600'
+								: ''}"
+							value={showRouterProvider ? provider : ''}
+							onchange={handleProviderChange}
+							disabled={disabled || !showRouterProvider}
+							tabindex={showRouterProvider ? 0 : -1}
+						>
+							{#if !gateway}
+								<option disabled value="">Provider</option>
+							{:else if showRouterProvider}
+								<option disabled value="">Provider</option>
+								<option disabled>───</option>
+								{#each availableProviders as p (p)}
+									<option value={p} disabled={isProviderDisabled(p)}>{getProviderLabel(p)}</option>
+								{/each}
+							{:else}
+								<option value="">N/A</option>
+							{/if}
+						</select>
+
+						<!-- Model selector -->
+						<select
+							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							value={modelId}
+							onchange={handleModelChange}
+							{disabled}
+						>
+							<option disabled value="">Model</option>
+							<option disabled>───</option>
+							{#each availableModels as model (model.id)}
+								<option value={model.id}>{model.displayName}</option>
+							{/each}
+						</select>
+					</div>
+					{#if !inConversation}
+						<!-- Randomize (idle) — sized to one select row, not the full stack -->
+						<button
+							type="button"
+							onclick={handleRandomize}
+							{disabled}
+							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
+							title="Randomize selection"
+						>
+							<Shuffle size={14} />
+						</button>
+					{/if}
+				</div>
+			{/if}
 		{:else}
 			<p class="text-xs text-gray-400">{label}</p>
 		{/if}
