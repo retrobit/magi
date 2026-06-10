@@ -197,7 +197,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		temperamentAwareness: useAwareness,
 		genericLabels: useGenericLabels,
 		history = [],
-		forceRetry = false
+		forceRetry = false,
+		retryNodes = [],
+		priorResponses = []
 	} = parsed.data;
 
 	logEvent('info', 'request', {
@@ -271,6 +273,25 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		return errResp({ error: reason }, 400);
 	}
 
+	// Per-node retry: dispatch only the requested nodes in phase 1; the rest of
+	// the lineup arrives as `priorResponses`. Gateway/provider come from our own
+	// config (never the client) so a prior answer can't be attributed to a spoofed
+	// origin. A node can't be both retried and prior — retried wins.
+	const retrying = retryNodes.length > 0;
+	const dispatchConfig: MagiConfig = retrying
+		? (config.filter((c) => retryNodes.includes(c.node)) as unknown as MagiConfig)
+		: config;
+	const priorMagi: MagiResponse[] = retrying
+		? config
+				.filter((c) => !retryNodes.includes(c.node))
+				.flatMap((c) => {
+					const prior = priorResponses.find((p) => p.node === c.node);
+					return prior
+						? [{ node: c.node, gateway: c.gateway, provider: c.provider, text: prior.text }]
+						: [];
+				})
+		: [];
+
 	const abortController = new AbortController();
 	request.signal.addEventListener('abort', () => abortController.abort(), { once: true });
 
@@ -299,16 +320,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				send('config', config);
 
 				// forceRetry: clear cached unhealthy entries so the pre-flight check
-				// actually re-calls the API instead of bouncing off a stale mark.
+				// actually re-calls the API instead of bouncing off a stale mark. A
+				// per-node retry implies the same intent for just the dispatched nodes.
 				if (forceRetry) {
 					for (const { modelId } of config) clearHealthEntry(modelId);
+				} else if (retrying) {
+					for (const { modelId } of dispatchConfig) clearHealthEntry(modelId);
 				}
 
 				// Pre-flight health check — catch unhealthy models before burning tokens
 				const orModels = config.some((a) => a.gateway === 'openrouter')
 					? await getOpenRouterFreeModels()
 					: [];
-				const nodeHealth = config.map(({ node, gateway, provider, modelId }) => {
+				const nodeHealth = dispatchConfig.map(({ node, gateway, provider, modelId }) => {
 					if (!isModelHealthy(modelId)) {
 						const entry = getHealthStatus(modelId);
 						// Build an honest skip message that tells the client when the
@@ -365,7 +389,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				const healthyNodes = nodeHealth.filter((h) => h.healthy);
 
-				if (healthyNodes.length === 0) {
+				// No dispatchable node left — only a hard stop when there are also no
+				// prior answers to fall back on. During a per-node retry the priors
+				// carry the turn, so an unhealthy retry node degrades to "re-run
+				// consensus over the survivors" rather than aborting.
+				if (healthyNodes.length === 0 && priorMagi.length === 0) {
 					logEvent('error', 'request.aborted', {
 						requestId,
 						reason: 'all models unhealthy'
@@ -477,9 +505,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					})
 				);
 
-				const responses: MagiResponse[] = results
+				const phase1Responses: MagiResponse[] = results
 					.filter((r): r is PromiseFulfilledResult<MagiResponse> => r.status === 'fulfilled')
 					.map((r) => r.value);
+
+				// Merge this dispatch's fresh answers with the carried-over priors, in
+				// config (node) order. For a normal turn `priorMagi` is empty and this
+				// is just the phase-1 results; for a retry it stitches the re-run node
+				// back in alongside the survivors.
+				const mergedByNode = new Map<MagiResponse['node'], MagiResponse>();
+				for (const r of priorMagi) mergedByNode.set(r.node, r);
+				for (const r of phase1Responses) mergedByNode.set(r.node, r);
+				const responses: MagiResponse[] = config
+					.map((c) => mergedByNode.get(c.node))
+					.filter((r): r is MagiResponse => !!r);
 
 				const totalNodes = config.length;
 
@@ -542,7 +581,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					nodeTemperaments: useTemperaments ?? false,
 					genericLabels: useGenericLabels ?? true,
 					signal: abortController.signal,
-					tier
+					tier,
+					// Fresh per-request seed so voting/debate rotate which peer sits in
+					// slot A/B each turn — keeps the consensus blind to node order and
+					// washes out the position bias the stats panel tracks.
+					peerOrderSeed: Math.floor(Math.random() * 0x100000000)
 				};
 
 				const consensusTimer = startTimer();

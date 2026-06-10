@@ -943,9 +943,14 @@
 		resetLiveState();
 	}
 
-	// Build the POST body for a MAGI request. Extracted so the retry path can
+	// Build the POST body for a MAGI request. Extracted so the retry paths can
 	// reuse it without duplicating the field list.
-	function buildRequestBody(opts: { turnQuery: string; forceRetry?: boolean }) {
+	function buildRequestBody(opts: {
+		turnQuery: string;
+		forceRetry?: boolean;
+		retryNodes?: MagiNodeName[];
+		priorResponses?: { node: MagiNodeName; text: string }[];
+	}) {
 		return JSON.stringify({
 			query: opts.turnQuery,
 			tier,
@@ -957,7 +962,9 @@
 			temperamentAwareness,
 			genericLabels,
 			history: buildHistory(),
-			...(opts.forceRetry ? { forceRetry: true } : {})
+			...(opts.forceRetry ? { forceRetry: true } : {}),
+			...(opts.retryNodes ? { retryNodes: opts.retryNodes } : {}),
+			...(opts.priorResponses ? { priorResponses: opts.priorResponses } : {})
 		});
 	}
 
@@ -978,12 +985,23 @@
 		loading = true;
 		resetLiveState();
 
+		await streamRequest(buildRequestBody({ turnQuery, forceRetry: opts.forceRetry }));
+
+		live.streamDone = true;
+		loading = false;
+		finalizeTurn();
+	}
+
+	// POST the body and pump the SSE stream into `live` via handleEvent. Shared by
+	// the normal submit path and the per-node retry path; the caller owns the
+	// surrounding lifecycle (loading flag, live hydration, finalizeTurn).
+	async function streamRequest(body: string) {
 		try {
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: buildRequestBody({ turnQuery, forceRetry: opts.forceRetry }),
-				signal: abortController.signal
+				body,
+				signal: abortController!.signal
 			});
 
 			if (!res.ok) {
@@ -1035,6 +1053,58 @@
 				live.error = err instanceof Error ? err.message : 'Network error';
 			}
 		}
+	}
+
+	// Re-run a single errored node on the latest turn, then re-synthesize consensus
+	// from the merged set — without re-billing the two nodes that already answered.
+	// Implemented as "reopen the committed turn as the live turn, restream, recommit":
+	// the last turn is hydrated back into `live` (minus the node being retried, which
+	// reverts to pending), popped off the conversation so finalizeTurn re-appends the
+	// updated version, and the survivors ride along as `priorResponses` so the server
+	// skips them in phase 1.
+	async function retryNode(node: MagiNodeName) {
+		const last = conversation.at(-1);
+		if (loading || !last || !last.nodeErrors?.[node]) return;
+
+		const hydrated = freshLiveState();
+		const priorResponses: { node: MagiNodeName; text: string }[] = [];
+		const carriedUsage: Partial<Record<MagiNodeName, TurnUsage>> = {};
+		for (const a of assignments) {
+			if (a.node === node) continue; // the retried node reverts to pending
+			const text = last.nodeResponses[a.node];
+			const errored = last.nodeErrors?.[a.node];
+			if (errored) {
+				// Another node that also failed stays failed — we only re-run `node`.
+				hydrated.modelErrors.push({
+					node: a.node,
+					gateway: a.gateway,
+					provider: a.provider,
+					error: errored
+				});
+			} else if (text !== undefined) {
+				hydrated.responses.push({ node: a.node, gateway: a.gateway, provider: a.provider, text });
+				priorResponses.push({ node: a.node, text });
+				if (last.nodeUsage?.[a.node]) carriedUsage[a.node] = last.nodeUsage[a.node]!;
+			}
+		}
+
+		// Pop the turn so finalizeTurn re-appends the refreshed version, and so
+		// buildHistory (the request's context) excludes it — the retry's history is
+		// the turns BEFORE this one, exactly as the original turn saw.
+		conversation = conversation.slice(0, -1);
+
+		activeTurnQuery = last.query;
+		turnAborted = false;
+		abortController?.abort();
+		abortController = new AbortController();
+		loading = true;
+		live = hydrated;
+		liveNodeUsage = carriedUsage;
+		liveConsensusUsage = undefined;
+
+		await streamRequest(
+			buildRequestBody({ turnQuery: last.query, retryNodes: [node], priorResponses })
+		);
 
 		live.streamDone = true;
 		loading = false;
@@ -1387,6 +1457,8 @@
 					{scrollMode}
 					disabled={loading}
 					usedProviders={getUsedProviders(i)}
+					canRetry={!effectiveLoading}
+					onretry={() => retryNode(assignment.node)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={() => (genericLabels = !genericLabels)}
 				/>

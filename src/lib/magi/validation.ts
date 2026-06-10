@@ -37,7 +37,19 @@ export const magiRequestSchema = z.object({
 	/** When true, bypasses the pre-flight unhealthy-cache check for every model in
 	 *  this request and clears those cache entries — so a retry actually re-calls
 	 *  a model rather than bouncing off a stale markUnhealthy entry. */
-	forceRetry: z.boolean().optional()
+	forceRetry: z.boolean().optional(),
+	/** Per-node retry: restrict the phase-1 dispatch to just these nodes (their
+	 *  health cache is cleared so they actually re-call). The other nodes' answers
+	 *  arrive via `priorResponses`. Empty/absent ⇒ run all nodes as a normal turn. */
+	retryNodes: z.array(z.enum(MAGI_NODE_NAMES)).max(3).optional(),
+	/** Per-node retry: the already-good answers for the nodes NOT being retried, so
+	 *  consensus runs over the full set without re-billing them. Gateway/provider are
+	 *  taken from the server's own config (text only here) so a client can't spoof
+	 *  the origin of a response. */
+	priorResponses: z
+		.array(z.object({ node: z.enum(MAGI_NODE_NAMES), text: z.string().max(50_000) }))
+		.max(3)
+		.optional()
 });
 
 export type MagiRequest = z.infer<typeof magiRequestSchema>;

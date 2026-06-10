@@ -40,6 +40,7 @@
 		CircleCheck,
 		CircleHelp,
 		ChevronRight,
+		RotateCcw,
 		X
 	} from 'lucide-svelte';
 
@@ -74,6 +75,10 @@
 		scrollMode?: ScrollMode;
 		disabled?: boolean;
 		usedProviders?: string[];
+		/** Re-run just this node (and re-synthesize consensus). Offered only on the
+		 *  latest turn's errored node — `canRetry` gates visibility. */
+		onretry?: () => void;
+		canRetry?: boolean;
 		onchange?: (gateway: GatewayName, provider: string, modelId: string) => void;
 		onlabelclick?: () => void;
 	}
@@ -104,6 +109,8 @@
 		scrollMode = 'follow',
 		disabled = false,
 		usedProviders = [],
+		onretry,
+		canRetry = false,
 		onchange,
 		onlabelclick
 	}: Props = $props();
@@ -355,6 +362,20 @@
 	     erroring — the Markdown above gets rendered first, this sits below it.
 	     Reserve the full errorCard for the text-less case only. -->
 	<p class="text-xs magi-error">Response interrupted: {message}</p>
+{/snippet}
+
+{#snippet retryButton()}
+	<!-- Re-run just this node and re-synthesize consensus, without re-billing the
+	     other two. Offered only on the latest turn's errored node. -->
+	<div class="flex justify-center pt-1">
+		<button
+			type="button"
+			class="inline-flex items-center gap-1.5 rounded-md border border-(--magi-border) px-2.5 py-1 text-xs text-(--magi-text-secondary) transition-colors hover:bg-(--magi-surface-hover)"
+			onclick={() => onretry?.()}
+		>
+			<RotateCcw size={12} /> Retry this node
+		</button>
+	</div>
 {/snippet}
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
@@ -611,6 +632,9 @@
 							{@render errorCard(turn.error)}
 						{:else}
 							<p class="magi-placeholder">No response</p>
+						{/if}
+						{#if turn.error && canRetry && onretry && i === transcript.length - 1}
+							{@render retryButton()}
 						{/if}
 						{@render roundList(turn.debateRounds ?? [], false)}
 						{@render tokenFooter(turn.inputTokens, turn.outputTokens, false)}

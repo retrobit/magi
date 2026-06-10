@@ -422,6 +422,55 @@ describe('POST /api/magi — health cache & forceRetry', () => {
 	});
 });
 
+describe('POST /api/magi — per-node retry', () => {
+	const retryBody = {
+		query: 'Hello MAGI',
+		tier: 'balanced',
+		strategy: 'synthesis',
+		retryNodes: ['MELCHIOR'],
+		priorResponses: [
+			{ node: 'BALTHASAR', text: 'prior from BALTHASAR' },
+			{ node: 'CASPAR', text: 'prior from CASPAR' }
+		]
+	};
+
+	it('dispatches only the retried node and feeds priors into consensus', async () => {
+		const events = await readEvents(await callPost(retryBody));
+		// One model stream for the single retried node + one for consensus = 2.
+		// A normal turn would dispatch all three (4 streamText calls).
+		expect(streamTextMock).toHaveBeenCalledTimes(2);
+		// Only the retried node re-emits a response; the priors aren't re-sent.
+		const responded = events
+			.filter((e) => e.event === 'model-response')
+			.map((e) => (e.data as { node: string }).node);
+		expect(responded).toEqual(['MELCHIOR']);
+		// Consensus still ran, over the full set.
+		expect(names(events)).toContain('consensus-complete');
+		// The merged priors reached the consensus input.
+		const consensusCall = streamTextMock.mock.calls.at(-1)?.[0];
+		const blob = JSON.stringify(consensusCall?.messages ?? consensusCall?.prompt ?? '');
+		expect(blob).toContain('prior from BALTHASAR');
+		expect(blob).toContain('prior from CASPAR');
+	});
+
+	it('clears health only for the retried node', async () => {
+		const { clearHealthEntry } = await import('$lib/server/health');
+		vi.mocked(clearHealthEntry).mockClear();
+		await readEvents(await callPost(retryBody));
+		expect(vi.mocked(clearHealthEntry)).toHaveBeenCalledTimes(1);
+	});
+
+	it('still reaches consensus from priors when the retried node is unhealthy', async () => {
+		vi.mocked(isModelHealthy).mockReturnValue(false);
+		const events = await readEvents(await callPost(retryBody));
+		// The retried node is skipped with a model-error, but the priors carry the
+		// turn — no hard "all models unavailable" abort, and consensus still runs.
+		expect(names(events)).toContain('model-error');
+		expect(names(events)).not.toContain('error');
+		expect(names(events)).toContain('consensus-complete');
+	});
+});
+
 describe('POST /api/magi — rate limit Retry-After', () => {
 	it('returns 429 with a Retry-After header when the client is rate limited', async () => {
 		vi.mocked(isRateLimited).mockReturnValue(true);
