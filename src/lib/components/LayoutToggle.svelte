@@ -4,7 +4,8 @@
 	// states is one click away from either zone. The arrow points the way the
 	// shared divider travels: expanding the nodes pushes it down, expanding the
 	// consensus pushes it up — so down = expand nodes, up = expand consensus.
-	import { ChevronUp, ChevronDown, Rows2 } from 'lucide-svelte';
+	import { PanelTop, PanelBottom, Rows2 } from 'lucide-svelte';
+	import { tooltip } from '$lib/actions/tooltip';
 
 	type LayoutFocus = 'balanced' | 'nodes' | 'consensus';
 
@@ -15,13 +16,13 @@
 
 	let { focus, onchange }: Props = $props();
 
-	// Ordered so the arrows read ▲ ▭ ▼ top-to-bottom. The up arrow (left) expands
-	// the consensus, the down arrow (right) expands the nodes — the direction the
-	// shared divider travels. `label` is the accessible name only (no hover tooltip).
+	// Each glyph depicts the layout it produces: nodes fill the top zone,
+	// balanced splits the rows, consensus fills the bottom. `label` doubles as
+	// the accessible name and the hover tooltip.
 	const options: { value: LayoutFocus; label: string }[] = [
-		{ value: 'consensus', label: 'Expand the consensus panel' },
+		{ value: 'nodes', label: 'Expand the MAGI node panels' },
 		{ value: 'balanced', label: 'Balanced — node panels and consensus together' },
-		{ value: 'nodes', label: 'Expand the MAGI node panels' }
+		{ value: 'consensus', label: 'Expand the consensus panel' }
 	];
 </script>
 
@@ -29,20 +30,20 @@
 	{#each options as opt (opt.value)}
 		<button
 			type="button"
-			class="flex items-center justify-center rounded px-1 py-0.5 transition-colors {focus ===
-			opt.value
+			class="flex items-center justify-center rounded p-1.5 transition-colors {focus === opt.value
 				? 'bg-gray-600 text-white'
 				: 'text-gray-500 hover:text-gray-300'}"
 			onclick={() => onchange(opt.value)}
 			aria-label={opt.label}
 			aria-pressed={focus === opt.value}
+			use:tooltip={opt.label}
 		>
 			{#if opt.value === 'nodes'}
-				<ChevronDown size={12} />
+				<PanelTop size={14} />
 			{:else if opt.value === 'balanced'}
-				<Rows2 size={12} />
+				<Rows2 size={14} />
 			{:else}
-				<ChevronUp size={12} />
+				<PanelBottom size={14} />
 			{/if}
 		</button>
 	{/each}

@@ -9,6 +9,7 @@
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { isControlClick } from '$lib/actions/click-guard';
 	import {
 		freshDebugScenario,
 		isDebugScenarioActive,
@@ -133,20 +134,9 @@
 		layoutFocus =
 			layoutFocus === 'balanced' ? 'nodes' : layoutFocus === 'nodes' ? 'consensus' : 'balanced';
 	}
-	function isControlClick(e: Event): boolean {
-		const t = e.target;
-		return t instanceof HTMLElement && !!t.closest('button, select, a, input, textarea');
-	}
 	function onStatusBarClick(e: MouseEvent) {
 		if (isControlClick(e)) return;
 		advanceLayout();
-	}
-	function onStatusBarKeydown(e: KeyboardEvent) {
-		if (e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			advanceLayout();
-		}
 	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
@@ -1141,13 +1131,10 @@
 		     button + toggle share row 1 and the counters get row 2 alone — the
 		     inner `sm:contents` wrapper disappears at sm+ so its children become
 		     direct grid items again. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 		<div
 			class="magi-panel flex shrink-0 cursor-pointer flex-col gap-2 rounded-lg px-4 py-2 text-xs select-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-4 sm:gap-y-0"
 			onclick={onStatusBarClick}
-			onkeydown={onStatusBarKeydown}
-			role="button"
-			tabindex="0"
-			aria-label="Cycle layout focus"
 		>
 			<div class="flex items-center justify-between sm:contents">
 				<button

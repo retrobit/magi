@@ -29,6 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { isControlClick } from '$lib/actions/click-guard';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -110,10 +111,6 @@
 	// Fire `onheadertoggle` for clicks that land on the header strip itself
 	// (not on a button/select/anchor child). Same handler covers the keyboard
 	// path so the strip is keyboard-operable when a callback is wired.
-	function isControlClick(e: Event): boolean {
-		const t = e.target;
-		return t instanceof HTMLElement && !!t.closest('button, select, a, input, textarea');
-	}
 	function onHeaderRowClick(e: MouseEvent) {
 		if (!onheadertoggle || isControlClick(e)) return;
 		onheadertoggle();

@@ -17,6 +17,9 @@ export function tooltip(node: HTMLElement, text: string | undefined) {
 	let touchAutoHide: ReturnType<typeof setTimeout> | null = null;
 	let touchOutsideHandler: ((e: Event) => void) | null = null;
 	let current = text;
+	// Mark the anchor so click-to-cycle surfaces can exclude tooltip taps —
+	// on touch, the tooltip-peek tap must not double as a layout click.
+	node.dataset.tooltipAnchor = '';
 
 	function place() {
 		if (!tip) return;
@@ -99,6 +102,7 @@ export function tooltip(node: HTMLElement, text: string | undefined) {
 			}
 		},
 		destroy() {
+			delete node.dataset.tooltipAnchor;
 			hide();
 			node.removeEventListener('mouseenter', onEnter);
 			node.removeEventListener('mouseleave', hide);
