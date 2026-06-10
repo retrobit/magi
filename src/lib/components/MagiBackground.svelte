@@ -20,6 +20,16 @@
 	let spotY = $state(-9999);
 	let spotOn = $state(false);
 
+	// Cursor-driven parallax tilt of the whole lattice — a faint 3D plane that
+	// leans toward the pointer. The base and glow lattices share this one
+	// transform so they stay registered (a transform on one but not the other
+	// would misalign the spotlight overlay); the spotlight rides along, and at
+	// this shallow angle its few-px offset from the true cursor is imperceptible.
+	// scale() oversizes the layer so the lean never exposes a viewport edge.
+	let tiltX = $state(0);
+	let tiltY = $state(0);
+	const MAX_TILT = 4; // degrees at the viewport edge
+
 	let rafId = 0; // 0 = nothing scheduled — the coalescing guard
 	let nextX = 0; // non-reactive staging for the latest pointer position
 	let nextY = 0;
@@ -33,6 +43,10 @@
 			spotX = nextX;
 			spotY = nextY;
 			spotOn = true;
+			const cx = window.innerWidth / 2;
+			const cy = window.innerHeight / 2;
+			tiltY = cx ? ((nextX - cx) / cx) * MAX_TILT : 0;
+			tiltX = cy ? (-(nextY - cy) / cy) * MAX_TILT : 0;
 		});
 	}
 
@@ -48,6 +62,9 @@
 			rafId = 0;
 		}
 		spotOn = false;
+		// Ease the plane back to flat (a finite CSS transition, not a loop).
+		tiltX = 0;
+		tiltY = 0;
 	}
 
 	// Capability gates, kept live via `change` listeners so toggling the OS
@@ -87,6 +104,8 @@
 			if (rafId !== 0) cancelAnimationFrame(rafId);
 			rafId = 0;
 			spotOn = false;
+			tiltX = 0;
+			tiltY = 0;
 		};
 	});
 
@@ -118,7 +137,13 @@
 			     <pattern> does the tiling. Resize is free: 100% rects plus
 			     userSpaceOnUse repeat give crisp vector strokes at any DPR or
 			     zoom with zero resize JS. -->
-			<svg class="hex-svg" width="100%" height="100%">
+			<svg
+				class="hex-svg"
+				width="100%"
+				height="100%"
+				style:transform={`perspective(900px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06)`}
+				style:transition={spotOn ? 'none' : 'transform 320ms ease-out'}
+			>
 				<defs>
 					<pattern
 						id="magi-hex-base"
@@ -151,6 +176,17 @@
 							style:transform={`translate(${spotX}px, ${spotY}px)`}
 						/>
 					</mask>
+					<!-- Lighting dome: a bright core ringed by a soft shadow, painted
+					     over the lattice so the cursor area reads as a raised bump
+					     catching overhead light. Pure translucent white/black (no blend
+					     mode), so it's a cheap composited overlay — no per-frame raster. -->
+					<radialGradient id="magi-hex-dome">
+						<stop offset="0%" stop-color="#fff" stop-opacity="0.05" />
+						<stop offset="48%" stop-color="#fff" stop-opacity="0.01" />
+						<stop offset="66%" stop-color="#000" stop-opacity="0" />
+						<stop offset="84%" stop-color="#000" stop-opacity="0.1" />
+						<stop offset="100%" stop-color="#000" stop-opacity="0" />
+					</radialGradient>
 				</defs>
 
 				<!-- Base lattice: one static paint, cached by the compositor. -->
@@ -167,6 +203,15 @@
 						height="100%"
 						fill="url(#magi-hex-hot)"
 						mask="url(#magi-hex-spot)"
+					/>
+					<!-- Dome shading overlay — center at origin, moved to the cursor by
+					     transform only (no cx/cy mutation), fading in/out with the glow. -->
+					<circle
+						class="hex-dome"
+						class:hex-dome-on={spotOn}
+						r="440"
+						fill="url(#magi-hex-dome)"
+						style:transform={`translate(${spotX}px, ${spotY}px)`}
 					/>
 				{/if}
 			</svg>
@@ -344,6 +389,10 @@
 	.hex-svg {
 		position: absolute;
 		inset: 0;
+		transform-origin: center;
+		/* Promoted to its own compositor layer so the cursor tilt is a pure GPU
+		   transform — no per-frame raster. */
+		will-change: transform;
 		--hex-line: #9ca3af; /* gray-400 on the gray-950 page */
 		--hex-line-hot: #d6d3d1; /* stone-300: faint neutral-warm accent */
 		--hex-base-opacity: 0.11;
@@ -363,6 +412,16 @@
 
 	.hex-glow-on {
 		opacity: var(--hex-glow-opacity);
+	}
+
+	/* Lighting dome — fades in/out with the spotlight (finite transition). */
+	.hex-dome {
+		opacity: 0;
+		transition: opacity 250ms ease-out;
+	}
+
+	.hex-dome-on {
+		opacity: 1;
 	}
 
 	/* Light theme (`.light` lives on the page root, outside this component):
