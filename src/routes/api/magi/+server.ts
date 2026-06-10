@@ -54,11 +54,9 @@ export function _isAvailabilityError(message: string): boolean {
 	if (
 		lower.includes('context') ||
 		lower.includes('token') ||
-		lower.includes('401') ||
-		lower.includes('403') ||
+		/\b(401|403|429)\b/.test(message) ||
 		lower.includes('unauthorized') ||
 		lower.includes('forbidden') ||
-		lower.includes('429') ||
 		lower.includes('rate limit') ||
 		lower.includes('rate_limit')
 	)

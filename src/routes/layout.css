@@ -9,7 +9,8 @@
    override, compose with a `magi-warn` / `magi-success` / raw `text-*`
    class after the size utility — the later declaration wins.
 
-   Cheat sheet — bracketed color means the utility includes it by default
+   Cheat sheet — bracketed color is the utility's default, via theme vars
+     (dark value shown; light mode overrides the vars)
      magi-headline        — app title (text-2xl bold wider, no default color)
      magi-banner-headline — banner titles (sm bold wider uppercase, no color)
      magi-banner-detail   — banner subtitle [gray-400]
@@ -39,22 +40,27 @@
 	@apply text-sm font-bold tracking-wide uppercase;
 }
 @utility magi-banner-detail {
-	@apply text-xs text-gray-400;
+	@apply text-xs;
+	color: var(--magi-text-muted);
 }
 @utility magi-section-header {
 	@apply text-xs font-semibold tracking-wide;
 }
 @utility magi-subhead {
-	@apply text-xs font-semibold text-gray-400;
+	@apply text-xs font-semibold;
+	color: var(--magi-text-muted);
 }
 @utility magi-label {
-	@apply text-xs font-medium text-gray-300;
+	@apply text-xs font-medium;
+	color: var(--magi-text-secondary);
 }
 @utility magi-label-muted {
-	@apply text-xs font-medium text-gray-400;
+	@apply text-xs font-medium;
+	color: var(--magi-text-muted);
 }
 @utility magi-meta {
-	@apply text-[11px] text-gray-400;
+	@apply text-[11px];
+	color: var(--magi-text-muted);
 }
 @utility magi-badge {
 	@apply text-[10px] font-semibold tracking-wider uppercase;
@@ -63,16 +69,19 @@
 	@apply font-mono text-[11px];
 }
 @utility magi-meta-strong {
-	@apply text-[11px] font-medium text-gray-400;
+	@apply text-[11px] font-medium;
+	color: var(--magi-text-muted);
 }
 @utility magi-chip {
 	@apply text-[10px] font-medium;
 }
 @utility magi-loader-text {
-	@apply font-mono text-xs text-gray-400;
+	@apply font-mono text-xs;
+	color: var(--magi-text-muted);
 }
 @utility magi-placeholder {
-	@apply text-sm text-gray-500;
+	@apply text-sm;
+	color: var(--magi-text-faint);
 }
 @utility magi-warn {
 	color: var(--magi-color-warn);
@@ -277,7 +286,7 @@
 		color: var(--magi-text-muted);
 	}
 
-	.magi-temperament-toggle:hover:not(:disabled) {
+	.magi-temperament-toggle:hover:not(:disabled):not(.magi-temperament-toggle-on) {
 		background-color: var(--magi-surface-hover);
 		color: var(--magi-text-secondary);
 	}

@@ -38,9 +38,15 @@
 
 	function onPointerOut(e: PointerEvent) {
 		// Only when the pointer leaves the document entirely (relatedTarget is
-		// null), not on every element boundary crossing. The glow fades out via
-		// a finite CSS opacity transition, then everything is static again.
+		// null), not on every element boundary crossing. Drop any pending commit
+		// first — its callback sets spotOn = true and would re-light the glow
+		// after the pointer is gone. The glow then fades out via a finite CSS
+		// opacity transition, and everything is static again.
 		if (e.relatedTarget !== null) return;
+		if (rafId !== 0) {
+			cancelAnimationFrame(rafId);
+			rafId = 0;
+		}
 		spotOn = false;
 	}
 

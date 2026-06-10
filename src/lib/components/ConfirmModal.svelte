@@ -50,12 +50,12 @@
 		aria-labelledby="confirm-modal-title"
 	>
 		<h2 id="confirm-modal-title" class="text-sm font-semibold text-(--magi-text)">{title}</h2>
-		<p class="mt-2 text-sm leading-relaxed text-gray-400">{message}</p>
+		<p class="mt-2 text-sm leading-relaxed text-(--magi-text-muted)">{message}</p>
 		<div class="mt-5 flex justify-end gap-2">
 			<button
 				bind:this={cancelButton}
 				type="button"
-				class="rounded-md px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+				class="rounded-md px-3 py-1.5 text-sm text-(--magi-text-secondary) transition-colors hover:bg-(--magi-surface-hover)"
 				onclick={oncancel}
 			>
 				{cancelLabel}

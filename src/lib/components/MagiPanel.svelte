@@ -356,8 +356,10 @@
 </script>
 
 {#snippet errorCard(message: string)}
-	<!-- role="status" so screen readers announce when a model fails. -->
-	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center" role="status">
+	<!-- Announced by the page-level live region; rendered as plain content here
+	     (inserting role="status" together with its content is the pattern screen
+	     readers handle least reliably). -->
+	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
 		<CircleAlert size={24} class="magi-error" />
 		<p class="text-sm font-medium magi-error">Model unavailable</p>
 		<p class="text-xs text-gray-500">{message}</p>
@@ -368,7 +370,7 @@
 	<!-- Compact one-line strip for a node that streamed partial text before
 	     erroring — the Markdown above gets rendered first, this sits below it.
 	     Reserve the full errorCard for the text-less case only. -->
-	<p class="text-xs magi-error" role="status">Response interrupted: {message}</p>
+	<p class="text-xs magi-error">Response interrupted: {message}</p>
 {/snippet}
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}

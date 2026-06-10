@@ -49,7 +49,7 @@
 		type PersistedSnapshot,
 		type PersistedSettings
 	} from '$lib/magi/persistence';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		Triangle,
@@ -152,6 +152,10 @@
 
 	function fillPrompt(prompt: string) {
 		query = prompt;
+		// Focus the input so keyboard users land where the workflow continues —
+		// and so screen readers read the populated value (Execute is unfocusable
+		// while the input is empty, making silent fills easy to lose).
+		queryInputEl?.focus();
 	}
 	function fillRandomPrompt() {
 		fillPrompt(RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)]);
@@ -381,7 +385,11 @@
 			debateVerdict: turn.debateVerdict,
 			debateSummary: turn.debateSummary,
 			consensusWarning: turn.consensusWarning,
-			respondedCount: Object.keys(turn.nodeResponses).length,
+			// Clean successes only: errored nodes may carry a persisted partial in
+			// nodeResponses, which must not count as "responded" for the gates.
+			respondedCount: MAGI_NODE_NAMES.filter(
+				(n) => turn.nodeResponses[n] !== undefined && !turn.nodeErrors[n]
+			).length,
 			aborted: turn.aborted
 		}))
 	);
@@ -393,7 +401,12 @@
 
 	// Error to show in the global banner — live during streaming, then falls back
 	// to the last committed turn's error so the banner survives resetLiveState().
-	const displayedError = $derived(live.error || conversation.at(-1)?.error || '');
+	// The transcript fallback keeps a committed turn's error visible after the
+	// live-state reset — but it must yield while a NEW turn is in flight, or a
+	// retry streams under its predecessor's stale red banner.
+	const displayedError = $derived(
+		live.error || (activeTurnQuery ? '' : (conversation.at(-1)?.error ?? ''))
+	);
 
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
@@ -751,6 +764,8 @@
 	// Whether this turn was aborted by the user (set in handleSubmit's AbortError
 	// catch branch, read by finalizeTurn to stamp the committed turn).
 	let turnAborted = $state(false);
+	let queryInputEl = $state<HTMLInputElement>();
+	let abortButtonEl = $state<HTMLButtonElement>();
 
 	// Commit the just-finished turn into the conversation, then clear live state.
 	function finalizeTurn() {
@@ -767,9 +782,16 @@
 			// Hard-failed or aborted before any usable content arrived — no turn to
 			// commit. Restore the typed prompt so the user can resubmit without
 			// re-typing, and still reset live state so token counts don't ghost.
+			// The error must survive the reset: pre-stream failures (HTTP errors,
+			// our own 429, network drops) set live.error in the same synchronous
+			// continuation that lands here, so wiping it would mean the banner
+			// never paints at all.
+			const pendingError = live.error;
 			query = activeTurnQuery;
 			activeTurnQuery = '';
+			turnAborted = false;
 			resetLiveState();
+			live.error = pendingError;
 			return;
 		}
 		const nodeResponses: Partial<Record<MagiNodeName, string>> = {};
@@ -923,6 +945,10 @@
 		query = last.query;
 		const fakeEvent = new Event('submit') as unknown as SubmitEvent;
 		void handleSubmit(fakeEvent, { forceRetry: true });
+		// The Retry button unmounts as the banner clears — without an explicit
+		// hand-off, keyboard focus drops to <body>. The Abort button that
+		// replaces Execute is the action's natural continuation.
+		void tick().then(() => abortButtonEl?.focus());
 	}
 
 	// One handler per SSE event. The map is keyed by `StreamEventName`, so the
@@ -1044,8 +1070,13 @@
 		     interrupt in-progress speech. -->
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
 			{#if loading}
-				Processing query…
-			{:else if turnAborted}
+				{#if live.modelErrors.length > 0}
+					{activeNodeLabels[live.modelErrors[live.modelErrors.length - 1].node]} failed: {live
+						.modelErrors[live.modelErrors.length - 1].error}
+				{:else}
+					Processing query…
+				{/if}
+			{:else if conversation.at(-1)?.aborted}
 				Response stopped.
 			{:else if displayedError}
 				Error: {displayedError}
@@ -1061,6 +1092,7 @@
 		<form onsubmit={handleSubmit} class="flex shrink-0 gap-3">
 			<div class="relative flex-1">
 				<input
+					bind:this={queryInputEl}
 					bind:value={query}
 					type="text"
 					aria-label="Query the MAGI system"
@@ -1095,6 +1127,7 @@
 			</button>
 			{#if loading}
 				<button
+					bind:this={abortButtonEl}
 					type="button"
 					onclick={() => abortController?.abort()}
 					aria-label="Abort"
@@ -1187,7 +1220,6 @@
 		{#if displayedError}
 			<div
 				class="flex shrink-0 items-center gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
-				role="status"
 			>
 				<CircleAlert size={16} class="shrink-0" />
 				<span class="flex-1">{displayedError}</span>

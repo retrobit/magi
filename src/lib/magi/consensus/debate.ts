@@ -560,6 +560,10 @@ Do not paper over the disagreement: state what they agree on, then lay out each 
 
 		const messages: ModelMessage[] = [];
 		for (const turn of history) {
+			// A failed or aborted turn commits with an empty consensus — skip the
+			// pair rather than replay an empty assistant message, which some
+			// providers reject outright.
+			if (!turn.consensus) continue;
 			messages.push({ role: 'user', content: turn.query });
 			messages.push({ role: 'assistant', content: turn.consensus });
 		}

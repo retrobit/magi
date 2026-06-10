@@ -97,6 +97,10 @@ Provide the synthesized consensus response.`;
 		// the full synthesis prompt with this round's fresh node responses.
 		const messages: ModelMessage[] = [];
 		for (const turn of history) {
+			// A failed or aborted turn commits with an empty consensus — skip the
+			// pair rather than replay an empty assistant message, which some
+			// providers reject outright.
+			if (!turn.consensus) continue;
 			messages.push({ role: 'user', content: turn.query });
 			messages.push({ role: 'assistant', content: turn.consensus });
 		}
