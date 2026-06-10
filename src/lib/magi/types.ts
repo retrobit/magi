@@ -150,6 +150,12 @@ export function tokenUsageTooltip(opts: {
  *  start of the latest response once that response finishes. */
 export type ScrollMode = 'off' | 'follow' | 'snap';
 
+/** Background flavors selectable in Settings. Single source of truth for the
+ *  union consumed by the component, the header, page state, and the
+ *  persistence schema. */
+export const BG_VARIANTS = ['columns', 'orbs', 'hex', 'off'] as const;
+export type BgVariant = (typeof BG_VARIANTS)[number];
+
 /** Token usage for a single model call. `cachedTokens` is the slice of
  *  `inputTokens` served from a prompt cache — present only for gateways that
  *  report it (Anthropic, OpenAI). Optional for back-compat with persisted turns. */

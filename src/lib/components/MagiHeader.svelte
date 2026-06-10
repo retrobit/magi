@@ -12,10 +12,9 @@
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
 	import type { NodeAssignment } from '$lib/magi/config';
-	import type { ScrollMode } from '$lib/magi/types';
+	import type { BgVariant, ScrollMode } from '$lib/magi/types';
 
 	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings' | 'menu';
-	type BgVariant = 'columns' | 'orbs' | 'off';
 
 	interface Props {
 		theme: 'dark' | 'light';
@@ -231,6 +230,14 @@
 				onclick={() => (bgVariant = 'columns')}
 			>
 				Columns
+			</button>
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
+					? 'bg-gray-600 text-white'
+					: 'text-gray-400 hover:bg-gray-800 hover:text-white'}"
+				onclick={() => (bgVariant = 'hex')}
+			>
+				Hex
 			</button>
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'

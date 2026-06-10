@@ -34,7 +34,8 @@
 		type ConsensusTranscriptEntry,
 		type DebateRoundEntry,
 		type DebateVerdict,
-		type ScrollMode
+		type ScrollMode,
+		type BgVariant
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
@@ -104,7 +105,7 @@
 	let copiedQuery = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
-	let bgVariant = $state<'columns' | 'orbs' | 'off'>('orbs');
+	let bgVariant = $state<BgVariant>('orbs');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
 	// Focus accordion between the node row and the consensus. The status-bar layout

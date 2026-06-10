@@ -52,3 +52,44 @@ describe('MagiBackground rendering cost', () => {
 		}
 	});
 });
+
+// The hex variant adds pointer-driven JS to a file that previously had none.
+// Its cost contract: all work is event-driven (no polling, no animation loop),
+// commits coalesce to at most one per frame, and the spotlight moves via a
+// CSS transform on constant geometry. Like the CSS guards above, these are
+// deliberate, implementation-pinning assertions — refactors of the pointer
+// pipeline must consciously update them.
+describe('hex variant rendering cost', () => {
+	it('tracks the pointer with a passive window listener and tears it down', () => {
+		expect(source).toMatch(
+			/window\.addEventListener\(\s*'pointermove'[\s\S]{0,120}\{\s*passive:\s*true\s*\}/
+		);
+		expect(source).toMatch(/removeEventListener\(\s*'pointermove'/);
+	});
+
+	it('coalesces to a single rAF that never re-arms itself (no animation loop)', () => {
+		const calls = source.match(/requestAnimationFrame\(/g) ?? [];
+		expect(calls).toHaveLength(1);
+		// The callback must zero the handle and never schedule again — a
+		// self-rescheduling callback would reintroduce per-frame idle work.
+		const start = source.indexOf('requestAnimationFrame(');
+		const callback = source.slice(start, start + 400);
+		expect(callback).toMatch(/rafId\s*=\s*0/);
+	});
+
+	it('never polls — timers cannot drive a background repaint', () => {
+		expect(source).not.toMatch(/setInterval\s*\(/);
+		expect(source).not.toMatch(/setTimeout\s*\(/);
+	});
+
+	it('moves the spotlight via transform, never geometry-attribute churn', () => {
+		expect(source).toMatch(/style:transform/);
+		expect(source).not.toMatch(/setAttribute\(\s*'c[xy]'/);
+		expect(source).not.toMatch(/\bc[xy]=\{/);
+	});
+
+	it('gates pointer reactivity behind hover and reduced-motion media queries', () => {
+		expect(source).toMatch(/matchMedia\(\s*'\(hover: hover\) and \(pointer: fine\)'\s*\)/);
+		expect(source).toMatch(/matchMedia\(\s*'\(prefers-reduced-motion: reduce\)'\s*\)/);
+	});
+});

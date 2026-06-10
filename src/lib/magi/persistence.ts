@@ -3,10 +3,12 @@ import { nodeAssignmentSchema } from './validation';
 import {
 	TIER_NAMES,
 	MAGI_NODE_NAMES,
+	BG_VARIANTS,
 	type TierName,
 	type MagiNodeName,
 	type ConversationTurn,
-	type ScrollMode
+	type ScrollMode,
+	type BgVariant
 } from './types';
 import type { NodeAssignment } from './config';
 import { STRATEGY_NAMES, type StrategyName } from './consensus/types';
@@ -29,7 +31,7 @@ export interface PersistedSettings {
 	temperamentAwareness: boolean;
 	genericLabels: boolean;
 	theme: 'dark' | 'light';
-	bgVariant: 'columns' | 'orbs' | 'off';
+	bgVariant: BgVariant;
 	scrollMode: ScrollMode;
 	/** Focus accordion state. Optional for back-compat with payloads saved
 	 *  before this field existed — those simply fall back to the in-code default. */
@@ -72,7 +74,7 @@ const persistedSettingsSchema = z.object({
 	temperamentAwareness: z.boolean(),
 	genericLabels: z.boolean(),
 	theme: z.enum(['dark', 'light']),
-	bgVariant: z.enum(['columns', 'orbs', 'off']),
+	bgVariant: z.enum(BG_VARIANTS),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
 	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional()
 });
