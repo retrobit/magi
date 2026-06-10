@@ -154,6 +154,10 @@
 	--magi-text-faint: var(--color-gray-500);
 	--magi-panel-bg: color-mix(in oklab, var(--color-gray-900) 70%, transparent);
 	--magi-panel-shadow: none;
+	/* The reading region is opaque so the animated background never bleeds
+	   through model text; the panel chrome stays translucent for the layered
+	   look. Full-alpha gray-900 (the panel's own base color). */
+	--magi-output-bg: var(--color-gray-900);
 	/* Outlines vs interior rules: the subtle var must never read stronger
 	   than the outline — the old gray-700 header dividers inside gray-800
 	   panel borders had the hierarchy inverted. */
@@ -236,6 +240,13 @@
 
 	.magi-turn-divider {
 		border-color: var(--magi-border-subtle);
+	}
+
+	/* Scrollable response/reading region of each panel — opaque so the animated
+	   background can't bleed through model text. The panel's overflow-hidden +
+	   rounded-lg clips this to the panel's bottom corners. */
+	.magi-output {
+		background-color: var(--magi-output-bg);
 	}
 
 	/* Randomize button — match the auto-bordered <select> controls */
@@ -347,6 +358,7 @@
 	   dirty-screen arcs and degraded every muted-text contrast figure. */
 	--magi-panel-bg: #ffffff;
 	--magi-panel-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
+	--magi-output-bg: #ffffff;
 	--magi-border: #d1d5db;
 	--magi-border-subtle: #e5e7eb;
 	--magi-surface-bg: #f3f4f6;
@@ -375,6 +387,13 @@
 	--tw-prose-code: #111827;
 	--tw-prose-pre-bg: #f3f4f6;
 	--tw-prose-pre-code: #374151;
+}
+
+/* Response body size — model output renders inside `.prose`, which defaults to
+   16px. A touch smaller reads better in the panels; prose sizes its children in
+   `em`, so headings/code/lists all scale proportionally from this one value. */
+.prose {
+	font-size: 0.9375rem;
 }
 
 /* ── Code syntax highlighting (highlight.js token classes) ──
