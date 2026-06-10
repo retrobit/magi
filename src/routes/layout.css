@@ -174,6 +174,8 @@
 	--magi-toggle-on-bg: color-mix(in oklab, var(--color-gray-600) 30%, transparent);
 	--magi-token-split-color: var(--color-gray-500);
 	--magi-token-total-color: var(--color-gray-500);
+	/* Keyboard focus ring (:focus-visible only). Blue-400 reads on the dark page. */
+	--magi-ring: #60a5fa;
 
 	/* Floating surfaces (header popovers, menus, tooltip, modal) */
 	--magi-popover-bg: var(--color-gray-900);
@@ -377,6 +379,26 @@
 	--magi-color-pending: #a16207;
 	--magi-color-success: #16a34a;
 	--magi-color-unknown: #ea580c;
+	/* Blue-600 for contrast on the white surface. */
+	--magi-ring: #2563eb;
+}
+
+/* Keyboard focus ring. Scoped to `:focus-visible` so it appears for keyboard and
+   programmatic focus but never on a mouse click. Unlayered, so it wins over the
+   Tailwind `focus:outline-none` utilities scattered on selects/inputs (which
+   would otherwise strip the ring for keyboard users too). One consistent,
+   theme-aware ring across every interactive control — the a11y gap the audit
+   flagged. Modern browsers round the outline to follow each element's
+   border-radius automatically. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+	outline: 2px solid var(--magi-ring);
+	outline-offset: 2px;
 }
 
 .light .prose {
