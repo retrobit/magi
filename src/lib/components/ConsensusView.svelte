@@ -783,4 +783,19 @@
 		pointer-events: none;
 		animation: pulse-top-glow 2s ease-in-out infinite;
 	}
+
+	/* Hold the consensus glow still when motion is reduced (OS preference or the
+	   in-app setting's class on <html>). */
+	@media (prefers-reduced-motion: reduce) {
+		.pulse-consensus,
+		.pulse-consensus::before,
+		.pulse-consensus::after {
+			animation: none;
+		}
+	}
+	:global(.reduce-motion) .pulse-consensus,
+	:global(.reduce-motion) .pulse-consensus::before,
+	:global(.reduce-motion) .pulse-consensus::after {
+		animation: none;
+	}
 </style>

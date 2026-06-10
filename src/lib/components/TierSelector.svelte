@@ -65,10 +65,10 @@
 >
 	<!-- Sliding active indicator -->
 	<div
-		class="pointer-events-none absolute top-1 bottom-1 rounded-md bg-gray-600"
+		class="tier-indicator pointer-events-none absolute top-1 bottom-1 rounded-md bg-gray-600"
+		class:animate={ready}
 		style:left="{pill.left}px"
 		style:width="{pill.width}px"
-		style:transition={ready ? 'transform 220ms ease, left 220ms ease, width 220ms ease' : 'none'}
 		aria-hidden="true"
 	></div>
 
@@ -109,3 +109,24 @@
 		{/each}
 	</div>
 </div>
+
+<style>
+	/* Slide only after the first measure (`animate`), and hold still entirely
+	   when motion is reduced — OS preference or the in-app class on <html>. */
+	.tier-indicator {
+		transition: none;
+	}
+	.tier-indicator.animate {
+		transition:
+			left 220ms ease,
+			width 220ms ease;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.tier-indicator.animate {
+			transition: none;
+		}
+	}
+	:global(.reduce-motion) .tier-indicator.animate {
+		transition: none;
+	}
+</style>

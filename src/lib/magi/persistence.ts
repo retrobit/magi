@@ -36,6 +36,9 @@ export interface PersistedSettings {
 	/** Focus accordion state. Optional for back-compat with payloads saved
 	 *  before this field existed — those simply fall back to the in-code default. */
 	layoutFocus?: 'balanced' | 'nodes' | 'consensus';
+	/** Reduce ambient/cursor motion regardless of the OS preference. Optional
+	 *  for back-compat — older payloads fall back to the in-code default (off). */
+	reduceMotion?: boolean;
 }
 
 /** Top-level shape stored in localStorage: the last active tier, a per-tier
@@ -76,7 +79,8 @@ const persistedSettingsSchema = z.object({
 	theme: z.enum(['dark', 'light']),
 	bgVariant: z.enum(BG_VARIANTS),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
-	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional()
+	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional(),
+	reduceMotion: z.boolean().optional()
 });
 
 const debateRoundSchema = z.object({

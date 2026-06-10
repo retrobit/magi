@@ -669,4 +669,15 @@
 	.pulse-glow {
 		animation: pulse-glow 2s ease-in-out infinite;
 	}
+
+	/* Hold the pending glow still when motion is reduced (OS preference or the
+	   in-app setting's class on <html>). */
+	@media (prefers-reduced-motion: reduce) {
+		.pulse-glow {
+			animation: none;
+		}
+	}
+	:global(.reduce-motion) .pulse-glow {
+		animation: none;
+	}
 </style>

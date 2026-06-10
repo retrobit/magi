@@ -3,9 +3,11 @@
 
 	interface Props {
 		variant?: BgVariant;
+		/** App-level reduce-motion, OR'd with the OS `prefers-reduced-motion`. */
+		reduceMotion?: boolean;
 	}
 
-	let { variant = 'columns' }: Props = $props();
+	let { variant = 'columns', reduceMotion = false }: Props = $props();
 
 	// ── Hex variant: pointer-tracked spotlight ──────────────────────────────
 	// The background container is pointer-events-none, so events can never
@@ -73,7 +75,11 @@
 	// attached AND the glow rect is not rendered — the hex variant degrades to
 	// a pure static lattice: one paint, ever.
 	let hoverOk = $state(false);
-	let motionOk = $state(false);
+	let osReducedMotion = $state(false);
+	// Motion is allowed only when neither the OS preference nor the app setting
+	// asks to reduce it. Derived, so flipping the in-app setting re-runs the
+	// listener effect below (detaching listeners and resetting the spotlight).
+	const motionOk = $derived(!osReducedMotion && !reduceMotion);
 
 	$effect(() => {
 		if (variant !== 'hex') return;
@@ -81,7 +87,7 @@
 		const reduceMq = window.matchMedia('(prefers-reduced-motion: reduce)');
 		const update = () => {
 			hoverOk = hoverMq.matches;
-			motionOk = !reduceMq.matches;
+			osReducedMotion = reduceMq.matches;
 		};
 		update();
 		hoverMq.addEventListener('change', update);
@@ -365,6 +371,13 @@
 		.aurora-blob {
 			animation: none;
 		}
+	}
+
+	/* The in-app "Reduced" motion setting mirrors the OS preference via a class
+	   on <html>, so the aurora holds still without an OS-level change. */
+	:global(.reduce-motion) .aurora-col,
+	:global(.reduce-motion) .aurora-blob {
+		animation: none;
 	}
 
 	/* ── Hex variant ──────────────────────────────────────────────────────────

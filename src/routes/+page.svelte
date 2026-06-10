@@ -110,6 +110,9 @@
 	let bgVariant = $state<BgVariant>('hex');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
+	// In-app reduce-motion, OR'd with the OS preference downstream — lets users
+	// calm the ambient/cursor motion without changing an OS setting.
+	let reduceMotion = $state(false);
 	// Focus accordion between the node row and the consensus. The status-bar layout
 	// control sets one of three states: nodes expanded, consensus expanded, or a
 	// balanced split (the default — both zones share the view so neither buries
@@ -465,6 +468,7 @@
 		bgVariant = s.bgVariant;
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
+		reduceMotion = s.reduceMotion ?? false;
 	}
 
 	// A persisted snapshot is usable only if every model it names still exists.
@@ -540,7 +544,8 @@
 			theme,
 			bgVariant,
 			scrollMode,
-			layoutFocus
+			layoutFocus,
+			reduceMotion
 		};
 		if (!prefsHydrated) return;
 		persistedSnapshots[activeTier] = snap;
@@ -549,6 +554,10 @@
 
 	// The theme class lives on <html>, not the page root, so body-portaled
 	// elements (the tooltip) inherit the light-mode variable overrides too.
+	$effect(() => {
+		document.documentElement.classList.toggle('reduce-motion', reduceMotion);
+	});
+
 	$effect(() => {
 		document.documentElement.classList.toggle('light', theme === 'light');
 	});
@@ -994,7 +1003,7 @@
 </svelte:head>
 
 <div class="magi-bg flex h-screen flex-col overflow-y-auto">
-	<MagiBackground variant={bgVariant} />
+	<MagiBackground variant={bgVariant} {reduceMotion} />
 
 	{#if import.meta.env.DEV}
 		<PerfOverlay />
@@ -1005,6 +1014,7 @@
 		bind:bgVariant
 		bind:scrollMode
 		bind:genericLabels
+		bind:reduceMotion
 		{assignments}
 		{loading}
 		{debugScenario}
