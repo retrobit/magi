@@ -326,15 +326,10 @@
 		onchange?.(gateway as GatewayName, provider, newModelId);
 	}
 
-	// Bumped on each randomize so the Shuffle icon replays a one-shot spin —
-	// click feedback that fires even when the random pick lands on the model
-	// that's already selected (otherwise the click looks like it did nothing).
-	let spinKey = $state(0);
 	function handleRandomize() {
 		const eligible = models.filter((m) => !usedProviders.includes(m.provider));
 		if (eligible.length === 0) return;
 		const entry = eligible[Math.floor(Math.random() * eligible.length)];
-		spinKey += 1;
 		onchange?.(entry.gateway, entry.provider, entry.id);
 	}
 </script>
@@ -473,9 +468,12 @@
 			<div class="-mx-4 border-t magi-divider"></div>
 			{#if inConversation}
 				<div class="flex items-center gap-1.5">
+					<!-- magi-select gives the chip its borderless surface, but bg-none drops
+					     the select dropdown caret it paints — the chip is a toggle with its
+					     own rotating ChevronRight, not a <select>. -->
 					<button
 						type="button"
-						class="magi-select flex min-w-0 flex-1 items-center gap-1 rounded px-2 py-1 text-left text-xs transition-colors"
+						class="magi-select flex min-w-0 flex-1 items-center gap-1 rounded bg-none px-2 py-1 text-left text-xs transition-colors"
 						onclick={() => (configExpanded = !configExpanded)}
 						aria-label="{displayLabel} configuration"
 						aria-expanded={configExpanded}
@@ -494,13 +492,7 @@
 						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
 						title="Randomize selection"
 					>
-						<span
-							class="inline-flex"
-							style:transform="rotate({spinKey * 360}deg)"
-							style:transition="transform 0.45s ease-out"
-						>
-							<Shuffle size={12} />
-						</span>
+						<Shuffle size={12} />
 					</button>
 				</div>
 			{/if}
@@ -570,13 +562,7 @@
 							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
 							title="Randomize selection"
 						>
-							<span
-								class="inline-flex"
-								style:transform="rotate({spinKey * 360}deg)"
-								style:transition="transform 0.45s ease-out"
-							>
-								<Shuffle size={14} />
-							</span>
+							<Shuffle size={14} />
 						</button>
 					{/if}
 				</div>
@@ -586,7 +572,7 @@
 		{/if}
 	</div>
 	<div
-		class="min-h-0 flex-1 overflow-y-auto"
+		class="magi-output min-h-0 flex-1 overflow-y-auto"
 		class:hidden={collapsed}
 		bind:this={scrollEl}
 		bind:clientHeight={viewportH}
@@ -656,28 +642,48 @@
 </div>
 
 <style>
+	/* Pending glow. The glow itself is a STATIC inset box-shadow on a pseudo-
+	   element; only its opacity animates, which the compositor handles without
+	   re-rasterizing the shadow each frame. Animating box-shadow directly (the
+	   old approach) repaints every frame and stuttered against the markdown
+	   streaming into the same panel. isolate + z-index:-1 keeps the pseudo above
+	   the panel background but behind content, matching the old look. */
+	.pulse-glow {
+		position: relative;
+		isolation: isolate;
+	}
+
+	.pulse-glow::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		border-radius: inherit;
+		box-shadow: inset 0 0 20px -4px var(--node-color);
+		opacity: 0;
+		pointer-events: none;
+		will-change: opacity;
+		animation: pulse-glow 2s ease-in-out infinite;
+	}
+
 	@keyframes pulse-glow {
 		0%,
 		100% {
-			box-shadow: inset 0 0 0 0 transparent;
+			opacity: 0;
 		}
 		50% {
-			box-shadow: inset 0 0 20px -4px var(--node-color);
+			opacity: 1;
 		}
-	}
-
-	.pulse-glow {
-		animation: pulse-glow 2s ease-in-out infinite;
 	}
 
 	/* Hold the pending glow still when motion is reduced (OS preference or the
 	   in-app setting's class on <html>). */
 	@media (prefers-reduced-motion: reduce) {
-		.pulse-glow {
+		.pulse-glow::before {
 			animation: none;
 		}
 	}
-	:global(.reduce-motion) .pulse-glow {
+	:global(.reduce-motion) .pulse-glow::before {
 		animation: none;
 	}
 </style>
