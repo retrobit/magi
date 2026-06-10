@@ -38,8 +38,10 @@
 	const ESTIMATED_MENU_HEIGHT = 220;
 	const PLACEMENT_GAP = 4;
 
-	// Gradient-clipped text for the flagship marker — the three-MAGI triad,
-	// reusing the consensus gradient rather than introducing a new accent hue.
+	// The flagship strategy (Multi-Round Debate) has intensity 3, so its dot
+	// meter is full — those three dots are painted in the three-MAGI node colors
+	// (one dot per node) rather than neutral gray, tying the meter to the triad.
+	const NODE_DOT_COLORS = ['--magi-node-red', '--magi-node-green', '--magi-node-blue'] as const;
 
 	function measure() {
 		if (!triggerEl) return;
@@ -98,9 +100,8 @@
 		use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
 	>
 		<span>
-			{#if strategy === FLAGSHIP_STRATEGY}<span aria-hidden="true">✦ </span>{/if}{STRATEGY_LABELS[
-				strategy
-			]}
+			{#if strategy === FLAGSHIP_STRATEGY}<span aria-hidden="true" class="mr-1">✦</span
+				>{/if}{STRATEGY_LABELS[strategy]}
 		</span>
 	</button>
 
@@ -150,27 +151,37 @@
 									<span class="magi-badge text-(--magi-text-muted)">✦ Flagship</span>
 								{/if}
 							</span>
-							<!-- Relative cost / thoroughness meter. -->
-							<span
-								class="flex shrink-0 items-center gap-0.5"
-								title="{STRATEGY_INTENSITY[s]} of 3 — relative cost"
-							>
-								{#each [1, 2, 3] as dot (dot)}
-									<span
-										class="h-1.5 w-1.5 rounded-full {dot <= STRATEGY_INTENSITY[s]
-											? 'bg-gray-300'
-											: 'bg-gray-700'}"
-									></span>
-								{/each}
+							<!-- Selected check + relative cost meter. The check sits to the
+							     LEFT of the dots so toggling selection never shifts the meter —
+							     the dots stay anchored to the row's right edge in every row. -->
+							<span class="flex shrink-0 items-center gap-1.5">
+								{#if selected}
+									<Check size={13} class="magi-success" />
+								{/if}
+								<span
+									class="flex items-center gap-0.5"
+									title="{STRATEGY_INTENSITY[s]} of 3 — relative cost"
+								>
+									{#each [1, 2, 3] as dot (dot)}
+										{@const filled = dot <= STRATEGY_INTENSITY[s]}
+										<span
+											class="h-1.5 w-1.5 rounded-full {filled
+												? flagship
+													? ''
+													: 'bg-gray-300'
+												: 'bg-gray-700'}"
+											style:background-color={filled && flagship
+												? `var(${NODE_DOT_COLORS[dot - 1]})`
+												: undefined}
+										></span>
+									{/each}
+								</span>
 							</span>
 						</div>
 						<p class="mt-0.5 magi-meta leading-snug">
 							{STRATEGY_DESCRIPTIONS[s]}
 						</p>
 					</div>
-					{#if selected}
-						<Check size={13} class="mt-0.5 shrink-0 magi-success" />
-					{/if}
 				</button>
 			{/each}
 		</div>
