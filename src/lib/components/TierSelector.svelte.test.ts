@@ -10,10 +10,10 @@ describe('TierSelector', () => {
 		}
 	});
 
-	it('marks the active tier with the magi-tier-active class', () => {
+	it('marks the active tier (white text; inactive stays muted)', () => {
 		render(TierSelector, { props: { value: 'free', onchange: () => {} } });
-		expect(screen.getByRole('button', { name: 'Free' })).toHaveClass('magi-tier-active');
-		expect(screen.getByRole('button', { name: 'Frontier' })).not.toHaveClass('magi-tier-active');
+		expect(screen.getByRole('button', { name: 'Free' })).toHaveClass('text-white');
+		expect(screen.getByRole('button', { name: 'Frontier' })).not.toHaveClass('text-white');
 	});
 
 	it('calls onchange with the chosen tier when a button is clicked', async () => {
@@ -32,9 +32,9 @@ describe('TierSelector', () => {
 
 	it('moves the active marker when the value prop changes', async () => {
 		const { rerender } = render(TierSelector, { props: { value: 'budget', onchange: () => {} } });
-		expect(screen.getByRole('button', { name: 'Budget' })).toHaveClass('magi-tier-active');
+		expect(screen.getByRole('button', { name: 'Budget' })).toHaveClass('text-white');
 		await rerender({ value: 'frontier', onchange: () => {} });
-		expect(screen.getByRole('button', { name: 'Budget' })).not.toHaveClass('magi-tier-active');
-		expect(screen.getByRole('button', { name: 'Frontier' })).toHaveClass('magi-tier-active');
+		expect(screen.getByRole('button', { name: 'Budget' })).not.toHaveClass('text-white');
+		expect(screen.getByRole('button', { name: 'Frontier' })).toHaveClass('text-white');
 	});
 });
