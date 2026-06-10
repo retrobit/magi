@@ -326,10 +326,15 @@
 		onchange?.(gateway as GatewayName, provider, newModelId);
 	}
 
+	// Bumped on each randomize so the Shuffle icon replays a one-shot spin —
+	// click feedback that fires even when the random pick lands on the model
+	// that's already selected (otherwise the click looks like it did nothing).
+	let spinKey = $state(0);
 	function handleRandomize() {
 		const eligible = models.filter((m) => !usedProviders.includes(m.provider));
 		if (eligible.length === 0) return;
 		const entry = eligible[Math.floor(Math.random() * eligible.length)];
+		spinKey += 1;
 		onchange?.(entry.gateway, entry.provider, entry.id);
 	}
 </script>
@@ -489,7 +494,9 @@
 						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
 						title="Randomize selection"
 					>
-						<Shuffle size={12} />
+						{#key spinKey}<span class="inline-flex" class:magi-spin-once={spinKey > 0}
+								><Shuffle size={12} /></span
+							>{/key}
 					</button>
 				</div>
 			{/if}
@@ -559,7 +566,9 @@
 							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
 							title="Randomize selection"
 						>
-							<Shuffle size={14} />
+							{#key spinKey}<span class="inline-flex" class:magi-spin-once={spinKey > 0}
+									><Shuffle size={14} /></span
+								>{/key}
 						</button>
 					{/if}
 				</div>
@@ -651,5 +660,19 @@
 
 	.pulse-glow {
 		animation: pulse-glow 2s ease-in-out infinite;
+	}
+
+	/* One-shot spin: click feedback for the randomize button. Re-triggered by a
+	   keyed remount, so it replays on every click rather than only the first. */
+	@keyframes magi-spin-once {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.magi-spin-once {
+		animation: magi-spin-once 0.4s ease-out;
 	}
 </style>
