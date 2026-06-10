@@ -6,6 +6,7 @@
 	import ConsensusView from '$lib/components/ConsensusView.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import MagiHeader from '$lib/components/MagiHeader.svelte';
+	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
@@ -120,8 +121,37 @@
 	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
-	// The LayoutToggle segmented control is the sole way to change layout focus.
-	const setLayoutFocus = (focus: 'balanced' | 'nodes' | 'consensus') => (layoutFocus = focus);
+	// The two resizable layout zones, tweened on a focus change.
+	let nodeZoneEl = $state<HTMLElement>();
+	let consensusZoneEl = $state<HTMLElement>();
+
+	// The LayoutToggle is the sole way to change layout focus. The zones resize via
+	// a flex/grid reflow that would otherwise snap, so we FLIP it: measure each
+	// zone's height, apply the new layout, then animate old→new in explicit pixels.
+	// A CSS transition can't do this cleanly — the flex-basis swap (fill ↔ header)
+	// snaps mid-tween. WAAPI height reverts to the flex height on finish, so there's
+	// no end-state jump. Skipped under reduced motion.
+	function setLayoutFocus(focus: 'balanced' | 'nodes' | 'consensus') {
+		const reduced = reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const zones = [nodeZoneEl, consensusZoneEl].filter((z): z is HTMLElement => !!z);
+		if (reduced || zones.length === 0) {
+			layoutFocus = focus;
+			return;
+		}
+		const before = zones.map((z) => z.getBoundingClientRect().height);
+		layoutFocus = focus;
+		void tick().then(() => {
+			zones.forEach((z, i) => {
+				const after = z.getBoundingClientRect().height;
+				if (Math.abs(after - before[i]) < 1) return;
+				z.getAnimations().forEach((a) => a.cancel());
+				z.animate([{ height: `${before[i]}px` }, { height: `${after}px` }], {
+					duration: 280,
+					easing: 'ease'
+				});
+			});
+		});
+	}
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
@@ -141,8 +171,67 @@
 		// while the input is empty, making silent fills easy to lose).
 		queryInputEl?.focus();
 	}
+	// The dice icon animates on each roll — click feedback that fires even when
+	// the random pick lands on the prompt already in the box (otherwise re-rolling
+	// the same prompt looks like the button did nothing). WAAPI replays the
+	// keyframes unconditionally. This is a discrete, user-triggered confirmation
+	// (not ambient motion), so it still fires under reduce-motion — just as a
+	// gentle scale pop instead of the full tumble.
+	let diceEl = $state<HTMLSpanElement>();
+	function rollDice() {
+		const reduced = reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		diceEl?.animate(
+			reduced
+				? [
+						{ transform: 'scale(1)' },
+						{ transform: 'scale(1.18)', offset: 0.5 },
+						{ transform: 'scale(1)' }
+					]
+				: [
+						{ transform: 'rotate(0deg) scale(1)' },
+						{ transform: 'rotate(360deg) scale(1.25)', offset: 0.6 },
+						{ transform: 'rotate(360deg) scale(1)' }
+					],
+			{ duration: reduced ? 220 : 450, easing: 'ease-out' }
+		);
+	}
+
+	// A random/example opener awaiting confirmation to replace the current
+	// conversation. The random prompts are standalone starters, so dropping one
+	// into an existing thread as a follow-up reads as a topic non-sequitur — when
+	// a conversation exists, we confirm a fresh start first. null = nothing pending.
+	let pendingPrompt = $state<string | null>(null);
+
 	function fillRandomPrompt() {
-		fillPrompt(RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)]);
+		const prompt = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
+		// Mid-conversation: confirm wiping the thread before a fresh opener. Idle:
+		// nothing to lose, so fill straight away.
+		if (conversation.length > 0) {
+			pendingPrompt = prompt;
+			return;
+		}
+		rollDice();
+		fillPrompt(prompt);
+	}
+
+	// Example-prompt chips share the same guard. They only render on an empty
+	// conversation today, so the confirm never actually fires for them — but
+	// routing them here keeps it correct if they ever surface mid-thread.
+	function requestExamplePrompt(prompt: string) {
+		if (conversation.length > 0) {
+			pendingPrompt = prompt;
+			return;
+		}
+		fillPrompt(prompt);
+	}
+
+	// Confirmed: clear the conversation, then drop the pending opener into the box.
+	function confirmPendingPrompt() {
+		const prompt = pendingPrompt;
+		pendingPrompt = null;
+		if (prompt === null) return;
+		handleNewConversation();
+		fillPrompt(prompt);
 	}
 
 	function copyQuery() {
@@ -784,6 +873,7 @@
 			live.error = pendingError;
 			return;
 		}
+		const committedConsensus = live.consensusFinal || live.consensusStream;
 		const nodeResponses: Partial<Record<MagiNodeName, string>> = {};
 		const nodeErrors: Partial<Record<MagiNodeName, string>> = {};
 		for (const r of live.responses) nodeResponses[r.node] = r.text;
@@ -800,7 +890,7 @@
 				query: activeTurnQuery,
 				nodeResponses,
 				nodeErrors,
-				consensus: live.consensusFinal || live.consensusStream,
+				consensus: committedConsensus,
 				consensusNode,
 				nodeUsage: { ...liveNodeUsage },
 				consensusUsage: liveConsensusUsage,
@@ -1028,7 +1118,7 @@
 	<!-- Control strip -->
 	<div class="magi-controls relative z-10 shrink-0 border-b border-gray-800 bg-gray-950/80">
 		<div
-			class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-2 sm:flex-row sm:justify-between md:px-6"
+			class="mx-auto flex max-w-[88rem] flex-col items-center gap-2 px-4 py-2 sm:flex-row sm:justify-between md:px-6"
 		>
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-gray-500">TIER</span>
@@ -1055,7 +1145,7 @@
 	</div>
 
 	<!-- Main content -->
-	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 md:min-h-0 md:p-6">
+	<main class="mx-auto flex w-full max-w-[88rem] flex-1 flex-col gap-4 p-4 md:min-h-0 md:p-6">
 		<!-- Screen-reader live region for node/consensus state transitions. Kept
 		     visually hidden so it doesn't affect layout; polite so it doesn't
 		     interrupt in-progress speech. -->
@@ -1108,13 +1198,15 @@
 			</div>
 			<button
 				type="button"
-				class="magi-input flex w-12 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-(--magi-text) disabled:opacity-50"
+				class="magi-randomize flex w-12 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
 				onclick={fillRandomPrompt}
 				disabled={loading}
 				use:tooltip={'Fill the input with a random prompt — review it, then Execute'}
 				aria-label="Random prompt"
 			>
-				<Dices size={16} />
+				<span class="inline-flex" bind:this={diceEl}>
+					<Dices size={16} />
+				</span>
 			</button>
 			{#if loading}
 				<button
@@ -1226,6 +1318,7 @@
 
 		<!-- Three MAGI panels -->
 		<div
+			bind:this={nodeZoneEl}
 			class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-1 {nodesCollapsed
 				? 'shrink-0'
 				: 'flex-2 md:min-h-0 md:flex-1 md:overflow-hidden'}"
@@ -1276,9 +1369,9 @@
 		</div>
 
 		<!-- Consensus -->
-		<div class={consensusCollapsed ? 'shrink-0' : 'flex-1 md:min-h-0'}>
+		<div bind:this={consensusZoneEl} class={consensusCollapsed ? 'shrink-0' : 'flex-1 md:min-h-0'}>
 			<ConsensusView
-				onexampleselect={fillPrompt}
+				onexampleselect={requestExamplePrompt}
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
@@ -1338,3 +1431,13 @@
 		>
 	</footer>
 </div>
+
+{#if pendingPrompt !== null}
+	<ConfirmModal
+		title="Start a new conversation?"
+		message="This clears the current conversation and starts fresh with the selected prompt."
+		confirmLabel="New conversation"
+		onconfirm={confirmPendingPrompt}
+		oncancel={() => (pendingPrompt = null)}
+	/>
+{/if}

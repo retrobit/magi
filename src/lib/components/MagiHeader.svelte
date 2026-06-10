@@ -61,7 +61,7 @@
 </script>
 
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
-	<div class="relative mx-auto max-w-7xl px-4 py-4 md:px-6">
+	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
 		<h1 class="text-center magi-headline">
 			MAGI <span class="text-lg">🔺🔻🔺</span>
 		</h1>
@@ -126,7 +126,9 @@
 		onclick={() => (openPanel = null)}
 		aria-label="Close panel"
 	></button>
-	<div class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-7xl px-4 md:px-6">
+	<div
+		class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-[88rem] px-4 md:px-6"
+	>
 		<div class="pointer-events-auto ml-auto {width}">
 			{@render body()}
 		</div>
@@ -196,7 +198,7 @@
 				<X size={14} />
 			</button>
 		</div>
-		<span class="magi-label-muted">Theme</span>
+		<span class="magi-section-header text-gray-500">THEME</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
@@ -215,7 +217,7 @@
 				Light
 			</button>
 		</div>
-		<span class="mt-3 magi-label-muted">Background</span>
+		<span class="mt-3 magi-section-header text-gray-500">BACKGROUND</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
@@ -250,7 +252,26 @@
 				Off
 			</button>
 		</div>
-		<span class="mt-3 magi-label-muted">Auto-scroll</span>
+		<span class="mt-3 magi-section-header text-gray-500">MOTION</span>
+		<div class="mt-2 flex flex-col gap-1">
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!reduceMotion
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				onclick={() => (reduceMotion = false)}
+			>
+				Full
+			</button>
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {reduceMotion
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				onclick={() => (reduceMotion = true)}
+			>
+				Reduced
+			</button>
+		</div>
+		<span class="mt-3 magi-section-header text-gray-500">AUTO-SCROLL</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
@@ -275,44 +296,6 @@
 				onclick={() => (scrollMode = 'off')}
 			>
 				Off
-			</button>
-		</div>
-		<span class="mt-3 magi-label-muted">Motion</span>
-		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!reduceMotion
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				onclick={() => (reduceMotion = false)}
-			>
-				Full
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {reduceMotion
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				onclick={() => (reduceMotion = true)}
-			>
-				Reduced
-			</button>
-		</div>
-		<span class="mt-3 magi-label-muted">Node names</span>
-		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {genericLabels
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				onclick={() => (genericLabels = true)}
-			>
-				MAGI • 1 / 2 / 3
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!genericLabels
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				onclick={() => (genericLabels = false)}
-			>
-				EVA names (MELCHIOR…)
 			</button>
 		</div>
 		<div class="mt-3 border-t border-gray-800 pt-3">
@@ -367,7 +350,9 @@
 {/snippet}
 
 {#if openPanel === 'stats'}
-	{@render panelShell('w-96 max-w-full', statsBody)}
+	<!-- Wide enough to keep the strategy filter (incl. "Structured Voting" +
+	     "Multi-Round Debate") on a single line; max-w-full reins it in on mobile. -->
+	{@render panelShell('w-[30rem] max-w-full', statsBody)}
 {/if}
 {#snippet statsBody()}
 	<StatsPanel nonce={statsNonce} {genericLabels} onclose={() => (openPanel = null)} />
