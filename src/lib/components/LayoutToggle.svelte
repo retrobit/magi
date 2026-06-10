@@ -1,9 +1,11 @@
 <script lang="ts">
 	// A compact 3-segment control for the focus accordion. The same control lives
 	// in both the node panels and the consensus panel, so any of the three layout
-	// states is one click away from either zone. The arrow points the way the
-	// shared divider travels: expanding the nodes pushes it down, expanding the
-	// consensus pushes it up — so down = expand nodes, up = expand consensus.
+	// states is one click away from either zone. Each glyph mirrors the resulting
+	// layout: the node panels sit ABOVE the consensus, so expanding the nodes
+	// leaves the consensus as a thin strip at the bottom (Lucide PanelBottom =
+	// big top area + bottom bar), and expanding the consensus leaves the nodes as
+	// a thin strip at the top (PanelTop = top bar + big area below).
 	import { PanelTop, PanelBottom, Rows2 } from 'lucide-svelte';
 	import { tooltip } from '$lib/actions/tooltip';
 
@@ -16,9 +18,7 @@
 
 	let { focus, onchange }: Props = $props();
 
-	// Each glyph depicts the layout it produces: nodes fill the top zone,
-	// balanced splits the rows, consensus fills the bottom. `label` doubles as
-	// the accessible name and the hover tooltip.
+	// `label` doubles as the accessible name and the hover tooltip.
 	const options: { value: LayoutFocus; label: string }[] = [
 		{ value: 'nodes', label: 'Expand the MAGI node panels' },
 		{ value: 'balanced', label: 'Balanced — node panels and consensus together' },
@@ -39,11 +39,11 @@
 			use:tooltip={opt.label}
 		>
 			{#if opt.value === 'nodes'}
-				<PanelTop size={14} />
+				<PanelBottom size={14} />
 			{:else if opt.value === 'balanced'}
 				<Rows2 size={14} />
 			{:else}
-				<PanelBottom size={14} />
+				<PanelTop size={14} />
 			{/if}
 		</button>
 	{/each}
