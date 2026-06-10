@@ -47,15 +47,10 @@ validateConfig(FREE_MAGI_CONFIG);
  *  2 min on every turn for no gain. Exported for unit tests. */
 export function _isAvailabilityError(message: string): boolean {
 	const lower = message.toLowerCase();
-	// OpenRouter "no endpoints" fires when no provider serves the model right now
-	if (lower.includes('no endpoints found')) return true;
-	// Model-not-found and similar gone/missing phrases
-	if (lower.includes('model not found') || lower.includes('does not exist')) return true;
-	// HTTP 5xx surfaced as text (some providers include the status in the message)
-	if (/\b5\d{2}\b/.test(message)) return true;
-	// HTTP 404 / 410 surfaced as text
-	if (/\b(404|410)\b/.test(message)) return true;
-	// Explicitly exclude context-length, auth, and rate-limit failures
+	// Exclusions run FIRST: per-request failures must never poison the cache,
+	// and their messages routinely contain 3-digit numbers ("maximum context
+	// length is 512 tokens", "limit of 500 requests per day") that the
+	// status-code patterns below would otherwise match.
 	if (
 		lower.includes('context') ||
 		lower.includes('token') ||
@@ -68,6 +63,14 @@ export function _isAvailabilityError(message: string): boolean {
 		lower.includes('rate_limit')
 	)
 		return false;
+	// OpenRouter "no endpoints" fires when no provider serves the model right now
+	if (lower.includes('no endpoints found')) return true;
+	// Model-not-found and similar gone/missing phrases
+	if (lower.includes('model not found') || lower.includes('does not exist')) return true;
+	// HTTP 5xx surfaced as text (some providers include the status in the message)
+	if (/\b5\d{2}\b/.test(message)) return true;
+	// HTTP 404 / 410 surfaced as text
+	if (/\b(404|410)\b/.test(message)) return true;
 	// Default: treat unknown errors as availability failures so genuinely broken
 	// models are still cached (conservative — avoids hammering a down endpoint).
 	return true;

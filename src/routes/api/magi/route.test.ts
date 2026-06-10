@@ -356,6 +356,17 @@ describe('_isAvailabilityError', () => {
 		expect(_isAvailabilityError('rate limit exceeded')).toBe(false);
 		expect(_isAvailabilityError('rate_limit_error')).toBe(false);
 	});
+
+	it('excludes per-request errors even when they contain status-code-shaped numbers', () => {
+		// Real upstream messages embed 3-digit numbers that look like 5xx/404
+		// codes; the exclusion categories must win over the numeric patterns.
+		expect(_isAvailabilityError('maximum context length is 512 tokens')).toBe(false);
+		expect(_isAvailabilityError('max_tokens must be at most 512')).toBe(false);
+		expect(_isAvailabilityError('You requested 576 tokens but the context window is full')).toBe(
+			false
+		);
+		expect(_isAvailabilityError('Rate limit exceeded: limit of 500 requests per day')).toBe(false);
+	});
 });
 
 describe('POST /api/magi — health cache & forceRetry', () => {
