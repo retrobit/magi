@@ -7,9 +7,8 @@ import {
 	type VotingStats,
 	type VotingJurorBreakdown
 } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC, NODE_TEMPERAMENTS } from '../types';
+import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
-import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 
 interface Candidate {
 	label: string;
@@ -171,14 +170,12 @@ export const votingStrategy: ConsensusStrategy = {
 				const candidates: Candidate[] = responses
 					.filter((r) => r.node !== juror.node)
 					.map((response, i) => ({ label: String.fromCharCode(65 + i), response }));
-				// When consensus temperament is on, the juror scores through its own
-				// dispositional lens — its own only, so candidates stay anonymous.
-				const lens = consensusTemperament
-					? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[juror.node]]
-					: undefined;
+				// Jurors always score neutrally — they're instructed to judge substance,
+				// so no temperament lens is applied (consensus temperament is inert for
+				// voting; a dispositional lens would bias an otherwise objective tally).
 				const { text, usage } = await generateText({
 					model: getModel(assignment.gateway, assignment.modelId),
-					prompt: buildJurorPrompt(query, candidates, lens),
+					prompt: buildJurorPrompt(query, candidates),
 					abortSignal: signal
 				});
 				return { juror: juror.node, candidates, text, usage };

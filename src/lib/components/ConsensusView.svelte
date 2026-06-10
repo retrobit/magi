@@ -133,11 +133,11 @@
 	// (the lenses live in the debaters) — so the toggle is inert for both.
 	const awarenessApplies = $derived(strategy === 'synthesis');
 
-	// Consensus temperament lenses the consensus mechanism's participants — the
-	// synthesizer (Synthesis) or jurors (Voting). Debate's synthesizer is neutral
-	// and its debaters follow the main Temperaments toggle. `none` skips the
-	// consensus call entirely — no synthesizer to give a temperament to.
-	const consensusTempApplies = $derived(strategy !== 'debate' && strategy !== 'none');
+	// Consensus temperament lenses the synthesizer (Synthesis only). It's inert
+	// everywhere else: Debate's synthesizer is a neutral scribe (lenses live in the
+	// debaters), Voting's jurors are told to judge substance objectively (a
+	// dispositional lens would bias the tally), and `none` runs no consensus call.
+	const consensusTempApplies = $derived(strategy === 'synthesis');
 
 	// Voting tallies all jurors equally; there's no single consensus node, so
 	// both the Node dropdown and the consensus-temperament badge are inert.
@@ -433,6 +433,10 @@
 		? 'min-h-0'
 		: 'min-h-72 md:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
+	{#if loading && allModelsResponded}
+		<!-- Static side-glow overlay; only its opacity animates (see <style>). -->
+		<div class="consensus-glow" aria-hidden="true"></div>
+	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<div class="flex items-center justify-between select-none">
@@ -575,7 +579,9 @@
 							use:tooltip={!consensusTempApplies
 								? consensusSkipped
 									? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
-									: 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
+									: strategy === 'voting'
+										? 'Consensus temperament has no effect on Structured Voting — the winner is a tally of juror scores judged on substance, not disposition.'
+										: 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
 								: consensusTemperament
 									? 'Consensus temperament active — synthesizer responds through its dispositional lens'
 									: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
@@ -611,7 +617,7 @@
 		</div>
 	</div>
 	<div
-		class="min-h-0 flex-1 overflow-y-auto"
+		class="magi-output min-h-0 flex-1 overflow-y-auto"
 		class:hidden={collapsed}
 		bind:this={scrollEl}
 		bind:clientHeight={viewportH}
@@ -727,19 +733,20 @@
 </div>
 
 <style>
+	/* Pending glow. Like the node panels, the side glows are a STATIC inset
+	   box-shadow on a dedicated overlay element (.consensus-glow); only its
+	   opacity animates, which the compositor handles without re-rasterizing the
+	   shadow every frame. Animating box-shadow directly stuttered against the
+	   consensus markdown streaming into this same panel. isolate + z-index:-1
+	   keeps the glow above the panel background but behind content. The top/bottom
+	   gradient bars (::before/::after) already animate only opacity. */
 	@keyframes pulse-consensus {
 		0%,
 		100% {
-			box-shadow: inset 0 0 0 0 transparent;
+			opacity: 0;
 		}
 		50% {
-			/* Softer than the node panels' all-sides glow — the consensus's two
-			   side glows would otherwise compound into a heavier visual weight
-			   than any single node. The red/blue split keeps its left↔right
-			   identity; green lives in the top/bottom gradient bars below. */
-			box-shadow:
-				inset 10px 0 14px -6px var(--magi-node-red),
-				inset -10px 0 14px -6px var(--magi-node-blue);
+			opacity: 1;
 		}
 	}
 
@@ -755,6 +762,23 @@
 
 	.pulse-consensus {
 		position: relative;
+		isolation: isolate;
+	}
+
+	.consensus-glow {
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		border-radius: inherit;
+		/* Softer than the node panels' all-sides glow — two side glows would
+		   otherwise outweigh any single node. Red/blue keep the left↔right
+		   identity; green lives in the top/bottom bars below. */
+		box-shadow:
+			inset 10px 0 14px -6px var(--magi-node-red),
+			inset -10px 0 14px -6px var(--magi-node-blue);
+		opacity: 0;
+		pointer-events: none;
+		will-change: opacity;
 		animation: pulse-consensus 2s ease-in-out infinite;
 	}
 
@@ -787,13 +811,13 @@
 	/* Hold the consensus glow still when motion is reduced (OS preference or the
 	   in-app setting's class on <html>). */
 	@media (prefers-reduced-motion: reduce) {
-		.pulse-consensus,
+		.consensus-glow,
 		.pulse-consensus::before,
 		.pulse-consensus::after {
 			animation: none;
 		}
 	}
-	:global(.reduce-motion) .pulse-consensus,
+	:global(.reduce-motion) .consensus-glow,
 	:global(.reduce-motion) .pulse-consensus::before,
 	:global(.reduce-motion) .pulse-consensus::after {
 		animation: none;
