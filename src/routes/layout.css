@@ -12,16 +12,18 @@
    Cheat sheet — bracketed color means the utility includes it by default
      magi-headline        — app title (text-2xl bold wider, no default color)
      magi-banner-headline — banner titles (sm bold wider uppercase, no color)
-     magi-banner-detail   — banner subtitle [gray-500]
+     magi-banner-detail   — banner subtitle [gray-400]
      magi-section-header  — popover header (xs semibold wide, no default color)
      magi-subhead         — subsection header inside a panel [gray-400]
      magi-label           — primary form/control label (medium) [gray-300]
      magi-label-muted     — secondary label / status-bar counter (medium) [gray-400]
      magi-meta            — sub-labels, hints, descriptions (11px) [gray-500]
      magi-badge           — round badge, Flagship chip — tiny ALL CAPS (no color)
-     magi-numeric         — token counts / context gauges (mono, 10px, no color)
-     magi-loader-text     — sweeping-verb loaders (mono, xs) [gray-500]
-     magi-placeholder     — empty state (sm) [gray-600]
+     magi-numeric         — token counts / context gauges (mono, 11px, no color)
+     magi-loader-text     — sweeping-verb loaders (mono, xs) [gray-400]
+     magi-placeholder     — empty state (sm) [gray-500]
+     magi-meta-strong     — emphasized meta (11px medium) [gray-400]
+     magi-chip            — tiny chip/badge text (10px medium, no color)
 
    Semantic colors (compose with a size utility, or use alone on an icon)
      magi-warn    — amber-400 (warnings, partial-consensus, near-context, dev header)
@@ -37,7 +39,7 @@
 	@apply text-sm font-bold tracking-wide uppercase;
 }
 @utility magi-banner-detail {
-	@apply text-xs text-gray-500;
+	@apply text-xs text-gray-400;
 }
 @utility magi-section-header {
 	@apply text-xs font-semibold tracking-wide;
@@ -52,19 +54,25 @@
 	@apply text-xs font-medium text-gray-400;
 }
 @utility magi-meta {
-	@apply text-[11px] text-gray-500;
+	@apply text-[11px] text-gray-400;
 }
 @utility magi-badge {
 	@apply text-[10px] font-semibold tracking-wider uppercase;
 }
 @utility magi-numeric {
-	@apply font-mono text-[10px];
+	@apply font-mono text-[11px];
+}
+@utility magi-meta-strong {
+	@apply text-[11px] font-medium text-gray-400;
+}
+@utility magi-chip {
+	@apply text-[10px] font-medium;
 }
 @utility magi-loader-text {
-	@apply font-mono text-xs text-gray-500;
+	@apply font-mono text-xs text-gray-400;
 }
 @utility magi-placeholder {
-	@apply text-sm text-gray-600;
+	@apply text-sm text-gray-500;
 }
 @utility magi-warn {
 	color: var(--magi-color-warn);
@@ -133,7 +141,7 @@
 	--magi-page-bg: var(--color-gray-950);
 	--magi-text: #ffffff;
 	--magi-text-secondary: var(--color-gray-300);
-	--magi-text-muted: var(--color-gray-500);
+	--magi-text-muted: var(--color-gray-400);
 	--magi-text-faint: var(--color-gray-500);
 	--magi-panel-bg: color-mix(in oklab, var(--color-gray-900) 70%, transparent);
 	--magi-panel-shadow: none;

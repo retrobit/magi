@@ -355,7 +355,7 @@
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
-		<p class="magi-token-split text-[10px]">
+		<p class="magi-token-split magi-numeric">
 			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
@@ -382,12 +382,12 @@
 						<ChevronRight size={11} class="transition-transform group-open/round:rotate-90" />
 						Round {r.round}
 					</summary>
-					<div class="prose prose-sm max-w-none prose-invert">
+					<div class="prose max-w-none prose-invert">
 						<Markdown source={r.response} />
 					</div>
 					<details class="group/inputs">
 						<summary
-							class="flex cursor-pointer items-center gap-1 text-[11px] font-medium text-gray-500 select-none hover:text-gray-300"
+							class="flex cursor-pointer items-center gap-1 magi-meta-strong select-none hover:text-gray-300"
 						>
 							<ChevronRight size={11} class="transition-transform group-open/inputs:rotate-90" />
 							Inputs this round
@@ -397,7 +397,7 @@
 						<div
 							class="mt-1 ml-1.5 rounded border-l-2 border-gray-700 bg-gray-950/60 py-1 pr-1 pl-2 opacity-80"
 						>
-							<div class="prose prose-sm max-w-none text-gray-400 prose-invert">
+							<div class="prose max-w-none text-gray-400 prose-invert">
 								<Markdown source={r.prompt} />
 							</div>
 						</div>
@@ -429,12 +429,12 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="text-sm font-bold text-(--magi-text) transition-colors hover:text-gray-400"
+					class="text-base font-bold text-(--magi-text) transition-colors hover:text-gray-400"
 					onclick={() => onlabelclick?.()}>{displayLabel}</button
 				>
 				{#if temperament}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
@@ -562,11 +562,11 @@
 						class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}"
 						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
-						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
+						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
 						{#if turn.error}
 							{@render errorCard(turn.error)}
 						{:else if turn.response}
-							<div class="prose prose-sm max-w-none prose-invert">
+							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(turn.response)} />
 							</div>
 						{:else}
@@ -583,11 +583,11 @@
 							: ''}"
 						style:min-height={debateRounds.length > 0 ? undefined : snapMinHeight}
 					>
-						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
+						<p class="text-xs font-medium text-gray-400">{liveQuery}</p>
 						{#if status === 'error'}
 							{@render errorCard(error)}
 						{:else if text}
-							<div class="prose prose-sm max-w-none prose-invert">
+							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(text)} />
 							</div>
 						{:else if status === 'unknown'}

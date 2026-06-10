@@ -112,7 +112,7 @@
 	<button
 		type="button"
 		{disabled}
-		class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {on
+		class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {on
 			? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40'
 			: 'bg-gray-800 text-gray-400 hover:text-white'}"
 		onclick={() => set(!on)}
@@ -151,7 +151,7 @@
 				<button
 					type="button"
 					{disabled}
-					class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {scenario
+					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
 						.nodeError[assignment.node]
 						? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
 						: 'bg-gray-800 text-gray-400 hover:text-white'}"
@@ -163,7 +163,7 @@
 					type="button"
 					{disabled}
 					title="Show the pulsating loading state for this node"
-					class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {scenario
+					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
 						.nodeLoading[assignment.node]
 						? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
 						: 'bg-gray-800 text-gray-400 hover:text-white'}"
@@ -172,7 +172,7 @@
 					Load
 				</button>
 				<select
-					class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+					class="rounded bg-gray-800 py-1 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 					value={scenario.nodeContext[assignment.node]}
 					disabled={disabled ||
 						scenario.nodeError[assignment.node] ||
@@ -197,7 +197,7 @@
 				type="button"
 				{disabled}
 				title="Show the strategy-flavoured sweeping verb loader on the consensus pane"
-				class="rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
+				class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
 					? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
 					: 'bg-gray-800 text-gray-400 hover:text-white'}"
 				onclick={() => setConsensusLoading(!scenario.consensusLoading)}
@@ -205,7 +205,7 @@
 				Load
 			</button>
 			<select
-				class="rounded bg-gray-800 py-1 pr-6 pl-2 text-[11px] text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+				class="rounded bg-gray-800 py-1 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 				value={scenario.consensusContext}
 				disabled={disabled || scenario.consensusLoading}
 				onchange={(e) => setConsensusContext(e.currentTarget.value as ContextLevel)}

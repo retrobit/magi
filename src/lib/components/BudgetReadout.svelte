@@ -100,11 +100,11 @@
 				{#if p.status === 'ok'}
 					{@const ratio = usageRatio(p)}
 					{#if typeof p.usage === 'number' && typeof p.limit === 'number'}
-						<span class="font-mono text-[11px] text-gray-400">
+						<span class="magi-numeric text-gray-400">
 							{formatMoney(p.usage)} / {formatMoney(p.limit)}
 						</span>
 					{:else if typeof p.usage === 'number'}
-						<span class="font-mono text-[11px] text-gray-400">
+						<span class="magi-numeric text-gray-400">
 							{formatMoney(p.usage)} <span class="text-gray-500">spent</span>
 						</span>
 					{/if}
@@ -117,7 +117,7 @@
 						</div>
 					{/if}
 					{#if p.isFreeKey}
-						<span class="text-[10px] text-gray-500">free-tier key</span>
+						<span class="magi-meta">free-tier key</span>
 					{/if}
 				{:else}
 					<span class="magi-meta">{p.reason ?? 'unavailable'}</span>

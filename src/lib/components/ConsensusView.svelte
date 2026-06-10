@@ -380,7 +380,7 @@
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
 	{#if input > 0 || output > 0}
-		<p class="magi-token-split text-[10px]">
+		<p class="magi-token-split magi-numeric">
 			<TokenCount {input} {output} {estimated} total />
 		</p>
 	{/if}
@@ -442,10 +442,10 @@
 			aria-label={onheadertoggle ? 'Toggle consensus focus' : undefined}
 		>
 			<div class="flex items-center gap-2">
-				<h3 class="text-sm font-bold text-(--magi-text)">MAGI CONSENSUS</h3>
+				<h3 class="text-base font-bold text-(--magi-text)">MAGI CONSENSUS</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
@@ -623,13 +623,13 @@
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}">
-						<p class="text-xs font-medium text-gray-500">{turn.query}</p>
+						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
 						{#if turn.consensus}
 							{#if turn.strategy === 'debate'}{@render debateBanner(
 									turn.debateVerdict,
 									turn.debateSummary
 								)}{/if}
-							<div class="prose prose-sm max-w-none prose-invert">
+							<div class="prose max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
 						{:else if turn.strategy === 'none'}
@@ -649,7 +649,7 @@
 							? 'magi-turn-divider border-t pt-3'
 							: ''}"
 					>
-						<p class="text-xs font-medium text-gray-500">{liveQuery}</p>
+						<p class="text-xs font-medium text-gray-400">{liveQuery}</p>
 						{#if warning}
 							{@render warningCard(warning)}
 						{/if}
@@ -667,7 +667,7 @@
 							<p class="magi-loader-text">{consensusLoadingText}…</p>
 						{:else if text}
 							{#if debateComplete}{@render debateBanner(debateVerdict, debateSummary)}{/if}
-							<div class="prose prose-sm max-w-none prose-invert">
+							<div class="prose max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
 							{#if debateRounding}
