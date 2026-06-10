@@ -27,7 +27,9 @@
 	// transform so they stay registered (a transform on one but not the other
 	// would misalign the spotlight overlay); the spotlight rides along, and at
 	// this shallow angle its few-px offset from the true cursor is imperceptible.
-	// scale() oversizes the layer so the lean never exposes a viewport edge.
+	// scale() oversizes the layer so the receding edge never pulls in past the
+	// viewport at full tilt — it must clear the edge recession (~r·sin(MAX_TILT)/
+	// perspective), which on wide screens is ~10%; 1.06 was too small and peeled.
 	let tiltX = $state(0);
 	let tiltY = $state(0);
 	const MAX_TILT = 4; // degrees at the viewport edge
@@ -147,7 +149,7 @@
 				class="hex-svg"
 				width="100%"
 				height="100%"
-				style:transform={`perspective(900px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06)`}
+				style:transform={`perspective(900px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.18)`}
 				style:transition={spotOn ? 'none' : 'transform 320ms ease-out'}
 			>
 				<defs>
@@ -184,11 +186,11 @@
 					</mask>
 					<!-- Lighting dome: a bright core ringed by a soft shadow, painted
 					     over the lattice so the cursor area reads as a raised bump
-					     catching overhead light. Pure translucent white/black (no blend
+					     catching cool overhead light. A blue highlight / black shadow (no blend
 					     mode), so it's a cheap composited overlay — no per-frame raster. -->
 					<radialGradient id="magi-hex-dome">
-						<stop offset="0%" stop-color="#fff" stop-opacity="0.05" />
-						<stop offset="48%" stop-color="#fff" stop-opacity="0.01" />
+						<stop offset="0%" stop-color="#bcd6ff" stop-opacity="0.05" />
+						<stop offset="48%" stop-color="#bcd6ff" stop-opacity="0.01" />
 						<stop offset="66%" stop-color="#000" stop-opacity="0" />
 						<stop offset="84%" stop-color="#000" stop-opacity="0.1" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
@@ -395,9 +397,9 @@
 	   `opacity`. All movement is event-driven from the script — zero scheduled
 	   work at rest.
 
-	   Neutral grays only: the RGB triad stays reserved for node identity. The
-	   spotlight's warmth comes from stone-tinted strokes, not color. Custom
-	   properties inherit through the DOM into <pattern> content, so these
+	   The base lattice stays neutral gray; the cursor spotlight is a soft blue —
+	   a lit tint of the navy page bg, distinct from the node-identity RGB triad.
+	   Custom properties inherit through the DOM into <pattern> content, so these
 	   variables retint both lattices per theme from one override point. */
 	.hex-svg {
 		position: absolute;
@@ -407,7 +409,7 @@
 		   transform — no per-frame raster. */
 		will-change: transform;
 		--hex-line: #9ca3af; /* gray-400 on the gray-950 page */
-		--hex-line-hot: #d6d3d1; /* stone-300: faint neutral-warm accent */
+		--hex-line-hot: #9cc0f5; /* soft blue — a lit tint of the navy page bg */
 		--hex-base-opacity: 0.11;
 		--hex-glow-opacity: 0.28;
 	}
@@ -443,7 +445,7 @@
 	   translucent strokes composite over whatever the real page bg is. */
 	:global(.light) .hex-svg {
 		--hex-line: #4b5563; /* gray-600 */
-		--hex-line-hot: #57534e; /* stone-600 */
+		--hex-line-hot: #3b6aa8; /* deeper blue glow, legible on the light surface */
 		--hex-base-opacity: 0.08;
 		--hex-glow-opacity: 0.18;
 	}
