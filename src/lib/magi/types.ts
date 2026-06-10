@@ -221,12 +221,20 @@ export const NODE_COLORS: Record<MagiNodeName, string> = {
 
 /** Node identity hex triad. CSS consumers read the --magi-node-* variables in
  *  layout.css instead — keep the two in lockstep when retuning. This map stays
- *  for JS call sites that need a literal (inline style:--node-color, debug
- *  swatches). */
+ *  for JS call sites that need a literal (debug swatches). */
 export const NODE_HEX_COLORS: Record<MagiNodeName, string> = {
 	MELCHIOR: '#ef4444',
 	BALTHASAR: '#34d399',
 	CASPAR: '#3b82f6'
+};
+
+/** The theme-aware CSS variable behind each node's identity color — light mode
+ *  overrides these vars with darker AA-safe shades, so prefer this over
+ *  NODE_HEX_COLORS wherever the color lands on a themed surface. */
+export const NODE_COLOR_VARS: Record<MagiNodeName, string> = {
+	MELCHIOR: '--magi-node-red',
+	BALTHASAR: '--magi-node-green',
+	CASPAR: '--magi-node-blue'
 };
 
 export const GATEWAY_LABELS: Record<GatewayName, string> = {

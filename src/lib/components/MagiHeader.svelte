@@ -34,7 +34,7 @@
 		theme = $bindable(),
 		bgVariant = $bindable(),
 		scrollMode = $bindable(),
-		genericLabels,
+		genericLabels = $bindable(),
 		assignments,
 		loading,
 		debugScenario,
@@ -273,6 +273,25 @@
 				onclick={() => (scrollMode = 'off')}
 			>
 				Off
+			</button>
+		</div>
+		<span class="mt-3 magi-label-muted">Node names</span>
+		<div class="mt-2 flex flex-col gap-1">
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {genericLabels
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				onclick={() => (genericLabels = true)}
+			>
+				MAGI • 1 / 2 / 3
+			</button>
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!genericLabels
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				onclick={() => (genericLabels = false)}
+			>
+				EVA names (MELCHIOR…)
 			</button>
 		</div>
 		<div class="mt-3 border-t border-gray-800 pt-3">

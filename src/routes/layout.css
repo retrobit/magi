@@ -307,6 +307,11 @@
    don't fight Tailwind utilities, so this stays un-layered safely. */
 .light {
 	--magi-page-bg: #e8eaef;
+	/* Node triad darkened for white surfaces (AA at text-base bold) — every
+	   consumer (titles, accent bars, aurora, hex glow, keyframes) follows. */
+	--magi-node-red: #dc2626;
+	--magi-node-green: #047857;
+	--magi-node-blue: #2563eb;
 	--magi-text: #111827;
 	--magi-text-secondary: #374151;
 	--magi-text-muted: #6b7280;

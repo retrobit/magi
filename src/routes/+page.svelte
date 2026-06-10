@@ -96,6 +96,7 @@
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
 	let temperaments = $state(false);
 	let genericLabels = $state(true);
+	const activeNodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 	let query = $state('');
 	let loading = $state(false);
 	let configuredNodes = new SvelteSet([0, 1, 2]);
@@ -953,7 +954,7 @@
 		bind:theme
 		bind:bgVariant
 		bind:scrollMode
-		{genericLabels}
+		bind:genericLabels
 		{assignments}
 		{loading}
 		{debugScenario}
@@ -984,7 +985,7 @@
 						: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
 					use:tooltip={temperaments
 						? 'Temperaments active — each MAGI node answers through its own dispositional lens (Rationalist, Caretaker, Individualist). Click to turn off.'
-						: 'Enable temperaments — give each MAGI node a distinct personality: MELCHIOR Rationalist, BALTHASAR Caretaker, CASPAR Individualist. Click to turn on.'}
+						: `Enable temperaments — give each MAGI node a distinct personality: ${activeNodeLabels.MELCHIOR} Rationalist, ${activeNodeLabels.BALTHASAR} Caretaker, ${activeNodeLabels.CASPAR} Individualist. Click to turn on.`}
 				>
 					<Brain size={12} />
 					{temperaments ? 'ON' : 'OFF'}

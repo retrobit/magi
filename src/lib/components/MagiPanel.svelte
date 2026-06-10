@@ -10,7 +10,7 @@
 	} from '$lib/magi/types';
 	import {
 		GATEWAY_LABELS,
-		NODE_HEX_COLORS,
+		NODE_COLOR_VARS,
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
 		TEMPERAMENT_LABELS,
@@ -412,7 +412,7 @@
 	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
 		? 'min-h-0'
 		: 'min-h-72 md:min-h-0'} {status === 'pending' ? 'pulse-glow' : ''}"
-	style:--node-color={NODE_HEX_COLORS[name]}
+	style:--node-color={`var(${NODE_COLOR_VARS[name]})`}
 >
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
@@ -429,8 +429,9 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="text-base font-bold text-(--magi-text) transition-colors hover:text-gray-400"
-					onclick={() => onlabelclick?.()}>{displayLabel}</button
+					class="text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
+					onclick={() => onlabelclick?.()}
+					use:tooltip={'Switch between MAGI numbers and EVA names'}>{displayLabel}</button
 				>
 				{#if temperament}
 					<span
