@@ -259,3 +259,37 @@ describe('clearConversations', () => {
 		expect(() => clearConversations()).not.toThrow();
 	});
 });
+
+describe('conversationTurnSchema — extended fields', () => {
+	it('round-trips a turn with error, consensusWarning, and aborted', () => {
+		const turn: ConversationTurn = {
+			...validTurn,
+			error: 'All models failed to respond',
+			consensusWarning: 'Only 2 of 3 models responded — consensus is based on partial data.',
+			aborted: true
+		};
+		saveConversations({ balanced: [turn] });
+		const loaded = loadConversations();
+		expect(loaded.balanced?.[0].error).toBe('All models failed to respond');
+		expect(loaded.balanced?.[0].consensusWarning).toContain('Only 2 of 3');
+		expect(loaded.balanced?.[0].aborted).toBe(true);
+	});
+
+	it('round-trips a turn without the optional fields (back-compat)', () => {
+		// A turn saved before the new fields existed should still load cleanly.
+		saveConversations({ balanced: [validTurn] });
+		const loaded = loadConversations();
+		expect(loaded.balanced?.[0].error).toBeUndefined();
+		expect(loaded.balanced?.[0].consensusWarning).toBeUndefined();
+		expect(loaded.balanced?.[0].aborted).toBeUndefined();
+	});
+
+	it('drops a tier whose turns contain an unknown boolean value for aborted', () => {
+		// Non-boolean `aborted` should fail the schema — the whole tier is dropped.
+		const bad = {
+			balanced: [{ ...validTurn, aborted: 'yes' }]
+		};
+		localStorage.setItem('magi:conversation:v1', JSON.stringify(bad));
+		expect(loadConversations().balanced).toBeUndefined();
+	});
+});

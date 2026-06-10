@@ -359,11 +359,19 @@
 </script>
 
 {#snippet errorCard(message: string)}
-	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+	<!-- role="status" so screen readers announce when a model fails. -->
+	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center" role="status">
 		<CircleAlert size={24} class="magi-error" />
 		<p class="text-sm font-medium magi-error">Model unavailable</p>
 		<p class="text-xs text-gray-500">{message}</p>
 	</div>
+{/snippet}
+
+{#snippet interruptedStrip(message: string)}
+	<!-- Compact one-line strip for a node that streamed partial text before
+	     erroring — the Markdown above gets rendered first, this sits below it.
+	     Reserve the full errorCard for the text-less case only. -->
+	<p class="text-xs magi-error" role="status">Response interrupted: {message}</p>
 {/snippet}
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
@@ -608,12 +616,15 @@
 						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
 						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
-						{#if turn.error}
-							{@render errorCard(turn.error)}
-						{:else if turn.response}
+						{#if turn.response}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(turn.response)} />
 							</div>
+							{#if turn.error}
+								{@render interruptedStrip(turn.error)}
+							{/if}
+						{:else if turn.error}
+							{@render errorCard(turn.error)}
 						{:else}
 							<p class="magi-placeholder">No response</p>
 						{/if}
@@ -629,16 +640,23 @@
 						style:min-height={debateRounds.length > 0 ? undefined : snapMinHeight}
 					>
 						<p class="text-xs font-medium text-gray-400">{liveQuery}</p>
-						{#if status === 'error'}
-							{@render errorCard(error)}
-						{:else if text}
+						{#if text}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(text)} />
 							</div>
+							{#if status === 'error'}
+								<!-- Partial text arrived before the error — compact strip keeps
+								     the readable content and labels the interruption inline. -->
+								{@render interruptedStrip(error)}
+							{/if}
+						{:else if status === 'error'}
+							{@render errorCard(error)}
 						{:else if status === 'unknown'}
-							<p class="text-sm magi-unknown">No response received</p>
+							<p class="text-sm magi-unknown">
+								Stream ended before this node answered — aborted or connection lost.
+							</p>
 						{:else if status === 'success'}
-							<p class="text-sm text-gray-500">Empty response</p>
+							<p class="text-sm text-gray-500">The model returned an empty response.</p>
 						{:else}
 							<p class="magi-loader-text">{loadingText}…</p>
 						{/if}

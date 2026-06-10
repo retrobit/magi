@@ -389,7 +389,10 @@
 			cachedTokens: turn.consensusUsage?.cachedTokens ?? 0,
 			strategy: turn.strategy,
 			debateVerdict: turn.debateVerdict,
-			debateSummary: turn.debateSummary
+			debateSummary: turn.debateSummary,
+			consensusWarning: turn.consensusWarning,
+			respondedCount: Object.keys(turn.nodeResponses).length,
+			aborted: turn.aborted
 		}))
 	);
 
@@ -397,6 +400,10 @@
 	// the debug panel's preview flag, so the pending UI (verb sweeps, glow,
 	// consensus loader) lights up the same whether the data is real or injected.
 	const effectiveLoading = $derived(loading || live.debugPreviewLoading);
+
+	// Error to show in the global banner — live during streaming, then falls back
+	// to the last committed turn's error so the banner survives resetLiveState().
+	const displayedError = $derived(live.error || conversation.at(-1)?.error || '');
 
 	function getNodeStatus(node: MagiNodeName): NodeStatus {
 		if (errorMap.get(node)) return 'error';
@@ -409,6 +416,9 @@
 		if (conversation.length > 0) {
 			const last = conversation[conversation.length - 1];
 			if (last.nodeErrors[node]) return 'error';
+			// Aborted turns produced partial text but weren't a clean success —
+			// surface as 'unknown' so the panel renders the "Stopped" chip.
+			if (last.aborted) return 'unknown';
 			if (last.nodeResponses[node]) return 'success';
 		}
 		return 'idle';
@@ -748,23 +758,40 @@
 				};
 	}
 
+	// Whether this turn was aborted by the user (set in handleSubmit's AbortError
+	// catch branch, read by finalizeTurn to stamp the committed turn).
+	let turnAborted = $state(false);
+
 	// Commit the just-finished turn into the conversation, then clear live state.
 	function finalizeTurn() {
 		if (!activeTurnQuery) return;
+		// Include partial model streams — a node that streamed text before aborting
+		// or erroring still produced content worth persisting (and replaying as context).
 		const hasContent =
 			live.responses.length > 0 ||
 			live.modelErrors.length > 0 ||
 			live.consensusFinal !== '' ||
-			live.consensusStream !== '';
+			live.consensusStream !== '' ||
+			Object.values(live.modelStreams).some((t) => t !== '');
 		if (!hasContent) {
-			// Aborted or hard-failed before anything usable arrived — record no turn.
+			// Hard-failed or aborted before any usable content arrived — no turn to
+			// commit. Restore the typed prompt so the user can resubmit without
+			// re-typing, and still reset live state so token counts don't ghost.
+			query = activeTurnQuery;
 			activeTurnQuery = '';
+			resetLiveState();
 			return;
 		}
 		const nodeResponses: Partial<Record<MagiNodeName, string>> = {};
 		const nodeErrors: Partial<Record<MagiNodeName, string>> = {};
 		for (const r of live.responses) nodeResponses[r.node] = r.text;
 		for (const e of live.modelErrors) nodeErrors[e.node] = e.error;
+		// For nodes that errored after streaming partial text, persist the partial
+		// alongside the error so the transcript can render both.
+		for (const node of MAGI_NODE_NAMES) {
+			const partial = live.modelStreams[node];
+			if (partial && !nodeResponses[node]) nodeResponses[node] = partial;
+		}
 		conversation = [
 			...conversation,
 			{
@@ -778,11 +805,17 @@
 				strategy,
 				debateVerdict: live.debateVerdict,
 				debateSummary: live.debateSummary,
-				debateRounds: { ...live.debateRounds }
+				debateRounds: { ...live.debateRounds },
+				// Persist transient signals onto the turn so the error banner and
+				// warning strip survive the live-state reset below.
+				error: live.error || undefined,
+				consensusWarning: live.consensusWarning || undefined,
+				aborted: turnAborted || undefined
 			}
 		];
 		// Live-turn state now belongs to the committed turn — reset it.
 		activeTurnQuery = '';
+		turnAborted = false;
 		resetLiveState();
 	}
 
@@ -794,7 +827,25 @@
 		resetLiveState();
 	}
 
-	async function handleSubmit(e: SubmitEvent) {
+	// Build the POST body for a MAGI request. Extracted so the retry path can
+	// reuse it without duplicating the field list.
+	function buildRequestBody(opts: { turnQuery: string; forceRetry?: boolean }) {
+		return JSON.stringify({
+			query: opts.turnQuery,
+			tier,
+			strategy,
+			consensusNode,
+			assignments,
+			temperaments,
+			consensusTemperament,
+			temperamentAwareness,
+			genericLabels,
+			history: buildHistory(),
+			...(opts.forceRetry ? { forceRetry: true } : {})
+		});
+	}
+
+	async function handleSubmit(e: SubmitEvent, opts: { forceRetry?: boolean } = {}) {
 		e.preventDefault();
 		if (loading || !allConfigured) return;
 		debugScenario = freshDebugScenario();
@@ -803,6 +854,7 @@
 		if (!turnQuery) return;
 		query = '';
 		activeTurnQuery = turnQuery;
+		turnAborted = false;
 
 		abortController?.abort();
 		abortController = new AbortController();
@@ -814,24 +866,20 @@
 			const res = await fetch('/api/magi', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					query: turnQuery,
-					tier,
-					strategy,
-					consensusNode,
-					assignments,
-					temperaments,
-					consensusTemperament,
-					temperamentAwareness,
-					genericLabels,
-					history: buildHistory()
-				}),
+				body: buildRequestBody({ turnQuery, forceRetry: opts.forceRetry }),
 				signal: abortController.signal
 			});
 
 			if (!res.ok) {
+				const retryAfter = res.headers.get('Retry-After');
 				const data = await res.json().catch(() => ({ error: 'Request failed' }));
-				live.error = data.error ?? `Request failed (${res.status})`;
+				if (res.status === 429 && retryAfter) {
+					// Surface a concrete wait time from the server's Retry-After header
+					// rather than a generic "slow down" message.
+					live.error = `Too many requests — try again in ${retryAfter}s`;
+				} else {
+					live.error = data.error ?? `Request failed (${res.status})`;
+				}
 			} else {
 				const reader = res.body!.getReader();
 				const decoder = new TextDecoder();
@@ -863,7 +911,11 @@
 				}
 			}
 		} catch (err) {
-			if (!(err instanceof DOMException && err.name === 'AbortError')) {
+			if (err instanceof DOMException && err.name === 'AbortError') {
+				// User-initiated abort — mark the turn so the transcript renders
+				// a neutral "Stopped" chip instead of the green success check.
+				turnAborted = true;
+			} else {
 				live.error = err instanceof Error ? err.message : 'Network error';
 			}
 		}
@@ -871,6 +923,16 @@
 		live.streamDone = true;
 		loading = false;
 		finalizeTurn();
+	}
+
+	// Re-submit the last failed turn's query as a new turn, bypassing the
+	// health-cache so models that were marked unhealthy actually get called again.
+	function handleRetry() {
+		const last = conversation[conversation.length - 1];
+		if (!last || loading) return;
+		query = last.query;
+		const fakeEvent = new Event('submit') as unknown as SubmitEvent;
+		void handleSubmit(fakeEvent, { forceRetry: true });
 	}
 
 	// One handler per SSE event. The map is keyed by `StreamEventName`, so the
@@ -987,6 +1049,24 @@
 
 	<!-- Main content -->
 	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 md:min-h-0 md:p-6">
+		<!-- Screen-reader live region for node/consensus state transitions. Kept
+		     visually hidden so it doesn't affect layout; polite so it doesn't
+		     interrupt in-progress speech. -->
+		<div aria-live="polite" aria-atomic="true" class="sr-only">
+			{#if loading}
+				Processing query…
+			{:else if turnAborted}
+				Response stopped.
+			{:else if displayedError}
+				Error: {displayedError}
+			{:else if conversation.length > 0}
+				{#if conversation.at(-1)?.consensusWarning}
+					Partial consensus: {conversation.at(-1)?.consensusWarning}
+				{:else if conversation.at(-1)?.consensus}
+					Consensus ready.
+				{/if}
+			{/if}
+		</div>
 		<!-- Query input -->
 		<form onsubmit={handleSubmit} class="flex shrink-0 gap-3">
 			<div class="relative flex-1">
@@ -1113,13 +1193,26 @@
 			</div>
 		</div>
 
-		<!-- Global error -->
-		{#if live.error}
+		<!-- Global error — stays visible after turn commit because displayedError
+		     falls back to the last committed turn's persisted error field. When
+		     the last turn has node errors, offer a forceRetry path that bypasses
+		     the health cache so the models are actually re-called. -->
+		{#if displayedError}
 			<div
 				class="flex shrink-0 items-center gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
+				role="status"
 			>
 				<CircleAlert size={16} class="shrink-0" />
-				{live.error}
+				<span class="flex-1">{displayedError}</span>
+				{#if !loading && conversation.at(-1)?.nodeErrors && Object.keys(conversation.at(-1)!.nodeErrors).length > 0}
+					<button
+						type="button"
+						class="ml-2 shrink-0 rounded border border-red-700 px-2 py-0.5 text-xs text-red-300 transition-colors hover:bg-red-900"
+						onclick={handleRetry}
+					>
+						Retry
+					</button>
+				{/if}
 			</div>
 		{/if}
 

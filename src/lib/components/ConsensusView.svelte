@@ -32,7 +32,15 @@
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import TokenCount from './TokenCount.svelte';
-	import { Copy, Check, LoaderCircle, CircleCheck, AlertTriangle, Brain } from 'lucide-svelte';
+	import {
+		Copy,
+		Check,
+		LoaderCircle,
+		CircleCheck,
+		CircleHelp,
+		AlertTriangle,
+		Brain
+	} from 'lucide-svelte';
 
 	let copied = $state(false);
 	function copyConsensus() {
@@ -160,12 +168,20 @@
 	// Convenience flag for the placeholder / loader logic below.
 	const consensusSkipped = $derived(strategy === 'none');
 
+	// Single source of truth for the None-strategy placeholder — avoids the
+	// verbatim duplication that existed at the live-turn and transcript sites.
+	const NONE_STRATEGY_PLACEHOLDER =
+		'Strategy: None — consensus skipped. The three responses above stand on their own.';
+
 	// A consensus exists if it's streaming live or was committed to the transcript.
 	// Lets the header's done-check (and the debate banner) survive the live-state
 	// reset that fires when a turn commits.
 	const lastTurnConsensusText = $derived(transcript[transcript.length - 1]?.consensus ?? '');
 	const lastTurnConsensus = $derived(!!lastTurnConsensusText);
 	const hasConsensus = $derived(text !== '' || lastTurnConsensus);
+	// Aborted turns: the last committed turn was stopped mid-stream — suppress
+	// the green check and show a neutral icon instead.
+	const lastTurnAborted = $derived(transcript[transcript.length - 1]?.aborted ?? false);
 	// What the copy button actually writes to the clipboard. `fullText` is the
 	// live-state final, which is reset to '' when a turn commits to the
 	// transcript — so without the transcript fallback the button would only
@@ -496,7 +512,12 @@
 								{/if}
 							</button>
 						{/if}
-						<CircleCheck size={14} class="magi-success" />
+						{#if lastTurnAborted}
+							<!-- Aborted turn — response was truncated, not a clean completion. -->
+							<CircleHelp size={14} class="magi-unknown" />
+						{:else}
+							<CircleCheck size={14} class="magi-success" />
+						{/if}
 					</div>
 				{:else}
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
@@ -651,6 +672,14 @@
 				{#each transcript as turn, i (i)}
 					<div class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}">
 						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
+						{#if turn.consensusWarning}
+							<!-- Amber strip: consensus ran but on fewer than all three MAGI.
+							     Displayed verbatim from the server-produced warning string. -->
+							<p class="flex items-center gap-1.5 text-xs magi-warn">
+								<AlertTriangle size={12} class="shrink-0" />
+								{turn.consensusWarning}
+							</p>
+						{/if}
 						{#if turn.consensus}
 							{#if turn.strategy === 'debate'}{@render debateBanner(
 									turn.debateVerdict,
@@ -659,10 +688,15 @@
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
+							{#if turn.aborted}
+								<p class="text-xs magi-unknown">Stopped — response truncated.</p>
+							{/if}
 						{:else if turn.strategy === 'none'}
-							<p class="magi-placeholder">
-								Consensus strategy chosen as "None" — enjoy reading the individual model responses.
-							</p>
+							{#if (turn.respondedCount ?? 0) > 0}
+								<p class="magi-placeholder">{NONE_STRATEGY_PLACEHOLDER}</p>
+							{:else}
+								<p class="magi-placeholder">No consensus computed — no MAGI responded this turn.</p>
+							{/if}
 						{:else}
 							<p class="magi-placeholder">No consensus</p>
 						{/if}
@@ -684,10 +718,15 @@
 							<!-- `none` strategy: the server skipped phase 2 entirely, so
 							     no consensus events ever arrive. Once all three responses
 							     are in, settle into the placeholder rather than waiting
-							     forever on a synthesis that won't come. -->
-							<p class="magi-placeholder">
-								Consensus strategy chosen as "None" — enjoy reading the individual model responses.
-							</p>
+							     forever on a synthesis that won't come. Gate the cheerful
+							     copy on at least one actual success — erroredCount only
+							     pushes allModelsResponded over the line, so three failures
+							     should not read as "stand on their own". -->
+							{#if respondedCount > 0}
+								<p class="magi-placeholder">{NONE_STRATEGY_PLACEHOLDER}</p>
+							{:else}
+								<p class="magi-placeholder">No consensus computed — no MAGI responded this turn.</p>
+							{/if}
 						{:else if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
 						{:else if loading && !text}

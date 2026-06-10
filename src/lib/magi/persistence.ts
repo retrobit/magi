@@ -96,7 +96,10 @@ const conversationTurnSchema = z.object({
 	strategy: z.string().optional(),
 	debateVerdict: z.enum(['consensus', 'split', 'walkover']).optional(),
 	debateSummary: z.string().optional(),
-	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional()
+	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional(),
+	error: z.string().optional(),
+	consensusWarning: z.string().optional(),
+	aborted: z.boolean().optional()
 });
 
 function storageAvailable(): boolean {

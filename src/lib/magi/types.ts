@@ -184,6 +184,13 @@ export interface ConversationTurn {
 	/** Debate rounds per node (Multi-Round Debate only) — kept so the round-by-round
 	 *  detail survives in the transcript after the turn completes. */
 	debateRounds?: Partial<Record<MagiNodeName, DebateRoundEntry[]>>;
+	/** Non-empty when the turn completed with a global error (e.g. all models failed). */
+	error?: string;
+	/** Non-empty when consensus ran on fewer than all three MAGI — the server-produced
+	 *  "Only N of 3 models responded" message, displayed as an amber strip. */
+	consensusWarning?: string;
+	/** True when the user aborted mid-stream — turn is partial; render accordingly. */
+	aborted?: boolean;
 }
 
 /** A completed turn as rendered in a single node panel's transcript. */
@@ -211,6 +218,12 @@ export interface ConsensusTranscriptEntry {
 	debateVerdict?: DebateVerdict;
 	/** A split's coalition shape — banner subtitle in the transcript. */
 	debateSummary?: string;
+	/** Mirrors ConversationTurn.consensusWarning — amber "Based on N of 3" strip. */
+	consensusWarning?: string;
+	/** How many nodes succeeded that turn — gates the None-strategy placeholder copy. */
+	respondedCount?: number;
+	/** True when the turn was aborted — suppresses the green check on the transcript. */
+	aborted?: boolean;
 }
 
 export const NODE_COLORS: Record<MagiNodeName, string> = {
