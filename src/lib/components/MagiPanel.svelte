@@ -494,9 +494,13 @@
 						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
 						title="Randomize selection"
 					>
-						{#key spinKey}<span class="inline-flex" class:magi-spin-once={spinKey > 0}
-								><Shuffle size={12} /></span
-							>{/key}
+						<span
+							class="inline-flex"
+							style:transform="rotate({spinKey * 360}deg)"
+							style:transition="transform 0.45s ease-out"
+						>
+							<Shuffle size={12} />
+						</span>
 					</button>
 				</div>
 			{/if}
@@ -566,9 +570,13 @@
 							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
 							title="Randomize selection"
 						>
-							{#key spinKey}<span class="inline-flex" class:magi-spin-once={spinKey > 0}
-									><Shuffle size={14} /></span
-								>{/key}
+							<span
+								class="inline-flex"
+								style:transform="rotate({spinKey * 360}deg)"
+								style:transition="transform 0.45s ease-out"
+							>
+								<Shuffle size={14} />
+							</span>
 						</button>
 					{/if}
 				</div>
@@ -660,19 +668,5 @@
 
 	.pulse-glow {
 		animation: pulse-glow 2s ease-in-out infinite;
-	}
-
-	/* One-shot spin: click feedback for the randomize button. Re-triggered by a
-	   keyed remount, so it replays on every click rather than only the first. */
-	@keyframes magi-spin-once {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
-	}
-	.magi-spin-once {
-		animation: magi-spin-once 0.4s ease-out;
 	}
 </style>
