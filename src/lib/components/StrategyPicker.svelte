@@ -97,17 +97,11 @@
 		aria-expanded={open}
 		use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
 	>
-		{#if strategy === FLAGSHIP_STRATEGY}
-			<!-- Once chosen, the flagship wears the three-MAGI gradient in the trigger.
-			     Star + label live in one clipped span so the gradient sweeps continuously
-			     across both rather than restarting per element. -->
-			<span class="magi-gradient-text font-semibold">
-				<span aria-hidden="true">✦</span>
-				{STRATEGY_LABELS[strategy]}
-			</span>
-		{:else}
-			<span>{STRATEGY_LABELS[strategy]}</span>
-		{/if}
+		<span>
+			{#if strategy === FLAGSHIP_STRATEGY}<span aria-hidden="true">✦ </span>{/if}{STRATEGY_LABELS[
+				strategy
+			]}
+		</span>
 	</button>
 
 	{#if open}
@@ -139,10 +133,10 @@
 					onclick={() => select(s)}
 				>
 					{#if flagship}
-						<!-- RGB-triad strip marks the flagship without a new accent colour. -->
+						<!-- Neutral strip marks the flagship without a hue — color is
+						     reserved for node identity elsewhere. -->
 						<span
-							class="absolute top-1.5 bottom-1.5 left-1 w-[3px] rounded-full"
-							style="background: var(--magi-consensus-gradient)"
+							class="absolute top-1.5 bottom-1.5 left-1 w-[3px] rounded-full bg-(--magi-text-faint)"
 							aria-hidden="true"
 						></span>
 					{/if}
@@ -153,7 +147,7 @@
 							>
 								{STRATEGY_LABELS[s]}
 								{#if flagship}
-									<span class="magi-gradient-text magi-badge">✦ Flagship</span>
+									<span class="magi-badge text-(--magi-text-muted)">✦ Flagship</span>
 								{/if}
 							</span>
 							<!-- Relative cost / thoroughness meter. -->
