@@ -73,6 +73,8 @@
 		scrollMode?: ScrollMode;
 		disabled?: boolean;
 		onstrategychange?: (strategy: StrategyName) => void;
+		/** Fills the main query input with an example prompt (never submits). */
+		onexampleselect?: (prompt: string) => void;
 		onconsensuschange?: (node: MagiNodeName) => void;
 		onconsensustemperamentchange?: (value: boolean) => void;
 		onawarenesschange?: (value: boolean) => void;
@@ -112,6 +114,7 @@
 		scrollMode = 'follow',
 		disabled = false,
 		onstrategychange,
+		onexampleselect,
 		onconsensuschange,
 		onconsensustemperamentchange,
 		onawarenesschange,
@@ -194,6 +197,13 @@
 	});
 
 	const contextClass = $derived(contextUsageClass(contextUsed, contextWindow));
+
+	// Example prompts shown on the idle screen — short ones that fit chips.
+	const EXAMPLE_PROMPTS = [
+		'Is free will an illusion?',
+		'Why do we dream?',
+		'Is mathematics discovered or invented?'
+	];
 
 	// Cumulative consensus tokens: every completed turn plus the live turn.
 	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
@@ -618,7 +628,25 @@
 	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
-				<p class="magi-placeholder">Consensus will appear after all three MAGI respond</p>
+				<div class="flex flex-col gap-3">
+					<p class="magi-placeholder">
+						One question, three minds. MAGI sends your query to three different models in parallel,
+						then merges their answers into a single consensus.
+					</p>
+					{#if onexampleselect}
+						<div class="flex flex-wrap gap-2">
+							{#each EXAMPLE_PROMPTS as prompt (prompt)}
+								<button
+									type="button"
+									class="magi-newconv-btn rounded-full px-3 py-1 text-xs transition-colors"
+									onclick={() => onexampleselect(prompt)}
+								>
+									{prompt}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}">
@@ -673,7 +701,7 @@
 								<p class="magi-loader-text">{consensusLoadingText}…</p>
 							{/if}
 						{:else}
-							<p class="magi-placeholder">Consensus will appear after all three MAGI respond</p>
+							<p class="magi-placeholder">Consensus pending — awaiting MAGI responses…</p>
 						{/if}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}
 					</div>

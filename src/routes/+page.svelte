@@ -60,6 +60,7 @@
 		Brain,
 		Copy,
 		Check,
+		Dices,
 		MessageSquarePlus
 	} from 'lucide-svelte';
 
@@ -158,6 +159,13 @@
 	let activeTurnQuery = $state('');
 	let liveNodeUsage = $state<Partial<Record<MagiNodeName, TurnUsage>>>({});
 	let liveConsensusUsage = $state<TurnUsage | undefined>(undefined);
+
+	function fillPrompt(prompt: string) {
+		query = prompt;
+	}
+	function fillRandomPrompt() {
+		fillPrompt(RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)]);
+	}
 
 	function copyQuery() {
 		navigator.clipboard.writeText(query).catch(() => {});
@@ -560,23 +568,6 @@
 		saveConversations(conversationsByTier);
 	});
 
-	// The query form collapses to an icon-only button under the `sm` breakpoint;
-	// `compact` tracks that so the input placeholder can shorten to match.
-	let compact = $state(false);
-	$effect(() => {
-		const mq = window.matchMedia('(max-width: 639.98px)');
-		const sync = () => (compact = mq.matches);
-		sync();
-		mq.addEventListener('change', sync);
-		return () => mq.removeEventListener('change', sync);
-	});
-
-	const queryPlaceholder = $derived(
-		compact
-			? 'Ask the MAGI system... or click "▶"'
-			: 'Ask the MAGI system... or click "▶ Execute" for a random prompt'
-	);
-
 	// Capture and restore the full per-tier snapshot. Kept as a symmetric
 	// pair so a new field is added to both sides at once, not threaded
 	// through twelve scattered assignments.
@@ -808,8 +799,8 @@
 		if (loading || !allConfigured) return;
 		debugScenario = freshDebugScenario();
 
-		const turnQuery =
-			query.trim() || RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
+		const turnQuery = query.trim();
+		if (!turnQuery) return;
 		query = '';
 		activeTurnQuery = turnQuery;
 
@@ -1002,7 +993,7 @@
 				<input
 					bind:value={query}
 					type="text"
-					placeholder={queryPlaceholder}
+					placeholder="Ask the MAGI system…"
 					disabled={loading}
 					class="magi-input w-full overflow-hidden rounded-lg px-4 py-3 pr-10 text-ellipsis whitespace-nowrap focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 				/>
@@ -1021,6 +1012,16 @@
 					</button>
 				{/if}
 			</div>
+			<button
+				type="button"
+				class="magi-randomize flex shrink-0 items-center justify-center rounded-lg px-3 transition-colors disabled:opacity-50"
+				onclick={fillRandomPrompt}
+				disabled={loading}
+				use:tooltip={'Fill the input with a random prompt — review it, then Execute'}
+				aria-label="Random prompt"
+			>
+				<Dices size={16} />
+			</button>
 			{#if loading}
 				<button
 					type="button"
@@ -1040,7 +1041,7 @@
 			{:else}
 				<button
 					type="submit"
-					disabled={!allConfigured || modelsLoading}
+					disabled={!allConfigured || modelsLoading || !query.trim()}
 					aria-label="Execute"
 					class="magi-btn flex w-12 items-center justify-center gap-2 rounded-lg py-3 font-medium transition-colors hover:bg-gray-500 disabled:opacity-50 disabled:hover:bg-(--magi-btn-bg) sm:w-40"
 				>
@@ -1176,6 +1177,7 @@
 		<!-- Consensus -->
 		<div class={consensusCollapsed ? 'shrink-0' : 'flex-1 md:min-h-0'}>
 			<ConsensusView
+				onexampleselect={fillPrompt}
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
