@@ -22,8 +22,14 @@ import {
 } from '$lib/magi/stream-events';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
 import { findModelEntry } from '$lib/magi/registry';
-import { isRateLimited } from '$lib/server/rate-limit';
-import { markUnhealthy, isModelHealthy, getHealthStatus } from '$lib/server/health';
+import { isRateLimited, retryAfterSeconds } from '$lib/server/rate-limit';
+import {
+	markUnhealthy,
+	isModelHealthy,
+	getHealthStatus,
+	clearHealthEntry,
+	UNHEALTHY_TTL
+} from '$lib/server/health';
 import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { logEvent, startTimer } from '$lib/server/logger';
@@ -32,6 +38,40 @@ import { checkApiKey } from '$lib/server/auth';
 // Validate hardcoded configs once at module load
 validateConfig(DEFAULT_MAGI_CONFIG);
 validateConfig(FREE_MAGI_CONFIG);
+
+/** Classify an error message to decide whether to poison the health cache.
+ *  Only availability-shaped failures (HTTP 404/410/5xx, "No endpoints found",
+ *  model-not-found variants) should mark a model unhealthy — context-window
+ *  overflows, auth rejections, and rate-limits are per-request conditions that
+ *  don't indicate the model itself is down, so caching them blocks retries for
+ *  2 min on every turn for no gain. Exported for unit tests. */
+export function _isAvailabilityError(message: string): boolean {
+	const lower = message.toLowerCase();
+	// OpenRouter "no endpoints" fires when no provider serves the model right now
+	if (lower.includes('no endpoints found')) return true;
+	// Model-not-found and similar gone/missing phrases
+	if (lower.includes('model not found') || lower.includes('does not exist')) return true;
+	// HTTP 5xx surfaced as text (some providers include the status in the message)
+	if (/\b5\d{2}\b/.test(message)) return true;
+	// HTTP 404 / 410 surfaced as text
+	if (/\b(404|410)\b/.test(message)) return true;
+	// Explicitly exclude context-length, auth, and rate-limit failures
+	if (
+		lower.includes('context') ||
+		lower.includes('token') ||
+		lower.includes('401') ||
+		lower.includes('403') ||
+		lower.includes('unauthorized') ||
+		lower.includes('forbidden') ||
+		lower.includes('429') ||
+		lower.includes('rate limit') ||
+		lower.includes('rate_limit')
+	)
+		return false;
+	// Default: treat unknown errors as availability failures so genuinely broken
+	// models are still cached (conservative — avoids hammering a down endpoint).
+	return true;
+}
 
 // Exported for unit testing — the nested unwrap is brittle enough to warrant
 // direct coverage of each error shape. SvelteKit reserves bare exports from
@@ -106,7 +146,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// Rate limiting (sliding window per IP)
 	if (isRateLimited(ip)) {
 		logEvent('warn', 'request.rate_limited', { requestId, ip });
-		return errResp({ error: 'Too many requests' }, 429);
+		const retryAfter = retryAfterSeconds(ip);
+		return json(
+			{ error: 'Too many requests' },
+			{
+				status: 429,
+				headers: {
+					'X-Request-Id': requestId,
+					// Standard header so clients can surface a concrete wait time
+					// rather than showing a generic "slow down" message.
+					'Retry-After': String(retryAfter)
+				}
+			}
+		);
 	}
 
 	// Content-Type validation
@@ -143,7 +195,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		consensusTemperament: useConsensusTemperament,
 		temperamentAwareness: useAwareness,
 		genericLabels: useGenericLabels,
-		history = []
+		history = [],
+		forceRetry = false
 	} = parsed.data;
 
 	logEvent('info', 'request', {
@@ -244,6 +297,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// Send node configuration so the client knows assignments
 				send('config', config);
 
+				// forceRetry: clear cached unhealthy entries so the pre-flight check
+				// actually re-calls the API instead of bouncing off a stale mark.
+				if (forceRetry) {
+					for (const { modelId } of config) clearHealthEntry(modelId);
+				}
+
 				// Pre-flight health check — catch unhealthy models before burning tokens
 				const orModels = config.some((a) => a.gateway === 'openrouter')
 					? await getOpenRouterFreeModels()
@@ -251,13 +310,21 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const nodeHealth = config.map(({ node, gateway, provider, modelId }) => {
 					if (!isModelHealthy(modelId)) {
 						const entry = getHealthStatus(modelId);
+						// Build an honest skip message that tells the client when the
+						// auto-retry window opens, so the UI can show a concrete wait.
+						const agoMs = entry ? Date.now() - entry.lastChecked : 0;
+						const agoS = Math.round(agoMs / 1000);
+						const remainMs = entry ? Math.max(0, UNHEALTHY_TTL - agoMs) : 0;
+						const remainS = Math.ceil(remainMs / 1000);
+						const lastErr = entry?.lastError ?? 'unknown error';
+						const reason = `Skipped: failed ${agoS}s ago (${lastErr}); auto-retries in ${remainS}s`;
 						return {
 							node,
 							gateway,
 							provider,
 							modelId,
 							healthy: false,
-							reason: entry?.lastError ?? 'Model previously failed'
+							reason
 						};
 					}
 					if (
@@ -396,7 +463,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								model: modelId,
 								error: message
 							});
-							markUnhealthy(modelId, message);
+							// Only availability-shaped failures warrant poisoning the cache —
+							// context-length overflows, auth rejections, and rate-limits are
+							// per-request, so marking the model unhealthy would block every
+							// subsequent turn for 2 minutes for no reason.
+							if (_isAvailabilityError(message)) {
+								markUnhealthy(modelId, message);
+							}
 							send('model-error', { node, gateway, provider, error: message });
 							throw err;
 						}

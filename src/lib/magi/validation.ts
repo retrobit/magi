@@ -33,7 +33,11 @@ export const magiRequestSchema = z.object({
 	consensusTemperament: z.boolean().optional(),
 	temperamentAwareness: z.boolean().optional(),
 	genericLabels: z.boolean().optional(),
-	history: z.array(historyTurnSchema).max(50).optional()
+	history: z.array(historyTurnSchema).max(50).optional(),
+	/** When true, bypasses the pre-flight unhealthy-cache check for every model in
+	 *  this request and clears those cache entries — so a retry actually re-calls
+	 *  a model rather than bouncing off a stale markUnhealthy entry. */
+	forceRetry: z.boolean().optional()
 });
 
 export type MagiRequest = z.infer<typeof magiRequestSchema>;

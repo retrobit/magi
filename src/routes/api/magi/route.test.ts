@@ -3,7 +3,7 @@ import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
-import { POST, _extractErrorMessage } from './+server';
+import { POST, _extractErrorMessage, _isAvailabilityError } from './+server';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -13,11 +13,16 @@ const env = _env as unknown as MutableEnv;
 
 vi.mock('ai', () => ({ streamText: vi.fn(), generateText: vi.fn() }));
 vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
-vi.mock('$lib/server/rate-limit', () => ({ isRateLimited: vi.fn(() => false) }));
+vi.mock('$lib/server/rate-limit', () => ({
+	isRateLimited: vi.fn(() => false),
+	retryAfterSeconds: vi.fn(() => 30)
+}));
 vi.mock('$lib/server/health', () => ({
 	markUnhealthy: vi.fn(),
 	isModelHealthy: vi.fn(() => true),
-	getHealthStatus: vi.fn(() => undefined)
+	getHealthStatus: vi.fn(() => undefined),
+	clearHealthEntry: vi.fn(),
+	UNHEALTHY_TTL: 120_000
 }));
 vi.mock('$lib/magi/models', () => ({ getModel: vi.fn(() => ({})) }));
 vi.mock('$lib/server/openrouter', () => ({ getOpenRouterFreeModels: vi.fn(async () => []) }));
@@ -312,5 +317,112 @@ describe('_extractErrorMessage', () => {
 		expect(_extractErrorMessage(null)).toBe('Unknown error');
 		// Malformed responseBody JSON falls through; a plain object is not an Error.
 		expect(_extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
+	});
+});
+
+describe('_isAvailabilityError', () => {
+	it('classifies OpenRouter "no endpoints" as an availability error', () => {
+		expect(_isAvailabilityError('No endpoints found for this model')).toBe(true);
+	});
+
+	it('classifies model-not-found messages as availability errors', () => {
+		expect(_isAvailabilityError('model not found: gpt-foo')).toBe(true);
+		expect(_isAvailabilityError('The model does not exist')).toBe(true);
+	});
+
+	it('classifies HTTP 5xx in the message as availability errors', () => {
+		expect(_isAvailabilityError('upstream returned 500')).toBe(true);
+		expect(_isAvailabilityError('503 Service Unavailable')).toBe(true);
+	});
+
+	it('classifies HTTP 404/410 in the message as availability errors', () => {
+		expect(_isAvailabilityError('404 not found')).toBe(true);
+		expect(_isAvailabilityError('410 gone')).toBe(true);
+	});
+
+	it('does NOT classify context-length errors as availability errors', () => {
+		expect(_isAvailabilityError('context length exceeded')).toBe(false);
+		expect(_isAvailabilityError('maximum token limit reached')).toBe(false);
+	});
+
+	it('does NOT classify auth errors as availability errors', () => {
+		expect(_isAvailabilityError('401 Unauthorized')).toBe(false);
+		expect(_isAvailabilityError('403 Forbidden')).toBe(false);
+		expect(_isAvailabilityError('unauthorized access')).toBe(false);
+	});
+
+	it('does NOT classify rate-limit errors as availability errors', () => {
+		expect(_isAvailabilityError('429 Too Many Requests')).toBe(false);
+		expect(_isAvailabilityError('rate limit exceeded')).toBe(false);
+		expect(_isAvailabilityError('rate_limit_error')).toBe(false);
+	});
+});
+
+describe('POST /api/magi — health cache & forceRetry', () => {
+	it('does not call markUnhealthy for a rate-limit error', async () => {
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('429 rate limit exceeded');
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+	});
+
+	it('does not call markUnhealthy for a context-length error', async () => {
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('context length exceeded');
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+	});
+
+	it('does not call markUnhealthy for an auth error', async () => {
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('401 Unauthorized');
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+	});
+
+	it('still calls markUnhealthy for a 500-class error', async () => {
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('upstream returned 503');
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).toHaveBeenCalledOnce();
+	});
+
+	it('clears health entries for all models when forceRetry is true', async () => {
+		const { clearHealthEntry } = await import('$lib/server/health');
+		vi.mocked(clearHealthEntry).mockClear();
+		await readEvents(await callPost({ ...validBody, forceRetry: true }));
+		// Three nodes in the balanced config — each must be cleared.
+		expect(vi.mocked(clearHealthEntry)).toHaveBeenCalledTimes(3);
+	});
+
+	it('does not clear health entries when forceRetry is false', async () => {
+		const { clearHealthEntry } = await import('$lib/server/health');
+		vi.mocked(clearHealthEntry).mockClear();
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(clearHealthEntry)).not.toHaveBeenCalled();
+	});
+});
+
+describe('POST /api/magi — rate limit Retry-After', () => {
+	it('returns 429 with a Retry-After header when the client is rate limited', async () => {
+		vi.mocked(isRateLimited).mockReturnValue(true);
+		const res = await callPost(validBody);
+		expect(res.status).toBe(429);
+		// The mock returns 30 seconds for retryAfterSeconds.
+		expect(res.headers.get('Retry-After')).toBe('30');
+	});
+
+	it('includes X-Request-Id on the 429 response', async () => {
+		vi.mocked(isRateLimited).mockReturnValue(true);
+		const res = await callPost(validBody);
+		expect(res.headers.get('X-Request-Id')).toBeTruthy();
 	});
 });

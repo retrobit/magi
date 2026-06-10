@@ -6,7 +6,8 @@ export interface ModelHealthEntry {
 
 const healthCache = new Map<string, ModelHealthEntry>();
 
-const UNHEALTHY_TTL = 2 * 60_000;
+/** How long an unhealthy mark lives before the model is considered retry-able. */
+export const UNHEALTHY_TTL = 2 * 60_000;
 const CLEANUP_INTERVAL = 15 * 60_000;
 
 export function markUnhealthy(modelId: string, reason: string): void {
@@ -30,6 +31,12 @@ export function getHealthStatus(modelId: string): ModelHealthEntry | undefined {
 export function isModelHealthy(modelId: string): boolean {
 	const entry = getHealthStatus(modelId);
 	return !entry || entry.status !== 'unhealthy';
+}
+
+/** Remove a model's unhealthy entry so the next pre-flight check actually calls
+ *  the API. Used by forceRetry to bypass the cache for a specific model. */
+export function clearHealthEntry(modelId: string): void {
+	healthCache.delete(modelId);
 }
 
 setInterval(() => {
