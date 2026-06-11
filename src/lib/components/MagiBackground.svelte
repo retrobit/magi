@@ -250,19 +250,19 @@
 	}
 
 	.aurora-col.aurora-red {
-		background: linear-gradient(to right, transparent, var(--magi-node-red), transparent);
+		background: linear-gradient(to right, transparent, var(--magi-bg-1), transparent);
 		left: -5%;
 		animation: drift-col-left 20s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-green {
-		background: linear-gradient(to right, transparent, var(--magi-node-green), transparent);
+		background: linear-gradient(to right, transparent, var(--magi-bg-2), transparent);
 		left: 30%;
 		animation: drift-col-center 24s ease-in-out infinite;
 	}
 
 	.aurora-col.aurora-blue {
-		background: linear-gradient(to right, transparent, var(--magi-node-blue), transparent);
+		background: linear-gradient(to right, transparent, var(--magi-bg-3), transparent);
 		right: -5%;
 		animation: drift-col-right 22s ease-in-out infinite;
 	}
@@ -307,21 +307,21 @@
 	}
 
 	.aurora-blob.aurora-red {
-		background: radial-gradient(circle, var(--magi-node-red) 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-bg-1) 0%, transparent 70%);
 		bottom: -5%;
 		left: -10%;
 		animation: drift-orb-left 24s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-green {
-		background: radial-gradient(circle, var(--magi-node-green) 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-bg-2) 0%, transparent 70%);
 		top: -10%;
 		left: 25%;
 		animation: drift-orb-center 20s ease-in-out infinite;
 	}
 
 	.aurora-blob.aurora-blue {
-		background: radial-gradient(circle, var(--magi-node-blue) 0%, transparent 70%);
+		background: radial-gradient(circle, var(--magi-bg-3) 0%, transparent 70%);
 		bottom: -5%;
 		right: -10%;
 		animation: drift-orb-right 22s ease-in-out infinite;
@@ -409,9 +409,11 @@
 		   transform — no per-frame raster. */
 		will-change: transform;
 		--hex-line: #9ca3af; /* gray-400 on the gray-950 page */
-		--hex-line-hot: #9cc0f5; /* soft blue — a lit tint of the navy page bg */
+		/* Spotlight colour comes from the global palette var (blue by default,
+		   recoloured by the Orange/Red/Eva palettes). */
+		--hex-line-hot: var(--magi-hex-hot);
 		--hex-base-opacity: 0.11;
-		--hex-glow-opacity: 0.28;
+		--hex-glow-opacity: 0.19;
 	}
 
 	.hex-base {
@@ -453,11 +455,12 @@
 
 	:global(.light) .hex-svg {
 		--hex-line: #4b5563; /* gray-600 */
-		--hex-line-hot: #3b6aa8; /* deeper blue glow, legible on the light surface */
+		/* --hex-line-hot now comes from the global --magi-hex-hot (the .light block
+		   sets the light-mode spotlight colour, palettes override it). */
 		/* A dark stroke over a light surface needs more opacity than the inverse to
 		   read with the same presence — dark mode's lattice was far more visible by
 		   eye, so the light values are lifted to close the gap without going noisy. */
 		--hex-base-opacity: 0.12;
-		--hex-glow-opacity: 0.24;
+		--hex-glow-opacity: 0.17;
 	}
 </style>

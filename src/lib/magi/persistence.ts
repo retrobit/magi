@@ -4,11 +4,13 @@ import {
 	TIER_NAMES,
 	MAGI_NODE_NAMES,
 	BG_VARIANTS,
+	PALETTES,
 	type TierName,
 	type MagiNodeName,
 	type ConversationTurn,
 	type ScrollMode,
-	type BgVariant
+	type BgVariant,
+	type Palette
 } from './types';
 import type { NodeAssignment } from './config';
 import { STRATEGY_NAMES, type StrategyName } from './consensus/types';
@@ -32,6 +34,9 @@ export interface PersistedSettings {
 	genericLabels: boolean;
 	theme: 'dark' | 'light';
 	bgVariant: BgVariant;
+	/** Color palette. Optional for back-compat — older payloads fall back to the
+	 *  in-code default (`rgb`). */
+	palette?: Palette;
 	scrollMode: ScrollMode;
 	/** Focus accordion state. Optional for back-compat with payloads saved
 	 *  before this field existed — those simply fall back to the in-code default. */
@@ -78,6 +83,7 @@ const persistedSettingsSchema = z.object({
 	genericLabels: z.boolean(),
 	theme: z.enum(['dark', 'light']),
 	bgVariant: z.enum(BG_VARIANTS),
+	palette: z.enum(PALETTES).optional(),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
 	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional(),
 	reduceMotion: z.boolean().optional()

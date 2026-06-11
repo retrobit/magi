@@ -157,6 +157,17 @@ export type ScrollMode = 'off' | 'follow' | 'snap';
 export const BG_VARIANTS = ['columns', 'orbs', 'hex', 'off'] as const;
 export type BgVariant = (typeof BG_VARIANTS)[number];
 
+/** Color palette — a class on <html> that remaps the node identity triad (and,
+ *  for `eva`, the background triad independently). `rgb` is the :root default. */
+export const PALETTES = ['rgb', 'orange', 'red', 'eva'] as const;
+export type Palette = (typeof PALETTES)[number];
+export const PALETTE_LABELS: Record<Palette, string> = {
+	rgb: 'RGB',
+	orange: 'Orange',
+	red: 'Red',
+	eva: 'Eva'
+};
+
 /** Token usage for a single model call. `cachedTokens` is the slice of
  *  `inputTokens` served from a prompt cache — present only for gateways that
  *  report it (Anthropic, OpenAI). Optional for back-compat with persisted turns. */
