@@ -12,13 +12,20 @@
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
 	import type { NodeAssignment } from '$lib/magi/config';
-	import type { BgVariant, ScrollMode } from '$lib/magi/types';
+	import {
+		PALETTES,
+		PALETTE_LABELS,
+		type BgVariant,
+		type ScrollMode,
+		type Palette
+	} from '$lib/magi/types';
 
 	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings' | 'menu';
 
 	interface Props {
 		theme: 'dark' | 'light';
 		bgVariant: BgVariant;
+		palette: Palette;
 		scrollMode: ScrollMode;
 		genericLabels: boolean;
 		reduceMotion: boolean;
@@ -29,11 +36,15 @@
 		/** Fires when the user picks a new debug scenario from the Debug panel —
 		 *  the parent owns the side effect of injecting it into live state. */
 		ondebugchange: (next: DebugScenario) => void;
+		/** Replay the intro splash — the title mark is the trigger (the repo lives
+		 *  in the footer now). The parent owns which concept plays. */
+		onreplaysplash?: () => void;
 	}
 
 	let {
 		theme = $bindable(),
 		bgVariant = $bindable(),
+		palette = $bindable(),
 		scrollMode = $bindable(),
 		genericLabels = $bindable(),
 		reduceMotion = $bindable(),
@@ -41,7 +52,8 @@
 		loading,
 		debugScenario,
 		statsNonce,
-		ondebugchange
+		ondebugchange,
+		onreplaysplash
 	}: Props = $props();
 
 	let openPanel = $state<HeaderPanel | null>(null);
@@ -62,16 +74,19 @@
 
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
 	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
-		<h1 class="text-center magi-headline">
-			<a
-				href="https://github.com/retrobit/magi"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="inline-block transition-opacity hover:opacity-80"
-				title="View MAGI on GitHub"
+		<h1 class="magi-headline text-center">
+			<button
+				type="button"
+				class="inline-block cursor-pointer transition-opacity hover:opacity-80"
+				onclick={() => onreplaysplash?.()}
+				title="Replay the MAGI intro"
 			>
-				MAGI <span class="text-lg">🔺🔻🔺</span>
-			</a>
+				MAGI <span class="text-base"
+					><span class="text-(--magi-node-red)">▲</span><span class="text-(--magi-node-green)"
+						>▼</span
+					><span class="text-(--magi-node-blue)">▲</span></span
+				>
+			</button>
 		</h1>
 		<div class="absolute top-1/2 right-4 -translate-y-1/2 md:right-6">
 			<!-- Mobile: single hamburger that opens a menu listing every section -->
@@ -224,6 +239,19 @@
 			>
 				Light
 			</button>
+		</div>
+		<span class="mt-3 magi-section-header text-gray-500">PALETTE</span>
+		<div class="mt-2 flex flex-col gap-1">
+			{#each PALETTES as p (p)}
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {palette === p
+						? 'bg-gray-600 text-white'
+						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+					onclick={() => (palette = p)}
+				>
+					{PALETTE_LABELS[p]}
+				</button>
+			{/each}
 		</div>
 		<span class="mt-3 magi-section-header text-gray-500">BACKGROUND</span>
 		<div class="mt-2 flex flex-col gap-1">

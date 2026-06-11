@@ -7,6 +7,7 @@
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import MagiHeader from '$lib/components/MagiHeader.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+	import Splash from '$lib/components/Splash.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
@@ -36,7 +37,9 @@
 		type DebateRoundEntry,
 		type DebateVerdict,
 		type ScrollMode,
-		type BgVariant
+		type BgVariant,
+		PALETTES,
+		type Palette
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
@@ -109,6 +112,7 @@
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
 	let bgVariant = $state<BgVariant>('hex');
+	let palette = $state<Palette>('rgb');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
 	// In-app reduce-motion, OR'd with the OS preference downstream — lets users
@@ -579,6 +583,7 @@
 		genericLabels = s.genericLabels;
 		theme = s.theme;
 		bgVariant = s.bgVariant;
+		palette = s.palette ?? 'rgb';
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
 		reduceMotion = s.reduceMotion ?? false;
@@ -626,7 +631,39 @@
 		modelsLoading = false;
 	}
 
+	// Intro splash. Auto-plays once ever (first visit); the header MAGI mark
+	// replays it, cycling through the three concepts so all are reachable. A
+	// `?splash=<concept>` query param force-plays a specific one (dev/preview).
+	const SPLASH_SEEN_KEY = 'magi:splash-seen:v1';
+	// Decode is the first-visit default; the header-mark replay then cycles
+	// decode → boot → convergence so the other two stay reachable.
+	const SPLASH_CONCEPTS = ['decode', 'boot', 'convergence'] as const;
+	type SplashConcept = (typeof SPLASH_CONCEPTS)[number];
+	let showSplash = $state(false);
+	let splashConcept = $state<SplashConcept>('decode');
+	let splashNonce = $state(0);
+	function replaySplash() {
+		const i = SPLASH_CONCEPTS.indexOf(splashConcept);
+		splashConcept = SPLASH_CONCEPTS[(i + 1) % SPLASH_CONCEPTS.length];
+		splashNonce += 1;
+		showSplash = true;
+	}
+
 	onMount(async () => {
+		// Splash gate runs first so it can paint over the hydrating shell.
+		try {
+			const forced = new URLSearchParams(location.search).get('splash');
+			if (forced && (SPLASH_CONCEPTS as readonly string[]).includes(forced)) {
+				splashConcept = forced as SplashConcept;
+				showSplash = true;
+			} else if (!localStorage.getItem(SPLASH_SEEN_KEY)) {
+				showSplash = true;
+				localStorage.setItem(SPLASH_SEEN_KEY, '1');
+			}
+		} catch {
+			// Storage unavailable — just skip the splash.
+		}
+
 		const prefs = loadPrefs();
 		if (prefs) {
 			persistedSnapshots = prefs.snapshots;
@@ -656,6 +693,7 @@
 			genericLabels,
 			theme,
 			bgVariant,
+			palette,
 			scrollMode,
 			layoutFocus,
 			reduceMotion
@@ -673,6 +711,13 @@
 
 	$effect(() => {
 		document.documentElement.classList.toggle('light', theme === 'light');
+	});
+
+	// Palette is a class on <html> (like `.light`) so its var overrides reach
+	// body-portaled elements (tooltip) too. Exactly one palette class is set.
+	$effect(() => {
+		const el = document.documentElement;
+		for (const p of PALETTES) el.classList.toggle(`palette-${p}`, palette === p);
 	});
 
 	// Persist the active tier's conversation thread on every change.
@@ -1186,6 +1231,12 @@
 	<title>MAGI</title>
 </svelte:head>
 
+{#if showSplash}
+	{#key splashNonce}
+		<Splash concept={splashConcept} {reduceMotion} ondone={() => (showSplash = false)} />
+	{/key}
+{/if}
+
 <div class="magi-bg flex h-screen flex-col overflow-y-auto">
 	<MagiBackground variant={bgVariant} {reduceMotion} />
 
@@ -1199,6 +1250,7 @@
 		bind:scrollMode
 		bind:genericLabels
 		bind:reduceMotion
+		bind:palette
 		{assignments}
 		{loading}
 		{debugScenario}
@@ -1207,6 +1259,7 @@
 			debugScenario = next;
 			applyDebugScenario(next);
 		}}
+		onreplaysplash={replaySplash}
 	/>
 
 	<!-- Control strip -->
