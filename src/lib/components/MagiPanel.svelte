@@ -116,6 +116,11 @@
 	}: Props = $props();
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
+	// Labels are "<name> • <unit>" (e.g. MELCHIOR • 1). Only the name gets the
+	// airy display tracking; the "• N" suffix stays tight so the bullet isn't
+	// marooned in whitespace.
+	const labelName = $derived(displayLabel.split('•')[0].trim());
+	const labelUnit = $derived(displayLabel.split('•')[1]?.trim() ?? '');
 
 	// The latest entry that has actual content for this node. Used to fall back
 	// to the transcript after live state resets at turn commit.
@@ -452,9 +457,14 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
+					class="magi-display text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
 					onclick={() => onlabelclick?.()}
-					use:tooltip={'Switch between MAGI numbers and EVA names'}>{displayLabel}</button
+					use:tooltip={'Switch between MAGI numbers and EVA names'}
+					><span class="tracking-[0.22em]">{labelName}</span>{#if labelUnit}<span
+							class="opacity-80"
+						>
+							• {labelUnit}</span
+						>{/if}</button
 				>
 				{#if temperament}
 					<span
