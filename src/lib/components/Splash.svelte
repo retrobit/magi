@@ -14,6 +14,8 @@
 	}
 	let { concept, reduceMotion = false, ondone }: Props = $props();
 
+	let stageEl = $state<HTMLDivElement | null>(null);
+
 	const reduced = $derived(
 		reduceMotion ||
 			(typeof window !== 'undefined' &&
@@ -25,6 +27,15 @@
 	const timers: ReturnType<typeof setTimeout>[] = [];
 	const intervals: ReturnType<typeof setInterval>[] = [];
 	const after = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
+
+	// Modifier keys (Tab, Shift, etc.) and held-down keys must not skip the
+	// animation — the user may just be navigating or exploring with a screen reader.
+	const SKIP_IGNORE = new Set(['Tab', 'Shift', 'Control', 'Alt', 'Meta']);
+
+	function guardedFinish(e: KeyboardEvent) {
+		if (e.repeat || SKIP_IGNORE.has(e.key)) return;
+		finish();
+	}
 
 	function finish() {
 		if (finished) return;
@@ -89,6 +100,10 @@
 	}
 
 	onMount(() => {
+		// Focus the stage so screen readers announce the label and Enter/Space work
+		// naturally without requiring the user to tab to it first.
+		stageEl?.focus();
+
 		if (reduced) {
 			bootStep = 6;
 			decoded = DECODE_TARGET.split('');
@@ -108,10 +123,11 @@
 	});
 </script>
 
-<svelte:window onkeydown={finish} />
+<svelte:window onkeydown={guardedFinish} />
 
 <!-- The whole stage is the skip target. -->
 <div
+	bind:this={stageEl}
 	class="splash"
 	class:fading
 	class:reduced
@@ -119,7 +135,7 @@
 	tabindex="0"
 	aria-label="MAGI intro animation — press any key or click to skip"
 	onclick={finish}
-	onkeydown={finish}
+	onkeydown={guardedFinish}
 >
 	{#if concept === 'boot'}
 		<div class="boot">

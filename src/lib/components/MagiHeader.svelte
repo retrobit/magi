@@ -80,8 +80,9 @@
 				class="inline-block cursor-pointer transition-opacity hover:opacity-80"
 				onclick={() => onreplaysplash?.()}
 				title="Replay the MAGI intro"
+				aria-label="MAGI — replay the intro animation"
 			>
-				MAGI <span class="text-base"
+				MAGI <span class="text-base" aria-hidden="true"
 					><span class="text-(--magi-node-red)">▲</span><span class="text-(--magi-node-green)"
 						>▼</span
 					><span class="text-(--magi-node-blue)">▲</span></span
@@ -96,6 +97,7 @@
 				onclick={() => togglePanel('menu')}
 				title="Menu"
 				aria-label="Open menu"
+				aria-expanded={openPanel === 'menu'}
 			>
 				<Menu size={16} />
 			</button>
@@ -107,6 +109,8 @@
 						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
 						onclick={() => togglePanel('debug')}
 						title="Debug panel (dev only)"
+						aria-label="Debug panel"
+						aria-expanded={openPanel === 'debug'}
 					>
 						<Bug size={16} />
 					</button>
@@ -116,6 +120,8 @@
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('stats')}
 					title="Stats"
+					aria-label="Stats"
+					aria-expanded={openPanel === 'stats'}
 				>
 					<BarChart3 size={16} />
 				</button>
@@ -124,6 +130,8 @@
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('budget')}
 					title="Budget"
+					aria-label="Budget"
+					aria-expanded={openPanel === 'budget'}
 				>
 					<Wallet size={16} />
 				</button>
@@ -132,6 +140,8 @@
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
 					onclick={() => togglePanel('settings')}
 					title="Settings"
+					aria-label="Settings"
+					aria-expanded={openPanel === 'settings'}
 				>
 					<Settings size={16} />
 				</button>
