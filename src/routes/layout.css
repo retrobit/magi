@@ -2,12 +2,11 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-/* Courier Prime — the slab-typewriter mono the MAGI display marks wear (splash +
-   the three section titles). Self-hosted via @fontsource so every machine gets
-   the same look instead of whatever ui-monospace resolves to. 400 for splash
-   body lines, 700 for the title marks. */
-@import '@fontsource/courier-prime/400.css';
-@import '@fontsource/courier-prime/700.css';
+/* Michroma — the wide geometric sci-fi face the MAGI display marks wear (the
+   app title, the three section titles, and the splash). Self-hosted via
+   @fontsource so every machine gets the same look instead of a system fallback.
+   Michroma ships a single weight (400); the bold display marks faux-bold it. */
+@import '@fontsource/michroma/400.css';
 
 /* ── Typography tokens — semantic utilities for cohesion ──
    Use these instead of bare text-/font-/tracking- combinations so retuning
@@ -43,9 +42,10 @@
 @utility magi-headline {
 	@apply text-2xl font-bold;
 	font-family: var(--magi-font-display);
-	letter-spacing: 0.25em;
+	/* Michroma is already wide, so the tracking is lighter than a mono would need. */
+	letter-spacing: 0.12em;
 	/* Re-centre: trailing letter-spacing otherwise shifts a centered title left. */
-	padding-left: 0.25em;
+	padding-left: 0.12em;
 }
 /* The monospace display font for the node + consensus titles, which keep their
    own size/weight/color. Tracking is applied per-element (so a node title can
@@ -164,7 +164,7 @@
 	);
 	/* Display font for the MAGI marks — the intro splash and the three section
 	   titles (app / nodes / consensus) share this so they read as one system. */
-	--magi-font-display: 'Courier Prime', ui-monospace, 'SF Mono', monospace;
+	--magi-font-display: 'Michroma', ui-sans-serif, system-ui, sans-serif;
 	/* Background-triad colors — what the aurora tints with. Default to the node
 	   identity triad so the RGB/Orange/Red palettes keep panels and background in
 	   sync; the Eva palette overrides these to decouple them (blue panels, orange
@@ -420,48 +420,50 @@
    stay legible on the white surface. The hex lattice base stays neutral gray for
    every palette — only the cursor spotlight (--magi-hex-hot) takes the colour. */
 
-/* Orange — three shades of orange everywhere colour appears. */
+/* Orange — one balanced orange for all three nodes (non-RGB palettes drop the
+   per-node shade variation; the colour is uniform across the triad). */
 .palette-orange {
-	--magi-node-red: #fdba74;
+	--magi-node-red: #fb923c;
 	--magi-node-green: #fb923c;
-	--magi-node-blue: #f97316;
+	--magi-node-blue: #fb923c;
 	--magi-hex-hot: #fdba74;
 }
 .light.palette-orange {
-	--magi-node-red: #ea580c;
+	--magi-node-red: #c2410c;
 	--magi-node-green: #c2410c;
-	--magi-node-blue: #9a3412;
+	--magi-node-blue: #c2410c;
 	--magi-hex-hot: #c2410c;
 }
 
-/* Red — three shades of red. */
+/* Red — one balanced red across the triad. */
 .palette-red {
-	--magi-node-red: #fca5a5;
+	--magi-node-red: #f87171;
 	--magi-node-green: #f87171;
-	--magi-node-blue: #ef4444;
+	--magi-node-blue: #f87171;
 	--magi-hex-hot: #fca5a5;
 }
 .light.palette-red {
-	--magi-node-red: #dc2626;
+	--magi-node-red: #b91c1c;
 	--magi-node-green: #b91c1c;
-	--magi-node-blue: #991b1b;
+	--magi-node-blue: #b91c1c;
 	--magi-hex-hot: #b91c1c;
 }
 
-/* Eva — blue panels, orange hex/background (the triads decoupled). */
+/* Eva — one balanced blue across the triad; orange hex/background kept
+   decoupled (the Eva signature: blue panels over an orange aurora). */
 .palette-eva {
-	--magi-node-red: #93c5fd;
+	--magi-node-red: #60a5fa;
 	--magi-node-green: #60a5fa;
-	--magi-node-blue: #3b82f6;
+	--magi-node-blue: #60a5fa;
 	--magi-bg-1: #fdba74;
 	--magi-bg-2: #fb923c;
 	--magi-bg-3: #f97316;
 	--magi-hex-hot: #fb923c;
 }
 .light.palette-eva {
-	--magi-node-red: #2563eb;
+	--magi-node-red: #1d4ed8;
 	--magi-node-green: #1d4ed8;
-	--magi-node-blue: #1e40af;
+	--magi-node-blue: #1d4ed8;
 	--magi-bg-1: #ea580c;
 	--magi-bg-2: #c2410c;
 	--magi-bg-3: #9a3412;

@@ -441,7 +441,7 @@
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<div class="flex items-center justify-between select-none">
 			<div class="flex items-center gap-2">
-				<h3 class="magi-display text-base font-bold tracking-[0.22em] text-(--magi-text)">
+				<h3 class="magi-display text-base font-bold tracking-widest text-(--magi-text)">
 					MAGI CONSENSUS
 				</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}

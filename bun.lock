@@ -8,7 +8,7 @@
         "@ai-sdk/anthropic": "^3.0.81",
         "@ai-sdk/google": "^3.0.80",
         "@ai-sdk/openai": "^3.0.67",
-        "@fontsource/courier-prime": "^5.2.8",
+        "@fontsource/michroma": "^5.2.8",
         "ai": "^6.0.193",
         "dompurify": "^3.4.7",
         "highlight.js": "^11.11.1",
@@ -179,7 +179,7 @@
 
     "@exodus/bytes": ["@exodus/bytes@1.15.1", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-S6mL0yNB/Abt9Ei4tq8gDhcczc4S3+vQ4ra7vxnAf+YHC02srtqxKKZghx2Dq6p0e66THKwR6r8N6P95wEty7Q=="],
 
-    "@fontsource/courier-prime": ["@fontsource/courier-prime@5.2.8", "", {}, "sha512-M3xOCcXnGuFi9TcGCrz4hm5yeWg4Sn35MALRLPnqNoHhawTFvhyi2KSI2+5RyFtDNJrb58bPh8LLipgiI9KA0w=="],
+    "@fontsource/michroma": ["@fontsource/michroma@5.2.8", "", {}, "sha512-52Ml9TU/yC5YluqHxXqLK/AVUWbIeI3lCTZcTRnIkvfKHPZ0GSvSFi49ti872oCdo+YAMUk8RIfxVxXa6Cjigw=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "", {}, ""],
 

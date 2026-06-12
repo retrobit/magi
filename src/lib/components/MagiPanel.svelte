@@ -460,9 +460,7 @@
 					class="magi-display text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
 					onclick={() => onlabelclick?.()}
 					use:tooltip={'Switch between MAGI numbers and EVA names'}
-					><span class="tracking-[0.22em]">{labelName}</span>{#if labelUnit}<span
-							class="opacity-80"
-						>
+					><span class="tracking-widest">{labelName}</span>{#if labelUnit}<span class="opacity-80">
 							• {labelUnit}</span
 						>{/if}</button
 				>

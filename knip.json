@@ -7,6 +7,6 @@
 		"tailwindcss",
 		"@tailwindcss/forms",
 		"@tailwindcss/typography",
-		"@fontsource/courier-prime"
+		"@fontsource/michroma"
 	]
 }
