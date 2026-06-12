@@ -75,7 +75,7 @@ describe('synthesisStrategy.execute', () => {
 				stats: {
 					strategy: 'synthesis',
 					tier: 'unknown',
-					temperaments: false,
+					synthesizerAwareness: false,
 					consensusTemperament: false,
 					nodes: {
 						MELCHIOR: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
@@ -157,13 +157,13 @@ describe('synthesisStrategy.execute', () => {
 		expect(lastArgs().abortSignal).toBe(signal);
 	});
 
-	it('omits the dispositional-lens guidance when temperaments is off', async () => {
+	it('omits the dispositional-lens guidance when synthesizerAwareness is off', async () => {
 		await collect(synthesisStrategy.execute(baseContext()));
 		expect(lastArgs().system).not.toContain('dispositional lens');
 	});
 
-	it('adds dispositional-lens guidance to the system prompt when temperaments is on', async () => {
-		await collect(synthesisStrategy.execute(baseContext({ temperaments: true })));
+	it('adds dispositional-lens guidance to the system prompt when synthesizerAwareness is on', async () => {
+		await collect(synthesisStrategy.execute(baseContext({ synthesizerAwareness: true })));
 		expect(lastArgs().system).toContain('dispositional lens');
 	});
 

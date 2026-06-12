@@ -3,7 +3,8 @@ import {
 	nodeIdentities,
 	type ConsensusStrategy,
 	type ConsensusContext,
-	type ConsensusEvent
+	type ConsensusEvent,
+	SECTION_RULE
 } from './types';
 import {
 	NODE_TEMPERAMENTS,
@@ -28,7 +29,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 			nodeAssignments,
 			consensusNodeIndex,
 			consensusTemperament,
-			temperaments,
+			synthesizerAwareness,
 			genericLabels,
 			signal,
 			tier
@@ -39,7 +40,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 		const formattedResponses = responses
 			.map((r) => {
 				const nodeName = nodeLabels[r.node];
-				const label = temperaments
+				const label = synthesizerAwareness
 					? `${nodeName} (${r.provider}) — ${TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[r.node]]}`
 					: `${nodeName} (${r.provider})`;
 				return `=== ${label} ===\n${r.text}`;
@@ -72,10 +73,10 @@ export const synthesisStrategy: ConsensusStrategy = {
 
 		const consensusNode = nodeAssignments[consensusNodeIndex].node as MagiNodeName;
 		const consensusLens = consensusTemperament
-			? `${TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[consensusNode]]}\n\n---\n\n`
+			? `${TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[consensusNode]]}${SECTION_RULE}`
 			: '';
 
-		const temperamentContext = temperaments
+		const awarenessContext = synthesizerAwareness
 			? `\n\nEach model responded through a distinct dispositional lens:
 - Rationalist: cold logic, empirical reasoning, data above all.
 - Caretaker: empathy-first, weighs human cost and safety.
@@ -117,7 +118,7 @@ Provide the synthesized consensus response.`;
 3. Combining the best elements into a single, clear, definitive response.
 4. Flagging any remaining uncertainty honestly.
 
-Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${temperamentContext}`,
+Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${awarenessContext}`,
 			messages,
 			abortSignal: signal
 		});
@@ -142,7 +143,7 @@ Do NOT simply concatenate or summarize the responses. Produce a unified answer t
 			stats: {
 				strategy: 'synthesis',
 				tier: tier ?? 'unknown',
-				temperaments: temperaments ?? false,
+				synthesizerAwareness: synthesizerAwareness ?? false,
 				consensusTemperament: consensusTemperament ?? false,
 				nodes: nodeIdentities(responses, nodeAssignments)
 			}

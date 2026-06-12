@@ -105,6 +105,30 @@ export function _extractErrorMessage(err: unknown): string {
 	return 'Unknown error';
 }
 
+/** Redact a raw upstream error before it leaves the server in an SSE event. The
+ *  full message is still logged server-side; this only governs what the browser
+ *  sees. Strips leak vectors (request URLs, bearer tokens / `sk-…` keys,
+ *  absolute file paths, IP:port pairs) and caps length, while preserving the
+ *  human-readable reason the UI relies on (rate-limit and context-window hints).
+ *  Exported for unit testing; `_`-prefixed per the route's bare-export convention. */
+export function _scrubErrorMessage(message: string): string {
+	const scrubbed = message
+		// API keys / bearer tokens — long opaque secrets that must never surface.
+		.replace(/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{8,}/g, '[redacted-key]')
+		.replace(/\bBearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
+		// URLs — provider endpoints can carry keys in query strings or path.
+		.replace(/https?:\/\/\S+/gi, '[url]')
+		// Absolute filesystem paths — internal server layout.
+		.replace(/(?:\/[\w.-]+){2,}/g, '[path]')
+		// IP:port — internal hosts.
+		.replace(/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g, '[host]')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (!scrubbed) return 'The model failed to respond.';
+	const MAX = 300;
+	return scrubbed.length > MAX ? `${scrubbed.slice(0, MAX - 1).trimEnd()}…` : scrubbed;
+}
+
 // Replay a node's own past turns as an alternating user/assistant message list.
 // "Own thread only" — a node never sees the other nodes or the consensus. Turns
 // the node didn't answer (errored) are skipped so the alternation stays valid.
@@ -382,7 +406,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							node: h.node,
 							gateway: h.gateway,
 							provider: h.provider,
-							error: h.reason
+							error: _scrubErrorMessage(h.reason)
 						});
 					}
 				}
@@ -499,7 +523,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							if (_isAvailabilityError(message)) {
 								markUnhealthy(modelId, message);
 							}
-							send('model-error', { node, gateway, provider, error: message });
+							send('model-error', { node, gateway, provider, error: _scrubErrorMessage(message) });
 							throw err;
 						}
 					})
@@ -568,16 +592,40 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				// Phase 2: Stream consensus synthesis.
 				const consensusStrategy = getStrategy(strategyName);
-				const consensusSeat = config[consensusNodeIndex];
+
+				// Consensus-seat fallback: the designated synthesizer seat may itself
+				// have failed phase 1 (its model errored, so it's absent from
+				// `responses`). Synthesis/debate would otherwise call that same just-
+				// failed model for the final answer — likely to fail again. So if the
+				// seat node didn't respond, reseat consensus onto the first node that
+				// did. (Voting ignores the seat — it crowns by tally — so this is a
+				// no-op there.) When nothing responded, keep the original index and let
+				// the strategy emit its own empty-set handling.
+				let effectiveConsensusIndex = consensusNodeIndex;
+				const seatResponded = responses.some((r) => r.node === config[consensusNodeIndex].node);
+				if (responses.length > 0 && !seatResponded) {
+					const fallbackIndex = config.findIndex((c) => responses.some((r) => r.node === c.node));
+					if (fallbackIndex !== -1) {
+						logEvent('info', 'consensus.reseat', {
+							requestId,
+							from: config[consensusNodeIndex].node,
+							to: config[fallbackIndex].node,
+							reason: 'consensus seat did not respond in phase 1'
+						});
+						effectiveConsensusIndex = fallbackIndex;
+					}
+				}
+
+				const consensusSeat = config[effectiveConsensusIndex];
 				const ctx: ConsensusContext = {
 					responses,
 					query,
 					history: history.map((t) => ({ query: t.query, consensus: t.consensus })),
 					getModel,
 					nodeAssignments: config,
-					consensusNodeIndex,
+					consensusNodeIndex: effectiveConsensusIndex,
 					consensusTemperament: useConsensusTemperament ?? false,
-					temperaments: useAwareness ?? false,
+					synthesizerAwareness: useAwareness ?? false,
 					nodeTemperaments: useTemperaments ?? false,
 					genericLabels: useGenericLabels ?? true,
 					signal: abortController.signal,
@@ -642,7 +690,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									requestId,
 									strategy: s.strategy,
 									tier: s.tier,
-									temperaments: s.temperaments,
+									synthesizerAwareness: s.synthesizerAwareness,
 									consensusTemperament: s.consensusTemperament,
 									winner: v.winner,
 									winnerModel: v.winnerModel,
@@ -676,7 +724,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					elapsedMs: requestTimer()
 				});
 				send('error', {
-					message: err instanceof Error ? err.message : 'Internal server error'
+					message: _scrubErrorMessage(err instanceof Error ? err.message : 'Internal server error')
 				});
 			}
 

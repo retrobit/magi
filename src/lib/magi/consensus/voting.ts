@@ -5,7 +5,8 @@ import {
 	type ConsensusContext,
 	type ConsensusEvent,
 	type VotingStats,
-	type VotingJurorBreakdown
+	type VotingJurorBreakdown,
+	SECTION_RULE
 } from './types';
 import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
@@ -45,7 +46,7 @@ ${format}`;
 	// A temperament lens shapes how this juror weighs the answers. It describes
 	// only the juror's own disposition — never the candidates' — so the A/B
 	// anonymity holds.
-	return lens ? `${lens}\n\n---\n\n${instructions}` : instructions;
+	return lens ? `${lens}${SECTION_RULE}${instructions}` : instructions;
 }
 
 // Round and clamp a raw score into the 0–10 band a juror was asked for.
@@ -79,7 +80,7 @@ function buildVoteMarkdown(
 		const reason = jurorErrors[0]
 			? `\n\n> No juror produced a usable score — ${jurorErrors[0]}`
 			: '';
-		return `### 🗳️ Structured vote\n\nNo scores were returned — defaulting to ${labels[winner.response.node]}.${reason}\n\n---\n\n${winner.response.text}`;
+		return `### 🗳️ Structured vote\n\nNo scores were returned — defaulting to ${labels[winner.response.node]}.${reason}${SECTION_RULE}${winner.response.text}`;
 	}
 	const max = winner.scores.length * 10;
 	const heading = `### 🗳️ Structured vote — ${labels[winner.response.node]} wins (${winner.total} / ${max})`;
@@ -92,7 +93,7 @@ function buildVoteMarkdown(
 		})
 		.join('\n');
 	const table = `| Response | Score | Juror scores |\n| --- | --- | --- |\n${rows}`;
-	return `${heading}\n\n${table}\n\n---\n\n${winner.response.text}`;
+	return `${heading}\n\n${table}${SECTION_RULE}${winner.response.text}`;
 }
 
 export const votingStrategy: ConsensusStrategy = {
@@ -106,7 +107,7 @@ export const votingStrategy: ConsensusStrategy = {
 			getModel,
 			nodeAssignments,
 			consensusTemperament,
-			temperaments,
+			synthesizerAwareness,
 			genericLabels,
 			signal,
 			tier,
@@ -123,7 +124,7 @@ export const votingStrategy: ConsensusStrategy = {
 		// With a single response there is nothing to vote on — it wins outright.
 		if (responses.length <= 1) {
 			const text = responses[0]
-				? `### 🗳️ Structured vote\n\nOnly ${labels[responses[0].node]} responded — no vote was held.\n\n---\n\n${responses[0].text}`
+				? `### 🗳️ Structured vote\n\nOnly ${labels[responses[0].node]} responded — no vote was held.${SECTION_RULE}${responses[0].text}`
 				: 'No responses were available to vote on.';
 			yield { type: 'text-delta', text };
 			yield { type: 'complete', fullText: text };
@@ -146,7 +147,7 @@ export const votingStrategy: ConsensusStrategy = {
 					stats: {
 						strategy: 'voting',
 						tier: tier ?? 'unknown',
-						temperaments: temperaments ?? false,
+						synthesizerAwareness: synthesizerAwareness ?? false,
 						consensusTemperament: consensusTemperament ?? false,
 						nodes: nodeIdentities(responses, nodeAssignments),
 						voting: {
@@ -313,7 +314,7 @@ export const votingStrategy: ConsensusStrategy = {
 			stats: {
 				strategy: 'voting',
 				tier: tier ?? 'unknown',
-				temperaments: temperaments ?? false,
+				synthesizerAwareness: synthesizerAwareness ?? false,
 				consensusTemperament: consensusTemperament ?? false,
 				nodes: nodeIdentities(responses, nodeAssignments),
 				voting

@@ -74,7 +74,10 @@ export interface RunStats {
 	strategy: StrategyName;
 	/** Active configuration when the run executed. */
 	tier: string;
-	temperaments: boolean;
+	/** Whether the synthesizer was told the nodes answered through dispositional
+	 *  lenses (the Awareness toggle) — fed by the request's `temperamentAwareness`.
+	 *  Named for what it actually holds; see [[ConsensusContext.synthesizerAwareness]]. */
+	synthesizerAwareness: boolean;
 	consensusTemperament: boolean;
 	/** Identity of each node that responded this run — drives usage breakdowns. */
 	nodes: Partial<Record<MagiNodeName, NodeIdentity>>;
@@ -124,7 +127,12 @@ export interface ConsensusContext {
 	nodeAssignments: readonly NodeAssignment[];
 	consensusNodeIndex: number;
 	consensusTemperament?: boolean;
-	temperaments?: boolean;
+	/** Whether the consensus synthesizer is told the nodes answered through distinct
+	 *  dispositional lenses — fed by the request's `temperamentAwareness` toggle (NOT
+	 *  the node-temperament one). Synthesis uses it to surface WHY perspectives
+	 *  diverge by lens; voting/debate record it but don't act on it. Named for what
+	 *  it carries so it can't be mistaken for [[nodeTemperaments]]. */
+	synthesizerAwareness?: boolean;
 	/** Whether the MAGI answered in-character (the main Temperaments toggle). Debate
 	 *  uses this to decide if the debaters argue through their dispositional lens. */
 	nodeTemperaments?: boolean;
@@ -144,6 +152,12 @@ export interface ConsensusStrategy {
 	description: string;
 	execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent>;
 }
+
+/** Markdown thematic break (`---`) used across the consensus strategies to
+ *  separate sections: a system-prompt lens from the instructions that follow
+ *  it, and a vote tally / debate transcript from the verbatim winning answer.
+ *  Single source of truth so the strategies never drift out of sync. */
+export const SECTION_RULE = '\n\n---\n\n';
 
 // Ordered as shown in the strategy picker — cheapest first (`none` skips
 // consensus entirely), flagship last.

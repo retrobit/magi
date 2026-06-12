@@ -70,7 +70,7 @@ function makeRun(overrides: Partial<RunStats> = {}): RunStats {
 	return {
 		strategy: 'voting',
 		tier: 'balanced',
-		temperaments: false,
+		synthesizerAwareness: false,
 		consensusTemperament: false,
 		nodes: NODES,
 		voting: makeVoting(),

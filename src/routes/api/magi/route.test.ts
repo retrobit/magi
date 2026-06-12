@@ -3,7 +3,8 @@ import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
-import { POST, _extractErrorMessage, _isAvailabilityError } from './+server';
+import { logEvent } from '$lib/server/logger';
+import { POST, _extractErrorMessage, _isAvailabilityError, _scrubErrorMessage } from './+server';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -226,6 +227,34 @@ describe('POST /api/magi — streaming', () => {
 		expect(got).not.toContain('consensus-complete');
 	});
 
+	it('reseats consensus onto a responding node when the consensus seat fails phase 1', async () => {
+		// MELCHIOR is the default consensus seat (config index 0). Fail it in phase 1
+		// so the synthesizer would otherwise be asked to run on a model that just
+		// errored — the reseat must move consensus onto the first survivor.
+		vi.mocked(logEvent).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('seat boom');
+		});
+		const events = await readEvents(await callPost(validBody));
+		// Consensus still completes — produced by a survivor, not the dead seat.
+		expect(names(events)).toContain('consensus-complete');
+		expect(vi.mocked(logEvent)).toHaveBeenCalledWith(
+			'info',
+			'consensus.reseat',
+			expect.objectContaining({ from: 'MELCHIOR', to: 'BALTHASAR' })
+		);
+	});
+
+	it('does not reseat consensus when the seat node responded normally', async () => {
+		vi.mocked(logEvent).mockClear();
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(logEvent)).not.toHaveBeenCalledWith(
+			'info',
+			'consensus.reseat',
+			expect.anything()
+		);
+	});
+
 	it('emits a fatal error event when every model is unhealthy', async () => {
 		vi.mocked(isModelHealthy).mockReturnValue(false);
 		const events = await readEvents(await callPost(validBody));
@@ -317,6 +346,41 @@ describe('_extractErrorMessage', () => {
 		expect(_extractErrorMessage(null)).toBe('Unknown error');
 		// Malformed responseBody JSON falls through; a plain object is not an Error.
 		expect(_extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
+	});
+});
+
+describe('_scrubErrorMessage', () => {
+	it('redacts request URLs that could carry keys in the query string', () => {
+		const out = _scrubErrorMessage('failed calling https://api.provider.com/v1/chat?key=abc123');
+		expect(out).not.toContain('https://');
+		expect(out).toContain('[url]');
+	});
+
+	it('redacts API keys and bearer tokens', () => {
+		expect(_scrubErrorMessage('bad key sk-or-v1-deadbeefcafe1234')).toContain('[redacted-key]');
+		expect(_scrubErrorMessage('Authorization: Bearer eyJhbGciOi.JIUzI1Ni')).toContain(
+			'Bearer [redacted]'
+		);
+	});
+
+	it('redacts absolute filesystem paths and IP:port hosts', () => {
+		expect(_scrubErrorMessage('ENOENT at /var/run/secrets/key.pem')).toContain('[path]');
+		expect(_scrubErrorMessage('refused by 10.0.0.5:8080')).toContain('[host]');
+	});
+
+	it('preserves the human-readable reason the UI relies on', () => {
+		expect(_scrubErrorMessage('Rate limit exceeded — 500 requests per day')).toBe(
+			'Rate limit exceeded — 500 requests per day'
+		);
+		expect(_scrubErrorMessage('maximum context length is 8192 tokens')).toContain('context');
+	});
+
+	it('caps length and falls back when nothing readable remains', () => {
+		const long = 'x'.repeat(500);
+		const out = _scrubErrorMessage(long);
+		expect(out.length).toBeLessThanOrEqual(300);
+		expect(out.endsWith('…')).toBe(true);
+		expect(_scrubErrorMessage('   ')).toBe('The model failed to respond.');
 	});
 });
 

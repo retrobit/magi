@@ -4,7 +4,8 @@ import {
 	type ConsensusStrategy,
 	type ConsensusContext,
 	type ConsensusEvent,
-	type DebateStats
+	type DebateStats,
+	SECTION_RULE
 } from './types';
 import {
 	NODE_LABELS,
@@ -95,7 +96,7 @@ ANSWER:
 <your full revised answer>`;
 	// The lens shapes only this debater's own disposition, never the peers' — so
 	// the A/B anonymity holds.
-	return lens ? `${lens}\n\n---\n\n${instructions}` : instructions;
+	return lens ? `${lens}${SECTION_RULE}${instructions}` : instructions;
 }
 
 // A one-line gist of an answer for the consensus ledger — first sentence, capped.
@@ -282,7 +283,7 @@ export const debateStrategy: ConsensusStrategy = {
 			nodeAssignments,
 			consensusNodeIndex,
 			consensusTemperament,
-			temperaments,
+			synthesizerAwareness,
 			nodeTemperaments,
 			genericLabels,
 			signal,
@@ -345,7 +346,7 @@ export const debateStrategy: ConsensusStrategy = {
 			stats: {
 				strategy: 'debate',
 				tier: tier ?? 'unknown',
-				temperaments: temperaments ?? false,
+				synthesizerAwareness: synthesizerAwareness ?? false,
 				consensusTemperament: consensusTemperament ?? false,
 				nodes: nodeIdentities(responses, nodeAssignments),
 				debate: buildDebateStats()
@@ -576,7 +577,7 @@ Do not paper over the disagreement: state what they agree on, then lay out each 
 		messages.push({ role: 'user', content: synthesisPrompt });
 		markCacheBreakpoint(messages);
 
-		yield emit('\n\n---\n\n');
+		yield emit(SECTION_RULE);
 
 		const result = streamText({
 			model: getModel(assignment.gateway, assignment.modelId),
