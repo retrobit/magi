@@ -82,6 +82,7 @@
 					? 'text-white'
 					: 'text-gray-400 hover:text-white'}"
 				{disabled}
+				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}
 			>
 				{tierLabels[tier]}
@@ -102,6 +103,7 @@
 					? 'text-white'
 					: 'text-gray-400 hover:text-white'}"
 				{disabled}
+				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}
 			>
 				{tierLabels[tier]}

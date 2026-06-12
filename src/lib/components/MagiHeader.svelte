@@ -237,6 +237,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={theme === 'dark'}
 				onclick={() => (theme = 'dark')}
 			>
 				Dark
@@ -245,6 +246,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'light'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={theme === 'light'}
 				onclick={() => (theme = 'light')}
 			>
 				Light
@@ -257,6 +259,7 @@
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {palette === p
 						? 'bg-gray-600 text-white'
 						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+					aria-pressed={palette === p}
 					onclick={() => (palette = p)}
 				>
 					{PALETTE_LABELS[p]}
@@ -269,6 +272,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={bgVariant === 'hex'}
 				onclick={() => (bgVariant = 'hex')}
 			>
 				Hex
@@ -277,6 +281,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={bgVariant === 'orbs'}
 				onclick={() => (bgVariant = 'orbs')}
 			>
 				Orbs
@@ -285,6 +290,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={bgVariant === 'columns'}
 				onclick={() => (bgVariant = 'columns')}
 			>
 				Columns
@@ -293,6 +299,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={bgVariant === 'off'}
 				onclick={() => (bgVariant = 'off')}
 			>
 				Off
@@ -304,6 +311,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!reduceMotion
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={!reduceMotion}
 				onclick={() => (reduceMotion = false)}
 			>
 				Full
@@ -312,6 +320,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {reduceMotion
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={reduceMotion}
 				onclick={() => (reduceMotion = true)}
 			>
 				Reduced
@@ -323,6 +332,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={scrollMode === 'snap'}
 				onclick={() => (scrollMode = 'snap')}
 			>
 				Snap to top
@@ -331,6 +341,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={scrollMode === 'follow'}
 				onclick={() => (scrollMode = 'follow')}
 			>
 				Follow
@@ -339,6 +350,7 @@
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={scrollMode === 'off'}
 				onclick={() => (scrollMode = 'off')}
 			>
 				Off

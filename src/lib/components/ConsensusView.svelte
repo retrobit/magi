@@ -575,10 +575,13 @@
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
 								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-								: ''} {consensusTempApplies ? '' : 'cursor-not-allowed opacity-40'}"
+								: ''} {consensusTempApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
 							onclick={() =>
-								consensusTempApplies && onconsensustemperamentchange(!consensusTemperament)}
-							disabled={disabled || !consensusTempApplies}
+								!disabled &&
+								consensusTempApplies &&
+								onconsensustemperamentchange(!consensusTemperament)}
+							aria-pressed={consensusTemperament}
+							aria-disabled={disabled || !consensusTempApplies}
 							use:tooltip={!consensusTempApplies
 								? consensusSkipped
 									? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
@@ -598,9 +601,11 @@
 							type="button"
 							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
 								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-								: ''} {awarenessApplies ? '' : 'cursor-not-allowed opacity-40'}"
-							onclick={() => awarenessApplies && onawarenesschange(!temperamentAwareness)}
-							disabled={disabled || !awarenessApplies}
+								: ''} {awarenessApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
+							onclick={() =>
+								!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
+							aria-pressed={temperamentAwareness}
+							aria-disabled={disabled || !awarenessApplies}
 							use:tooltip={!awarenessApplies
 								? strategy === 'debate'
 									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'

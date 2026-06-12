@@ -68,10 +68,58 @@
 	function select(s: StrategyName) {
 		onchange(s);
 		open = false;
+		triggerEl?.focus();
+	}
+
+	// APG listbox keyboard model: roving DOM focus across the option buttons.
+	// Each option is a real <button> (Enter/Space already select via onclick), so
+	// arrow/Home/End just move focus and the native activation does the rest.
+	let optionRefs: HTMLButtonElement[] = [];
+
+	function focusOption(i: number) {
+		const idx = Math.max(0, Math.min(STRATEGY_NAMES.length - 1, i));
+		optionRefs[idx]?.focus();
+	}
+
+	// On open, move focus to the currently-selected option so arrow keys work
+	// immediately and assistive tech announces the active choice.
+	$effect(() => {
+		if (open) focusOption(Math.max(0, STRATEGY_NAMES.indexOf(strategy)));
+	});
+
+	function onMenuKeydown(e: KeyboardEvent) {
+		const current = optionRefs.findIndex((el) => el === document.activeElement);
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			focusOption(current + 1);
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			focusOption(current - 1);
+		} else if (e.key === 'Home') {
+			e.preventDefault();
+			focusOption(0);
+		} else if (e.key === 'End') {
+			e.preventDefault();
+			focusOption(STRATEGY_NAMES.length - 1);
+		}
+	}
+
+	// Down/Up on the closed trigger opens the menu (the $effect then lands focus
+	// on the selected option) — the standard collapsed-listbox affordance.
+	function onTriggerKeydown(e: KeyboardEvent) {
+		if (disabled || open) return;
+		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			e.preventDefault();
+			measure();
+			open = true;
+		}
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') open = false;
+		if (e.key === 'Escape') {
+			open = false;
+			triggerEl?.focus();
+		}
 	}
 	// Re-measure on resize so the menu doesn't detach from the trigger if the
 	// layout reflows while it's open. Scroll inside an overflow-hidden ancestor
@@ -94,6 +142,7 @@
 		bind:this={triggerEl}
 		class="magi-select flex items-center gap-1 rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 		onclick={toggleOpen}
+		onkeydown={onTriggerKeydown}
 		{disabled}
 		aria-haspopup="listbox"
 		aria-expanded={open}
@@ -120,13 +169,16 @@
 			style:max-height="{menuPos.maxHeight}px"
 			role="listbox"
 			aria-label="Consensus strategy"
+			tabindex={-1}
+			onkeydown={onMenuKeydown}
 		>
-			{#each STRATEGY_NAMES as s (s)}
+			{#each STRATEGY_NAMES as s, i (s)}
 				{@const flagship = s === FLAGSHIP_STRATEGY}
 				{@const selected = s === strategy}
 				<button
 					type="button"
 					role="option"
+					bind:this={optionRefs[i]}
 					aria-selected={selected}
 					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 text-left transition-colors hover:bg-gray-800 {selected
 						? 'bg-gray-800'
