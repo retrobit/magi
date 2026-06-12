@@ -44,11 +44,26 @@
 		let node: Text | null;
 		while ((node = walker.nextNode() as Text | null)) textNodes.push(node);
 		for (const tn of textNodes) {
-			if (emojiTest.test(tn.data)) {
-				const span = document.createElement('span');
-				span.innerHTML = tn.data.replace(emojiReplace, '<span class="not-italic">$1</span>');
-				tn.replaceWith(...span.childNodes);
+			if (!emojiTest.test(tn.data)) continue;
+			// SECURITY: build replacement nodes via textContent only. `tn.data` is
+			// DECODED text — a text node like `<img onerror=…>` (escaped in the
+			// sanitized HTML, e.g. from inline code) would become live markup if it
+			// ever passed through innerHTML, re-opening XSS after DOMPurify ran.
+			// Splitting on the capture group alternates [text, emoji, text, …].
+			const frag = document.createDocumentFragment();
+			const parts = tn.data.split(emojiReplace);
+			for (let i = 0; i < parts.length; i += 1) {
+				if (parts[i] === '') continue;
+				if (i % 2 === 1) {
+					const span = document.createElement('span');
+					span.className = 'not-italic';
+					span.textContent = parts[i];
+					frag.appendChild(span);
+				} else {
+					frag.appendChild(document.createTextNode(parts[i]));
+				}
 			}
+			tn.replaceWith(frag);
 		}
 		return doc.body.innerHTML;
 	}
