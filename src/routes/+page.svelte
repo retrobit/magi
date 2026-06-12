@@ -150,10 +150,30 @@
 				const after = z.getBoundingClientRect().height;
 				if (Math.abs(after - before[i]) < 1) return;
 				z.getAnimations().forEach((a) => a.cancel());
-				z.animate([{ height: `${before[i]}px` }, { height: `${after}px` }], {
+				// A `flex-1` zone ignores an animated `height` (flex-grow wins), so the
+				// tween only moved the zone that collapsed to a header — transitions
+				// INTO the balanced layout (both zones flex-1) didn't slide at all.
+				// Pin flex off + an explicit height for the tween so the keyframes
+				// drive the size, then hand back to flex on finish (which lands on the
+				// same height the fill is holding, so there's no end jump).
+				const prevFlex = z.style.flex;
+				z.style.flex = 'none';
+				z.style.height = `${before[i]}px`;
+				const anim = z.animate([{ height: `${before[i]}px` }, { height: `${after}px` }], {
 					duration: 280,
-					easing: 'ease'
+					easing: 'ease',
+					fill: 'forwards'
 				});
+				let cleaned = false;
+				const restore = () => {
+					if (cleaned) return;
+					cleaned = true;
+					anim.cancel();
+					z.style.flex = prevFlex;
+					z.style.height = '';
+				};
+				anim.onfinish = restore;
+				anim.oncancel = restore;
 			});
 		});
 	}
