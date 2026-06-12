@@ -260,6 +260,38 @@ describe('clearConversations', () => {
 	});
 });
 
+describe('loadPrefs / savePrefs — settings optional fields', () => {
+	it('round-trips a settings slice including palette, layoutFocus, and reduceMotion', () => {
+		const settings: PersistedSettings = {
+			...validSettings,
+			palette: 'eva',
+			layoutFocus: 'nodes',
+			reduceMotion: true
+		};
+		savePrefs({ ...validPrefs, settings });
+		const loaded = loadPrefs();
+		expect(loaded?.settings?.palette).toBe('eva');
+		expect(loaded?.settings?.layoutFocus).toBe('nodes');
+		expect(loaded?.settings?.reduceMotion).toBe(true);
+	});
+
+	it('drops the whole settings slice when palette is invalid, but keeps tier and snapshots', () => {
+		// A stored payload whose settings contain an invalid palette value fails
+		// persistedSettingsSchema.safeParse — the settings key is omitted from the
+		// returned MagiPrefs while tier and snapshots still load normally.
+		const bad = {
+			tier: 'balanced',
+			snapshots: validPrefs.snapshots,
+			settings: { ...validSettings, palette: 'neon' }
+		};
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
+		const result = loadPrefs();
+		expect(result?.tier).toBe('balanced');
+		expect(result?.snapshots.balanced).toEqual(validPrefs.snapshots.balanced);
+		expect(result?.settings).toBeUndefined();
+	});
+});
+
 describe('conversationTurnSchema — extended fields', () => {
 	it('round-trips a turn with error, consensusWarning, and aborted', () => {
 		const turn: ConversationTurn = {

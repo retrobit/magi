@@ -12,12 +12,14 @@ export const nodeAssignmentSchema = z.object({
 // One completed conversation turn, replayed as context for the next turn.
 const historyTurnSchema = z.object({
 	query: z.string().min(1).max(10_000),
-	nodeResponses: z.array(
-		z.object({
-			node: z.enum(MAGI_NODE_NAMES),
-			text: z.string().max(50_000)
-		})
-	),
+	nodeResponses: z
+		.array(
+			z.object({
+				node: z.enum(MAGI_NODE_NAMES),
+				text: z.string().max(50_000)
+			})
+		)
+		.max(3),
 	consensus: z.string().max(50_000)
 });
 
@@ -52,5 +54,4 @@ export const magiRequestSchema = z.object({
 		.optional()
 });
 
-export type MagiRequest = z.infer<typeof magiRequestSchema>;
 export type HistoryTurn = z.infer<typeof historyTurnSchema>;

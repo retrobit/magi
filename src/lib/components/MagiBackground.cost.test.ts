@@ -38,6 +38,14 @@ describe('MagiBackground rendering cost', () => {
 		expect(reducedMotionBlock).toMatch(/animation\s*:\s*none/);
 	});
 
+	it('honors the in-app .reduce-motion class so the drift stops without an OS change', () => {
+		// The :global(.reduce-motion) selector must exist AND be followed by
+		// animation: none within the same rule block — the class path is a
+		// deliberate duplicate of the @media path so the in-app toggle works
+		// regardless of the OS preference.
+		expect(source).toMatch(/\.reduce-motion[\s\S]{0,300}animation\s*:\s*none/);
+	});
+
 	it('animates only transform (compositor-cheap), not layout/paint properties', () => {
 		// Pull out every @keyframes body and confirm each step only touches
 		// `transform` — animating width/height/filter/box-shadow would reintroduce

@@ -471,6 +471,27 @@ describe('POST /api/magi — per-node retry', () => {
 	});
 });
 
+describe('POST /api/magi — awareness→consensus remap', () => {
+	// Documented footgun: `temperamentAwareness` in the request is remapped to
+	// `ctx.temperaments` in the ConsensusContext (not ctx.temperamentAwareness).
+	// That flag is what gates the dispositional-lens guidance paragraph in the
+	// synthesis system prompt. The `temperaments` request field maps to
+	// `ctx.nodeTemperaments` instead and does NOT affect the consensus prompt.
+
+	it('includes the dispositional-lens guidance when temperamentAwareness is true', async () => {
+		await readEvents(await callPost({ ...validBody, temperamentAwareness: true }));
+		// The consensus call is the last streamText call.
+		const consensusCall = streamTextMock.mock.calls.at(-1)?.[0];
+		expect(consensusCall?.system).toMatch(/dispositional lens/);
+	});
+
+	it('omits the dispositional-lens guidance when only temperaments is set (awareness absent)', async () => {
+		await readEvents(await callPost({ ...validBody, temperaments: true }));
+		const consensusCall = streamTextMock.mock.calls.at(-1)?.[0];
+		expect(consensusCall?.system).not.toMatch(/dispositional lens/);
+	});
+});
+
 describe('POST /api/magi — rate limit Retry-After', () => {
 	it('returns 429 with a Retry-After header when the client is rate limited', async () => {
 		vi.mocked(isRateLimited).mockReturnValue(true);
