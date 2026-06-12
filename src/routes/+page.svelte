@@ -18,6 +18,7 @@
 		type ContextLevel
 	} from '$lib/components/DebugPanel.svelte';
 	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
+	import { assembleRetryPriors } from '$lib/magi/retry';
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
@@ -1112,26 +1113,13 @@
 		if (loading || !last || !last.nodeErrors?.[node]) return;
 
 		const hydrated = freshLiveState();
-		const priorResponses: { node: MagiNodeName; text: string }[] = [];
-		const carriedUsage: Partial<Record<MagiNodeName, TurnUsage>> = {};
-		for (const a of assignments) {
-			if (a.node === node) continue; // the retried node reverts to pending
-			const text = last.nodeResponses[a.node];
-			const errored = last.nodeErrors?.[a.node];
-			if (errored) {
-				// Another node that also failed stays failed — we only re-run `node`.
-				hydrated.modelErrors.push({
-					node: a.node,
-					gateway: a.gateway,
-					provider: a.provider,
-					error: errored
-				});
-			} else if (text !== undefined) {
-				hydrated.responses.push({ node: a.node, gateway: a.gateway, provider: a.provider, text });
-				priorResponses.push({ node: a.node, text });
-				if (last.nodeUsage?.[a.node]) carriedUsage[a.node] = last.nodeUsage[a.node]!;
-			}
-		}
+		const { responses, modelErrors, priorResponses, carriedUsage } = assembleRetryPriors(
+			last,
+			assignments,
+			node
+		);
+		hydrated.responses = responses;
+		hydrated.modelErrors = modelErrors;
 
 		// Pop the turn so finalizeTurn re-appends the refreshed version, and so
 		// buildHistory (the request's context) excludes it — the retry's history is
