@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	MODEL_REGISTRY,
-	getModelsForTier,
-	getModelsForGateway,
-	getModelsForProvider,
-	findModelEntry,
-	getAvailableGateways,
-	getAvailableProviders
-} from './registry';
+import { MODEL_REGISTRY, getModelsForTier, findModelEntry } from './registry';
 
 describe('MODEL_REGISTRY', () => {
 	it('has entries for all direct gateway tiers (frontier, balanced, budget)', () => {
@@ -50,22 +42,6 @@ describe('getModelsForTier', () => {
 	});
 });
 
-describe('getModelsForGateway', () => {
-	it('returns all models for a direct gateway', () => {
-		const models = getModelsForGateway('anthropic');
-		expect(models).toHaveLength(3);
-		expect(models.every((m) => m.gateway === 'anthropic')).toBe(true);
-	});
-});
-
-describe('getModelsForProvider', () => {
-	it('returns models for a direct provider', () => {
-		const models = getModelsForProvider('anthropic');
-		expect(models).toHaveLength(3);
-		expect(models.every((m) => m.provider === 'anthropic')).toBe(true);
-	});
-});
-
 describe('findModelEntry', () => {
 	it('finds an existing model', () => {
 		const entry = findModelEntry('anthropic', 'claude-opus-4-7');
@@ -75,24 +51,5 @@ describe('findModelEntry', () => {
 
 	it('returns undefined for unknown model', () => {
 		expect(findModelEntry('anthropic', 'nonexistent')).toBeUndefined();
-	});
-});
-
-describe('getAvailableGateways', () => {
-	it('returns direct gateways only (OpenRouter models are dynamic)', () => {
-		const gateways = getAvailableGateways();
-		expect(gateways).toHaveLength(3);
-		expect(gateways).toContain('anthropic');
-		expect(gateways).toContain('openai');
-		expect(gateways).toContain('google');
-	});
-});
-
-describe('getAvailableProviders', () => {
-	it('returns direct providers', () => {
-		const providers = getAvailableProviders();
-		expect(providers).toContain('anthropic');
-		expect(providers).toContain('openai');
-		expect(providers).toContain('google');
 	});
 });

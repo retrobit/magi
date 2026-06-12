@@ -18,13 +18,6 @@ export function getStrategy(name: DispatchableStrategy): ConsensusStrategy {
 	return strategies[name];
 }
 
-export function getAvailableStrategies(): { name: DispatchableStrategy; description: string }[] {
-	return Object.entries(strategies).map(([name, strategy]) => ({
-		name: name as DispatchableStrategy,
-		description: strategy.description
-	}));
-}
-
 export {
 	STRATEGY_NAMES,
 	STRATEGY_LABELS,

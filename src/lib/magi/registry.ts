@@ -93,14 +93,6 @@ export function getModelsForTier(tier: TierName): ModelEntry[] {
 	return MODEL_REGISTRY.filter((e) => e.tier === tier);
 }
 
-export function getModelsForGateway(gateway: GatewayName): ModelEntry[] {
-	return MODEL_REGISTRY.filter((e) => e.gateway === gateway);
-}
-
-export function getModelsForProvider(provider: string): ModelEntry[] {
-	return MODEL_REGISTRY.filter((e) => e.provider === provider);
-}
-
 export function findModelEntry(
 	gateway: GatewayName,
 	modelId: string,
@@ -109,12 +101,4 @@ export function findModelEntry(
 	return MODEL_REGISTRY.find(
 		(e) => e.gateway === gateway && e.id === modelId && (!tier || e.tier === tier)
 	);
-}
-
-export function getAvailableGateways(): GatewayName[] {
-	return [...new Set(MODEL_REGISTRY.map((e) => e.gateway))];
-}
-
-export function getAvailableProviders(): string[] {
-	return [...new Set(MODEL_REGISTRY.map((e) => e.provider))];
 }

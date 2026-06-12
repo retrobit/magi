@@ -237,12 +237,6 @@ export interface ConsensusTranscriptEntry {
 	aborted?: boolean;
 }
 
-export const NODE_COLORS: Record<MagiNodeName, string> = {
-	MELCHIOR: 'border-red-500',
-	BALTHASAR: 'border-emerald-400',
-	CASPAR: 'border-blue-500'
-};
-
 /** Node identity hex triad. CSS consumers read the --magi-node-* variables in
  *  layout.css instead — keep the two in lockstep when retuning. This map stays
  *  for JS call sites that need a literal (debug swatches). */
