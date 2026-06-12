@@ -58,6 +58,12 @@ graph TD
 - **Example & random prompts** — On a fresh conversation the consensus panel offers example-prompt chips and a 🎲 dice button that _fill_ the input without submitting; Execute stays disabled until the input is non-empty. If a conversation is already underway, picking one first confirms before starting over.
 - **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input. Node copy is a split button with a scope menu (final response, query + final, or — for debate — final + rounds / everything).
 - **Layout focus** — A toggle (plus panel-header / status-bar clicks) cycles the view between a balanced split, node-heavy, and consensus-heavy; the choice persists, and the switch animates. Nodes pulse while they're actively thinking each round.
+- **Animated ASCII intro** — A full-screen splash plays once on first visit, cycling through three concepts: `decode` (default — the MAGI wordmark resolves letter by letter from noise), `boot` (node-by-node power-on sequence), and `convergence` (three labeled nodes beam into the central ▲▼▲ mark). Clicking the header MAGI mark replays it and cycles concepts. Any key or click skips; `prefers-reduced-motion` jumps straight to the final frame.
+- **Color palettes** — Four palettes selectable in ⚙️ Settings: **RGB** (default — red/green/blue node identity), **Orange**, **Red**, and **Eva** (blue node panels paired with an amber background).
+- **Per-node retry** — An errored node surfaces a "Retry this node" button that re-runs only that node and re-synthesizes consensus — without re-billing the nodes that already responded. Implemented via `forceRetry`, `retryNodes`, and `priorResponses` API fields.
+- **Per-turn peer-order randomization** — Voting jurors and debate peers see rivals anonymized as Candidate A/B. The seating is shuffled server-side each turn (seeded Fisher–Yates) so position bias washes out across runs; the stats panel measures the residual effect.
+- **Stats panel** — Filterable run history: strategy and date-range chips (24 h / 7 d / 30 d), JSON export, and a confirm-guarded clear action.
+- **Keyboard focus ring** — All interactive elements have a `:focus-visible` ring styled with the active theme's accent color.
 - **Reset to defaults** — A danger-styled action at the bottom of the ⚙️ settings menu clears saved preferences, conversations, and run stats after a confirmation.
 - **Responsive layout** — Panels stack vertically on narrow viewports with scrolling; desktop uses a fixed side-by-side layout.
 
@@ -95,8 +101,8 @@ Users can select a tier to control quality vs. cost:
 | Tier         | Anthropic         | OpenAI       | Google                |
 | ------------ | ----------------- | ------------ | --------------------- |
 | **Frontier** | Claude Opus 4.7   | GPT-5.5      | Gemini 2.5 Pro        |
-| **Balanced** | Claude Sonnet 4.6 | GPT-5.4      | Gemini 2.5 Flash      |
-| **Budget**   | Claude Haiku 4.5  | GPT-5.4 Mini | Gemini 2.5 Flash Lite |
+| **Balanced** | Claude Sonnet 4.6 | GPT-5.4      | Gemini 3.5 Flash      |
+| **Budget**   | Claude Haiku 4.5  | GPT-5.4 Mini | Gemini 3.1 Flash Lite |
 
 | Tier     | Source                                                                |
 | -------- | --------------------------------------------------------------------- |
@@ -275,18 +281,21 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 }
 ```
 
-| Field                  | Type    | Required | Values                                                                                                                          |
-| ---------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `query`                | string  | Yes      | 1–10,000 characters                                                                                                             |
-| `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                        |
-| `strategy`             | string  | Yes      | `none`, `synthesis`, `voting`, or `debate`                                                                                      |
-| `consensusNode`        | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                   |
-| `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier. |
-| `temperaments`         | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                   |
-| `consensusTemperament` | boolean | No       | Give the consensus synthesizer its own dispositional lens (based on `consensusNode`). Defaults to `false`.                      |
-| `temperamentAwareness` | boolean | No       | Tell the synthesizer about each node's dispositional lens so it can surface _why_ they diverge. Defaults to `false`.            |
-| `genericLabels`        | boolean | No       | Use generic labels (MAGI 1/2/3) in consensus prompts instead of proper names (MELCHIOR/BALTHASAR/CASPAR). Defaults to `true`.   |
-| `history`              | array   | No       | Prior conversation turns for multi-turn context. Each turn: `{ query, nodeResponses: [{ node, text }], consensus }`. Max 50.    |
+| Field                  | Type    | Required | Values                                                                                                                                               |
+| ---------------------- | ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`                | string  | Yes      | 1–10,000 characters                                                                                                                                  |
+| `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                                                                             |
+| `strategy`             | string  | Yes      | `none`, `synthesis`, `voting`, or `debate`                                                                                                           |
+| `consensusNode`        | string  | No       | `MELCHIOR`, `BALTHASAR`, or `CASPAR` (defaults to `MELCHIOR`)                                                                                        |
+| `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects. If omitted, uses the tier preset. Each must reference a valid model in the requested tier.                      |
+| `temperaments`         | boolean | No       | Enable dispositional temperaments (Rationalist, Caretaker, Individualist) for each node. Defaults to `false`.                                        |
+| `consensusTemperament` | boolean | No       | Give the consensus synthesizer its own dispositional lens (based on `consensusNode`). Defaults to `false`.                                           |
+| `temperamentAwareness` | boolean | No       | Tell the synthesizer about each node's dispositional lens so it can surface _why_ they diverge. Defaults to `false`.                                 |
+| `genericLabels`        | boolean | No       | Use generic labels (MAGI 1/2/3) in consensus prompts instead of proper names (MELCHIOR/BALTHASAR/CASPAR). Defaults to `true`.                        |
+| `history`              | array   | No       | Prior conversation turns for multi-turn context. Each turn: `{ query, nodeResponses: [{ node, text }], consensus }`. Max 50.                         |
+| `forceRetry`           | boolean | No       | Bypass and clear the unhealthy-model cache for every model in the request — forces a real re-call rather than bouncing off a stale health entry.     |
+| `retryNodes`           | array   | No       | Per-node retry: restrict phase-1 dispatch to these node names (max 3), clearing their health cache. Pass the still-good answers in `priorResponses`. |
+| `priorResponses`       | array   | No       | Per-node retry: the already-good answers for nodes NOT being retried — `[{ node, text }]`, max 3. Gateway/provider are resolved server-side.         |
 
 **SSE events:**
 
@@ -303,7 +312,7 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `consensus-usage`    | `{ inputTokens, outputTokens, cachedInputTokens }`       | Token usage for the consensus      |
 | `error`              | `{ message }`                                            | Fatal error                        |
 
-**Rate limiting:** 10 requests per minute per IP.
+**Rate limiting:** 10 requests per minute per IP. The limiter is in-memory and keyed by `getClientAddress()`, so multi-instance deployments multiply the effective limit; configure a trusted proxy / `ADDRESS_HEADER` so the server sees real client IPs.
 
 **Error responses:**
 
@@ -404,16 +413,26 @@ src/
 │   │       ├── voting.test.ts
 │   │       ├── debate.ts           # Multi-Round Debate strategy
 │   │       ├── debate.test.ts
+│   │       ├── peer-order.ts       # Per-turn seeded peer-order shuffle (Fisher–Yates)
+│   │       ├── peer-order.test.ts
 │   │       ├── consensus.test.ts
 │   │       └── index.ts            # Strategy registry
 │   └── components/
-│       ├── MagiBackground.svelte   # Animated background
-│       ├── MagiPanel.svelte        # Individual model response panel
+│       ├── ConfirmModal.svelte     # Confirm-guarded action dialog
 │       ├── ConsensusView.svelte    # Consensus display with copy
+│       ├── CopyScopeButton.svelte  # Split copy button with scope dropdown
 │       ├── DebugPanel.svelte       # Dev-only panel (gated by import.meta.env.DEV)
 │       ├── DebugPanel.svelte.test.ts
+│       ├── LayoutToggle.svelte     # Balanced / node-heavy / consensus-heavy layout cycler
+│       ├── MagiBackground.svelte   # Animated background
+│       ├── MagiHeader.svelte       # Top header bar with nav and controls
+│       ├── MagiPanel.svelte        # Individual model response panel
 │       ├── Markdown.svelte         # Sanitized, syntax-highlighted markdown renderer
 │       ├── BudgetReadout.svelte    # Per-provider spend readout in the settings panel
+│       ├── PerfOverlay.svelte      # Dev-only FPS / long-task performance overlay
+│       ├── Splash.svelte           # Animated ASCII intro (boot / decode / convergence)
+│       ├── StatsPanel.svelte       # Filterable run-history stats with JSON export
+│       ├── StrategyPicker.svelte   # Consensus strategy selector with smart-flip
 │       ├── TokenCount.svelte       # Compact ↑/↓/⚡ token-count formatter
 │       ├── TokenCount.svelte.test.ts
 │       ├── TierSelector.svelte     # Tier toggle
@@ -429,6 +448,7 @@ src/
 - **AI SDK**: Vercel AI SDK
 - **Styling**: Tailwind CSS
 - **Validation**: Zod
+- **Display font**: Courier Prime (self-hosted via `@fontsource/courier-prime`) — used for the MAGI marks and the ASCII splash
 
 ## 🔐 Security
 

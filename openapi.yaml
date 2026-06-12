@@ -309,6 +309,7 @@ components:
         query: { type: string, minLength: 1, maxLength: 10000 }
         nodeResponses:
           type: array
+          maxItems: 3
           items: { $ref: '#/components/schemas/HistoryNodeResponse' }
         consensus: { type: string, maxLength: 50000 }
 
@@ -358,6 +359,36 @@ components:
           maxItems: 50
           description: Prior conversation turns for multi-turn context.
           items: { $ref: '#/components/schemas/HistoryTurn' }
+        forceRetry:
+          type: boolean
+          description: |
+            When `true`, bypasses the pre-flight unhealthy-model cache check for every
+            model in the request and clears those cache entries — so a retry actually
+            re-calls a model rather than bouncing off a stale `markUnhealthy` entry.
+        retryNodes:
+          type: array
+          maxItems: 3
+          description: |
+            Per-node retry: restrict phase-1 dispatch to just these nodes (their
+            health cache is cleared so they actually re-call). The other nodes'
+            answers arrive via `priorResponses`. Empty or absent means run all nodes
+            as a normal turn.
+          items: { $ref: '#/components/schemas/MagiNodeName' }
+        priorResponses:
+          type: array
+          maxItems: 3
+          description: |
+            Per-node retry: the already-good answers for the nodes NOT being retried,
+            so consensus runs over the full set without re-billing them.
+            Gateway/provider are resolved server-side from the request's own config;
+            a client cannot spoof the origin of a response.
+          items:
+            type: object
+            required: [node, text]
+            additionalProperties: false
+            properties:
+              node: { $ref: '#/components/schemas/MagiNodeName' }
+              text: { type: string, maxLength: 50000 }
 
     # ----- error body -----
 

@@ -4,7 +4,7 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## UI / UX
 
-- **Animated ASCII intro / splash** — The broader UI/UX overhaul (audit color use, lead with neutral grays and reserve color for the RGB node identity, swap the aurora for a geometric/pattern background) **shipped 2026-06-09 → 06-10**: a var-driven theme architecture, a cursor-reactive hex-mesh background (now the default), node-identity tinting, config-collapse chips, and the error-lifecycle rework. The one unbuilt piece of the original vision is an animated ASCII intro / splash that establishes the three-MAGI identity before the main UI hydrates — with SSR now off, there's already a brief pre-hydration shell it could inhabit.
+- **UI/UX overhaul** ✅ **shipped 2026-06-09 → 06-10** — var-driven theme architecture, cursor-reactive hex-mesh background (default), node-identity tinting, config-collapse chips, error-lifecycle rework, and the animated ASCII intro / splash (`Splash.svelte` — three concepts: decode, boot, convergence; plays once on first visit, header mark replays it, any key/click skips, reduced-motion safe).
 
 ## Infrastructure
 
