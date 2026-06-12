@@ -486,6 +486,13 @@ summary:focus-visible,
 	outline-offset: 2px;
 }
 
+/* The in-app reduce-motion preference also stills Tailwind's animate-pulse
+   (bespoke animations each gate on .reduce-motion individually; this covers the
+   utility class the same way). */
+.reduce-motion .animate-pulse {
+	animation: none;
+}
+
 .light .prose {
 	--tw-prose-body: #374151;
 	--tw-prose-headings: #111827;

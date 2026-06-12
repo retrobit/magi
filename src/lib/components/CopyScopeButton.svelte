@@ -76,8 +76,9 @@
 <div bind:this={triggerEl} class="inline-flex items-center">
 	<button
 		type="button"
-		class="rounded-l p-0.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+		class="rounded-l p-0.5 text-(--magi-text-muted) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text)"
 		onclick={copyDefault}
+		aria-label={copied ? 'Copied' : title}
 		{title}
 	>
 		{#if copied}

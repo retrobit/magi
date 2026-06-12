@@ -1410,7 +1410,7 @@
 			</div>
 			<div class="-mx-4 border-t border-gray-800 sm:hidden" aria-hidden="true"></div>
 			<div
-				class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-gray-400 sm:justify-end"
+				class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-(--magi-text-muted) sm:justify-end"
 			>
 				{#if conversation.length > 0}
 					<span
@@ -1479,6 +1479,9 @@
 							disabled={loading}
 							class="magi-randomize rounded p-1 transition-colors disabled:opacity-50"
 							title="Swap configurations"
+							aria-label="Swap {activeNodeLabels[assignments[i - 1].node]} and {activeNodeLabels[
+								assignment.node
+							]} configurations"
 						>
 							<ArrowLeftRight size={14} />
 						</button>

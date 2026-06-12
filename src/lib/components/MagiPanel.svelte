@@ -400,14 +400,14 @@
 				     rounds away to focus on the final answer or a specific round. The
 				     inputs are a nested sub-collapsible underneath. -->
 				<details
-					class="magi-round group/round flex flex-col gap-1 rounded-md border border-gray-800 bg-gray-900/40 p-2 open:gap-1"
+					class="magi-round group/round flex flex-col gap-1 rounded-md border border-(--magi-border) bg-(--magi-surface-bg)/40 p-2 open:gap-1"
 					style:min-height={live && scrollMode === 'snap' && idx === rounds.length - 1
 						? snapMinHeight
 						: undefined}
 					open
 				>
 					<summary
-						class="flex cursor-pointer items-center gap-1 magi-badge text-gray-500 select-none hover:text-gray-300"
+						class="flex cursor-pointer items-center gap-1 magi-badge text-(--magi-text-faint) select-none hover:text-(--magi-text-secondary)"
 					>
 						<ChevronRight size={11} class="transition-transform group-open/round:rotate-90" />
 						Round {r.round}
@@ -417,7 +417,7 @@
 					</div>
 					<details class="group/inputs">
 						<summary
-							class="flex cursor-pointer items-center gap-1 magi-meta-strong select-none hover:text-gray-300"
+							class="flex cursor-pointer items-center gap-1 magi-meta-strong select-none hover:text-(--magi-text-secondary)"
 						>
 							<ChevronRight size={11} class="transition-transform group-open/inputs:rotate-90" />
 							Inputs this round
@@ -425,9 +425,9 @@
 						<!-- Quoted, tinted block so the debate inputs read as a distinct aside,
 						     not a continuation of the round's answer. -->
 						<div
-							class="mt-1 ml-1.5 rounded border-l-2 border-gray-700 bg-gray-950/60 py-1 pr-1 pl-2 opacity-80"
+							class="mt-1 ml-1.5 rounded border-l-2 border-(--magi-border) bg-(--magi-surface-bg)/60 py-1 pr-1 pl-2 opacity-80"
 						>
-							<div class="prose max-w-none text-gray-400 prose-invert">
+							<div class="prose max-w-none text-(--magi-text-muted) prose-invert">
 								<Markdown source={r.prompt} />
 							</div>
 						</div>
@@ -611,7 +611,7 @@
 				</div>
 			{/if}
 		{:else}
-			<p class="text-xs text-gray-400">{label}</p>
+			<p class="text-xs text-(--magi-text-muted)">{label}</p>
 		{/if}
 	</div>
 	<div
@@ -630,7 +630,7 @@
 						class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}"
 						style:min-height={!liveQuery && i === transcript.length - 1 ? snapMinHeight : undefined}
 					>
-						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
+						<p class="text-xs font-medium text-(--magi-text-muted)">{turn.query}</p>
 						{#if turn.response}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(turn.response)} />
@@ -657,7 +657,7 @@
 							: ''}"
 						style:min-height={debateRounds.length > 0 ? undefined : snapMinHeight}
 					>
-						<p class="text-xs font-medium text-gray-400">{liveQuery}</p>
+						<p class="text-xs font-medium text-(--magi-text-muted)">{liveQuery}</p>
 						{#if text}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={stripSummaryTail(text)} />

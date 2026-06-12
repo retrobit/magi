@@ -124,14 +124,14 @@
 	class="flex max-h-[80vh] flex-col gap-3 overflow-y-auto magi-popover p-4 text-sm text-(--magi-text-secondary)"
 >
 	<div class="flex items-center justify-between">
-		<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
+		<span class="flex items-center gap-1.5 magi-section-header text-(--magi-text-muted)">
 			📊 STATS
-			<span class="font-normal text-gray-500">({agg.total} runs)</span>
+			<span class="font-normal text-(--magi-text-faint)">({agg.total} runs)</span>
 		</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-green-400 disabled:opacity-40"
+				class="text-(--magi-text-faint) transition-colors hover:text-green-400 disabled:opacity-40"
 				onclick={exportJson}
 				disabled={records.length === 0}
 				aria-label="Export stats as JSON"
@@ -141,7 +141,7 @@
 			</button>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-red-400 disabled:opacity-40"
+				class="text-(--magi-text-faint) transition-colors hover:text-red-400 disabled:opacity-40"
 				onclick={() => (confirmingClear = true)}
 				disabled={agg.total === 0}
 				aria-label="Clear stats"
@@ -151,7 +151,7 @@
 			</button>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-(--magi-text)"
+				class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 				onclick={onclose}
 				aria-label="Close stats panel"
 			>
@@ -169,8 +169,9 @@
 					type="button"
 					class="rounded px-2 py-0.5 text-xs transition-colors {filter === opt
 						? 'bg-gray-600 text-white'
-						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
+						: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:bg-(--magi-surface-hover)'}"
 					onclick={() => (filter = opt)}
+					aria-pressed={filter === opt}
 				>
 					{opt === 'all' ? 'All' : STRATEGY_LABELS[opt]}
 				</button>
@@ -182,8 +183,9 @@
 					type="button"
 					class="rounded px-2 py-0.5 text-xs transition-colors {dateRange === opt.key
 						? 'bg-gray-600 text-white'
-						: 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
+						: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:bg-(--magi-surface-hover)'}"
 					onclick={() => (dateRange = opt.key)}
+					aria-pressed={dateRange === opt.key}
 				>
 					{opt.label}
 				</button>
@@ -212,14 +214,14 @@
 				{#each strategyOrder as s (s)}
 					{@const count = agg.byStrategy[s] ?? 0}
 					<div class="flex items-center gap-2 text-xs">
-						<span class="w-28 text-gray-300">{STRATEGY_LABELS[s]}</span>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+						<span class="w-28 text-(--magi-text-secondary)">{STRATEGY_LABELS[s]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div
 								class="h-full bg-indigo-500/80"
 								style="width: {agg.total > 0 ? ((count / agg.total) * 100).toFixed(1) : 0}%"
 							></div>
 						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{count} ({pct(count, agg.total)})
 						</span>
 					</div>
@@ -232,14 +234,14 @@
 			<h3 class="magi-subhead">Usage by gateway</h3>
 			{#each topN(agg.usageByGateway) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-28 truncate text-gray-300" title={e.label}>{e.label}</span>
-					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+					<span class="w-28 truncate text-(--magi-text-secondary)" title={e.label}>{e.label}</span>
+					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 						<div
 							class="h-full bg-sky-500/70"
 							style="width: {(e.count / agg.usageByGateway[0].count) * 100}%"
 						></div>
 					</div>
-					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{e.count}</span
 					>
 				</div>
@@ -251,14 +253,14 @@
 			<h3 class="magi-subhead">Usage by provider</h3>
 			{#each topN(agg.usageByProvider) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-28 truncate text-gray-300" title={e.label}>{e.label}</span>
-					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+					<span class="w-28 truncate text-(--magi-text-secondary)" title={e.label}>{e.label}</span>
+					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 						<div
 							class="h-full bg-teal-500/70"
 							style="width: {(e.count / agg.usageByProvider[0].count) * 100}%"
 						></div>
 					</div>
-					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{e.count}</span
 					>
 				</div>
@@ -270,8 +272,8 @@
 			<h3 class="magi-subhead">Usage by model</h3>
 			{#each topN(agg.usageByModel) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="flex-1 truncate text-gray-400" title={e.key}>{e.key}</span>
-					<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400"
+					<span class="flex-1 truncate text-(--magi-text-muted)" title={e.key}>{e.key}</span>
+					<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{e.count}</span
 					>
 				</div>
@@ -287,8 +289,10 @@
 			{#each nodeOrder as node (node)}
 				{@const count = agg.usageByNode[node] ?? 0}
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-gray-300">{nodeLabels[node]}</span>
-					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">{count}</span>
+					<span class="text-(--magi-text-secondary)">{nodeLabels[node]}</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
+						>{count}</span
+					>
 				</div>
 			{/each}
 		</section>
@@ -296,10 +300,10 @@
 		<!-- ===== Structured Voting deep-dive (only when votes exist) ===== -->
 		{#if agg.voting.total > 0}
 			{@const v = agg.voting}
-			<div class="mt-1 border-t border-gray-800 pt-2">
-				<span class="magi-section-header text-gray-400">
+			<div class="mt-1 border-t border-(--magi-border) pt-2">
+				<span class="magi-section-header text-(--magi-text-muted)">
 					🗳️ Structured Voting
-					<span class="font-normal text-gray-500">({v.total} votes)</span>
+					<span class="font-normal text-(--magi-text-faint)">({v.total} votes)</span>
 				</span>
 			</div>
 
@@ -309,14 +313,14 @@
 				{#each nodeOrder as node (node)}
 					{@const wins = v.winsByNode[node] ?? 0}
 					<div class="flex items-center gap-2 text-xs">
-						<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+						<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div
 								class="h-full bg-emerald-500/80"
 								style="width: {v.total > 0 ? ((wins / v.total) * 100).toFixed(1) : 0}%"
 							></div>
 						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{wins} ({pct(wins, v.total)})
 						</span>
 					</div>
@@ -328,9 +332,11 @@
 				<h3 class="magi-subhead">Wins by model</h3>
 				{#each v.winsByModel.slice(0, 6) as entry (entry.model + entry.node)}
 					<div class="flex items-center gap-2 text-xs">
-						<span class="w-24 text-gray-300">{nodeLabels[entry.node]}</span>
-						<span class="flex-1 truncate text-gray-400" title={entry.model}>{entry.model}</span>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+						<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[entry.node]}</span>
+						<span class="flex-1 truncate text-(--magi-text-muted)" title={entry.model}
+							>{entry.model}</span
+						>
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{entry.wins} ({pct(entry.wins, v.total)})
 						</span>
 					</div>
@@ -345,8 +351,8 @@
 				<h3 class="magi-subhead">Wins by gateway</h3>
 				{#each v.winsByGateway as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
-						<span class="text-gray-300">{e.label}</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+						<span class="text-(--magi-text-secondary)">{e.label}</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
 							>{e.count} ({pct(e.count, v.total)})</span
 						>
 					</div>
@@ -356,8 +362,8 @@
 				<h3 class="magi-subhead">Wins by provider</h3>
 				{#each v.winsByProvider as e (e.key)}
 					<div class="flex items-center justify-between text-xs">
-						<span class="text-gray-300">{e.label}</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+						<span class="text-(--magi-text-secondary)">{e.label}</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
 							>{e.count} ({pct(e.count, v.total)})</span
 						>
 					</div>
@@ -367,18 +373,20 @@
 			<!-- Position bias — Candidate A vs B average score across every juror response. -->
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">
-					Position bias <span class="font-normal text-gray-500"
+					Position bias <span class="font-normal text-(--magi-text-faint)"
 						>({v.avgPositionBias.samples} juror scores)</span
 					>
 				</h3>
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-20 text-gray-300">Candidate A</span>
-					<span class="flex-1 font-mono text-gray-400">avg {v.avgPositionBias.avgA.toFixed(2)}</span
+					<span class="w-20 text-(--magi-text-secondary)">Candidate A</span>
+					<span class="flex-1 font-mono text-(--magi-text-muted)"
+						>avg {v.avgPositionBias.avgA.toFixed(2)}</span
 					>
 				</div>
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-20 text-gray-300">Candidate B</span>
-					<span class="flex-1 font-mono text-gray-400">avg {v.avgPositionBias.avgB.toFixed(2)}</span
+					<span class="w-20 text-(--magi-text-secondary)">Candidate B</span>
+					<span class="flex-1 font-mono text-(--magi-text-muted)"
+						>avg {v.avgPositionBias.avgB.toFixed(2)}</span
 					>
 				</div>
 				<p class="magi-meta">
@@ -392,14 +400,14 @@
 				<h3 class="magi-subhead">Tiebreak path</h3>
 				<div class="flex flex-col gap-0.5 text-xs">
 					<div class="flex justify-between">
-						<span class="text-gray-300">Decisive</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+						<span class="text-(--magi-text-secondary)">Decisive</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{v.tiebreakDistribution.none} ({pct(v.tiebreakDistribution.none, v.total)})
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-gray-300">Best-score tiebreak</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+						<span class="text-(--magi-text-secondary)">Best-score tiebreak</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{v.tiebreakDistribution['best-score']} ({pct(
 								v.tiebreakDistribution['best-score'],
 								v.total
@@ -407,8 +415,8 @@
 						</span>
 					</div>
 					<div class="flex justify-between">
-						<span class="text-gray-300">Node-order tiebreak</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+						<span class="text-(--magi-text-secondary)">Node-order tiebreak</span>
+						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{v.tiebreakDistribution['node-order']} ({pct(
 								v.tiebreakDistribution['node-order'],
 								v.total
@@ -417,8 +425,8 @@
 					</div>
 					{#if v.tiebreakDistribution.walkover > 0}
 						<div class="flex justify-between">
-							<span class="text-gray-300">Walkover</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+							<span class="text-(--magi-text-secondary)">Walkover</span>
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 								{v.tiebreakDistribution.walkover} ({pct(v.tiebreakDistribution.walkover, v.total)})
 							</span>
 						</div>
@@ -430,14 +438,14 @@
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">Avg response length (chars)</h3>
 				<div class="flex justify-between text-xs">
-					<span class="text-gray-300">Winners</span>
-					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+					<span class="text-(--magi-text-secondary)">Winners</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{Math.round(v.winnerAvgLength)}</span
 					>
 				</div>
 				<div class="flex justify-between text-xs">
-					<span class="text-gray-300">Losers</span>
-					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400"
+					<span class="text-(--magi-text-secondary)">Losers</span>
+					<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{Math.round(v.loserAvgLength)}</span
 					>
 				</div>
@@ -447,10 +455,10 @@
 		<!-- ===== Multi-Round Debate deep-dive (only when debates have run) ===== -->
 		{#if agg.debate.total > 0}
 			{@const dbt = agg.debate}
-			<div class="mt-1 border-t border-gray-800 pt-2">
-				<span class="magi-section-header text-gray-400">
+			<div class="mt-1 border-t border-(--magi-border) pt-2">
+				<span class="magi-section-header text-(--magi-text-muted)">
 					🗣️ Multi-Round Debate
-					<span class="font-normal text-gray-500">({dbt.total} runs)</span>
+					<span class="font-normal text-(--magi-text-faint)">({dbt.total} runs)</span>
 				</span>
 			</div>
 
@@ -460,14 +468,14 @@
 				{#each verdictOrder as verdict (verdict)}
 					{@const count = dbt.verdictCounts[verdict] ?? 0}
 					<div class="flex items-center gap-2 text-xs">
-						<span class="w-24 text-gray-300">{VERDICT_LABELS[verdict]}</span>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+						<span class="w-24 text-(--magi-text-secondary)">{VERDICT_LABELS[verdict]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div
 								class="h-full bg-purple-500/70"
 								style="width: {dbt.total > 0 ? ((count / dbt.total) * 100).toFixed(1) : 0}%"
 							></div>
 						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{count} ({pct(count, dbt.total)})
 						</span>
 					</div>
@@ -480,16 +488,16 @@
 					<h3 class="magi-subhead">Convergence</h3>
 					{#if dbt.verdictCounts.consensus > 0}
 						<div class="flex justify-between text-xs">
-							<span class="text-gray-300">Avg rounds to converge</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+							<span class="text-(--magi-text-secondary)">Avg rounds to converge</span>
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 								{dbt.avgRoundsToConverge.toFixed(2)}
 							</span>
 						</div>
 					{/if}
 					{#if dbt.hitLimitCount > 0}
 						<div class="flex justify-between text-xs">
-							<span class="text-gray-300">Hit round limit</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-gray-400">
+							<span class="text-(--magi-text-secondary)">Hit round limit</span>
+							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
 								{dbt.hitLimitCount} ({pct(dbt.hitLimitCount, dbt.total)})
 							</span>
 						</div>
@@ -503,11 +511,11 @@
 				{#each nodeOrder as node (node)}
 					{@const r = dbt.revisionRateByNode[node]}
 					<div class="flex items-center gap-2 text-xs">
-						<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+						<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
+						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div class="h-full bg-amber-500/70" style="width: {(r.rate * 100).toFixed(1)}%"></div>
 						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
 							{r.revised}/{r.rounds} ({r.rounds > 0 ? `${(r.rate * 100).toFixed(0)}%` : '—'})
 						</span>
 					</div>
@@ -519,7 +527,7 @@
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">
 						Dissenter
-						<span class="font-normal text-gray-500"
+						<span class="font-normal text-(--magi-text-faint)"
 							>({nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)} 2-vs-1 splits)</span
 						>
 					</h3>
@@ -527,14 +535,16 @@
 						{@const count = dbt.dissenterByNode[node] ?? 0}
 						{@const denom = nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)}
 						<div class="flex items-center gap-2 text-xs">
-							<span class="w-24 text-gray-300">{nodeLabels[node]}</span>
-							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-gray-800">
+							<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
+							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 								<div
 									class="h-full bg-rose-500/70"
 									style="width: {denom > 0 ? ((count / denom) * 100).toFixed(1) : 0}%"
 								></div>
 							</div>
-							<span class="shrink-0 text-right font-mono whitespace-nowrap text-gray-400">
+							<span
+								class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
+							>
 								{count} ({pct(count, denom)})
 							</span>
 						</div>

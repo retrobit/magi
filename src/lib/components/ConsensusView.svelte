@@ -477,8 +477,9 @@
 					<div class="flex items-center gap-2">
 						{#if copyTarget}
 							<button
-								class="text-gray-400 transition-colors hover:text-(--magi-text)"
+								class="text-(--magi-text-muted) transition-colors hover:text-(--magi-text)"
 								onclick={copyConsensus}
+								aria-label={copied ? 'Copied' : 'Copy consensus'}
 								title="Copy consensus"
 							>
 								{#if copied}
@@ -558,7 +559,7 @@
 						     also meaningless in voting, since there is no such call. -->
 						{#if synthesisLabel && consensusNodeApplies}
 							<span
-								class="min-w-0 truncate text-xs text-gray-400"
+								class="min-w-0 truncate text-xs text-(--magi-text-muted)"
 								title={synthesisLabel}
 								use:tooltip={synthesisLabel}>{synthesisLabel}</span
 							>
@@ -604,7 +605,7 @@
 								? strategy === 'debate'
 									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'
 									: strategy === 'voting'
-										? 'Temperament awareness has no effect on Structured Voting — each juror already scores through its own lens'
+										? 'Temperament awareness has no effect on Structured Voting — voting jurors score neutrally on substance, so there is no synthesizer lens to shape'
 										: 'No consensus model runs in None mode — there is no synthesizer to be aware of node temperaments.'
 								: temperamentAwareness
 									? 'Temperament awareness active — synthesizer considers dispositional lenses'
@@ -649,7 +650,7 @@
 			{:else}
 				{#each transcript as turn, i (i)}
 					<div class="flex flex-col gap-1.5 {i > 0 ? 'magi-turn-divider border-t pt-3' : ''}">
-						<p class="text-xs font-medium text-gray-400">{turn.query}</p>
+						<p class="text-xs font-medium text-(--magi-text-muted)">{turn.query}</p>
 						{#if turn.consensusWarning}
 							<!-- Amber strip: consensus ran but on fewer than all three MAGI.
 							     Displayed verbatim from the server-produced warning string. -->
@@ -688,7 +689,7 @@
 							? 'magi-turn-divider border-t pt-3'
 							: ''}"
 					>
-						<p class="text-xs font-medium text-gray-400">{liveQuery}</p>
+						<p class="text-xs font-medium text-(--magi-text-muted)">{liveQuery}</p>
 						{#if warning}
 							{@render warningCard(warning)}
 						{/if}
@@ -706,7 +707,9 @@
 								<p class="magi-placeholder">No consensus computed — no MAGI responded this turn.</p>
 							{/if}
 						{:else if loading && !allModelsResponded}
-							<p class="animate-pulse text-sm text-gray-500">{waitingLabel}</p>
+							<p class="animate-pulse text-sm text-(--magi-text-faint) motion-reduce:animate-none">
+								{waitingLabel}
+							</p>
 						{:else if loading && !text}
 							<p class="magi-loader-text">{consensusLoadingText}…</p>
 						{:else if text}
