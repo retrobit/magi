@@ -5,12 +5,14 @@ import {
 	MAGI_NODE_NAMES,
 	BG_VARIANTS,
 	PALETTES,
+	MOTION_MODES,
 	type TierName,
 	type MagiNodeName,
 	type ConversationTurn,
 	type ScrollMode,
 	type BgVariant,
-	type Palette
+	type Palette,
+	type MotionMode
 } from './types';
 import type { NodeAssignment } from './config';
 import { STRATEGY_NAMES, type StrategyName } from './consensus/types';
@@ -41,8 +43,11 @@ export interface PersistedSettings {
 	/** Focus accordion state. Optional for back-compat with payloads saved
 	 *  before this field existed — those simply fall back to the in-code default. */
 	layoutFocus?: 'balanced' | 'nodes' | 'consensus';
-	/** Reduce ambient/cursor motion regardless of the OS preference. Optional
-	 *  for back-compat — older payloads fall back to the in-code default (off). */
+	/** Motion preference (`normal` | `full` | `reduced`). Optional for back-compat;
+	 *  payloads without it fall back to the in-code default (`normal`). */
+	motionMode?: MotionMode;
+	/** Legacy boolean superseded by `motionMode`; still read (true → reduced,
+	 *  false → full) so old payloads migrate, but no longer written. */
 	reduceMotion?: boolean;
 }
 
@@ -86,6 +91,7 @@ const persistedSettingsSchema = z.object({
 	palette: z.enum(PALETTES).optional(),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
 	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional(),
+	motionMode: z.enum(MOTION_MODES).optional(),
 	reduceMotion: z.boolean().optional()
 });
 

@@ -15,9 +15,12 @@
 	import {
 		PALETTES,
 		PALETTE_LABELS,
+		MOTION_MODES,
+		MOTION_MODE_LABELS,
 		type BgVariant,
 		type ScrollMode,
-		type Palette
+		type Palette,
+		type MotionMode
 	} from '$lib/magi/types';
 
 	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings' | 'menu';
@@ -28,7 +31,7 @@
 		palette: Palette;
 		scrollMode: ScrollMode;
 		genericLabels: boolean;
-		reduceMotion: boolean;
+		motionMode: MotionMode;
 		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
 		loading: boolean;
 		debugScenario: DebugScenario;
@@ -47,7 +50,7 @@
 		palette = $bindable(),
 		scrollMode = $bindable(),
 		genericLabels = $bindable(),
-		reduceMotion = $bindable(),
+		motionMode = $bindable(),
 		assignments,
 		loading,
 		debugScenario,
@@ -307,24 +310,17 @@
 		</div>
 		<span class="mt-3 magi-section-header text-gray-500">MOTION</span>
 		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {!reduceMotion
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={!reduceMotion}
-				onclick={() => (reduceMotion = false)}
-			>
-				Full
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {reduceMotion
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={reduceMotion}
-				onclick={() => (reduceMotion = true)}
-			>
-				Reduced
-			</button>
+			{#each MOTION_MODES as mode (mode)}
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {motionMode === mode
+						? 'bg-gray-600 text-white'
+						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+					aria-pressed={motionMode === mode}
+					onclick={() => (motionMode = mode)}
+				>
+					{MOTION_MODE_LABELS[mode]}
+				</button>
+			{/each}
 		</div>
 		<span class="mt-3 magi-section-header text-gray-500">AUTO-SCROLL</span>
 		<div class="mt-2 flex flex-col gap-1">

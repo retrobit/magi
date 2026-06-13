@@ -275,6 +275,12 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 		expect(loaded?.settings?.reduceMotion).toBe(true);
 	});
 
+	it('round-trips the motionMode field', () => {
+		const settings: PersistedSettings = { ...validSettings, motionMode: 'normal' };
+		savePrefs({ ...validPrefs, settings });
+		expect(loadPrefs()?.settings?.motionMode).toBe('normal');
+	});
+
 	it('drops the whole settings slice when palette is invalid, but keeps tier and snapshots', () => {
 		// A stored payload whose settings contain an invalid palette value fails
 		// persistedSettingsSchema.safeParse — the settings key is omitted from the

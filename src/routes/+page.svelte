@@ -40,7 +40,8 @@
 		type ScrollMode,
 		type BgVariant,
 		PALETTES,
-		type Palette
+		type Palette,
+		type MotionMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
@@ -116,9 +117,11 @@
 	let palette = $state<Palette>('rgb');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
-	// In-app reduce-motion, OR'd with the OS preference downstream — lets users
-	// calm the ambient/cursor motion without changing an OS setting.
-	let reduceMotion = $state(false);
+	// Motion preference. `normal` (default) stills the ambient background + cursor
+	// spotlight but keeps every other UI animation; `full` animates everything;
+	// `reduced` stills all motion. Drives two <html> classes downstream: `.calm-bg`
+	// (normal) and `.reduce-motion` (reduced).
+	let motionMode = $state<MotionMode>('normal');
 	// Focus accordion between the node row and the consensus. The status-bar layout
 	// control sets one of three states: nodes expanded, consensus expanded, or a
 	// balanced split (the default — both zones share the view so neither buries
@@ -137,7 +140,8 @@
 	// snaps mid-tween. WAAPI height reverts to the flex height on finish, so there's
 	// no end-state jump. Skipped under reduced motion.
 	function setLayoutFocus(focus: 'balanced' | 'nodes' | 'consensus') {
-		const reduced = reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const reduced =
+			motionMode === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const zones = [nodeZoneEl, consensusZoneEl].filter((z): z is HTMLElement => !!z);
 		if (reduced || zones.length === 0) {
 			layoutFocus = focus;
@@ -204,7 +208,8 @@
 	// gentle scale pop instead of the full tumble.
 	let diceEl = $state<HTMLSpanElement>();
 	function rollDice() {
-		const reduced = reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const reduced =
+			motionMode === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		diceEl?.animate(
 			reduced
 				? [
@@ -607,7 +612,12 @@
 		palette = s.palette ?? 'rgb';
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
-		reduceMotion = s.reduceMotion ?? false;
+		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
+		// reduced, false → full (an explicit Full choice); a fresh payload with
+		// neither field defaults to the new `normal` mode.
+		motionMode =
+			s.motionMode ??
+			(s.reduceMotion === undefined ? 'normal' : s.reduceMotion ? 'reduced' : 'full');
 	}
 
 	// A persisted snapshot is usable only if every model it names still exists.
@@ -719,7 +729,7 @@
 			palette,
 			scrollMode,
 			layoutFocus,
-			reduceMotion
+			motionMode
 		};
 		if (!prefsHydrated) return;
 		persistedSnapshots[activeTier] = snap;
@@ -729,7 +739,10 @@
 	// The theme class lives on <html>, not the page root, so body-portaled
 	// elements (the tooltip) inherit the light-mode variable overrides too.
 	$effect(() => {
-		document.documentElement.classList.toggle('reduce-motion', reduceMotion);
+		// `reduced` stills everything; `normal` only stills the background/spotlight
+		// (via `.calm-bg`); `full` sets neither class.
+		document.documentElement.classList.toggle('reduce-motion', motionMode === 'reduced');
+		document.documentElement.classList.toggle('calm-bg', motionMode === 'normal');
 	});
 
 	$effect(() => {
@@ -1243,12 +1256,16 @@
 
 {#if showSplash}
 	{#key splashNonce}
-		<Splash concept={splashConcept} {reduceMotion} ondone={() => (showSplash = false)} />
+		<Splash
+			concept={splashConcept}
+			reduceMotion={motionMode === 'reduced'}
+			ondone={() => (showSplash = false)}
+		/>
 	{/key}
 {/if}
 
 <div class="magi-bg flex h-screen flex-col overflow-y-auto">
-	<MagiBackground variant={bgVariant} {reduceMotion} />
+	<MagiBackground variant={bgVariant} bgStill={motionMode !== 'full'} />
 
 	{#if import.meta.env.DEV}
 		<PerfOverlay />
@@ -1259,7 +1276,7 @@
 		bind:bgVariant
 		bind:scrollMode
 		bind:genericLabels
-		bind:reduceMotion
+		bind:motionMode
 		bind:palette
 		{assignments}
 		{loading}

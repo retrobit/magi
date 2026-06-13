@@ -3,11 +3,12 @@
 
 	interface Props {
 		variant?: BgVariant;
-		/** App-level reduce-motion, OR'd with the OS `prefers-reduced-motion`. */
-		reduceMotion?: boolean;
+		/** Hold the background + cursor spotlight still (the `normal` and `reduced`
+		 *  motion modes). OR'd with the OS `prefers-reduced-motion` downstream. */
+		bgStill?: boolean;
 	}
 
-	let { variant = 'columns', reduceMotion = false }: Props = $props();
+	let { variant = 'columns', bgStill = false }: Props = $props();
 
 	// ── Hex variant: pointer-tracked spotlight ──────────────────────────────
 	// The background container is pointer-events-none, so events can never
@@ -81,7 +82,7 @@
 	// Motion is allowed only when neither the OS preference nor the app setting
 	// asks to reduce it. Derived, so flipping the in-app setting re-runs the
 	// listener effect below (detaching listeners and resetting the spotlight).
-	const motionOk = $derived(!osReducedMotion && !reduceMotion);
+	const motionOk = $derived(!osReducedMotion && !bgStill);
 
 	$effect(() => {
 		if (variant !== 'hex') return;
@@ -379,9 +380,12 @@
 	}
 
 	/* The in-app "Reduced" motion setting mirrors the OS preference via a class
-	   on <html>, so the aurora holds still without an OS-level change. */
+	   on <html>; "Normal" (`.calm-bg`) stills only the background while keeping the
+	   rest of the UI animated. Both hold the aurora drift still. */
 	:global(.reduce-motion) .aurora-col,
-	:global(.reduce-motion) .aurora-blob {
+	:global(.reduce-motion) .aurora-blob,
+	:global(.calm-bg) .aurora-col,
+	:global(.calm-bg) .aurora-blob {
 		animation: none;
 	}
 

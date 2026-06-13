@@ -169,6 +169,17 @@ export const PALETTE_LABELS: Record<Palette, string> = {
 	eva: 'Eva'
 };
 
+/** Motion preference. `normal` (the default) holds the ambient background +
+ *  cursor-spotlight motion still but keeps every other UI animation; `full`
+ *  animates everything including the background; `reduced` stills all motion. */
+export const MOTION_MODES = ['normal', 'full', 'reduced'] as const;
+export type MotionMode = (typeof MOTION_MODES)[number];
+export const MOTION_MODE_LABELS: Record<MotionMode, string> = {
+	normal: 'Normal (default)',
+	full: 'Full',
+	reduced: 'Reduced'
+};
+
 /** Token usage for a single model call. `cachedTokens` is the slice of
  *  `inputTokens` served from a prompt cache — present only for gateways that
  *  report it (Anthropic, OpenAI). Optional for back-compat with persisted turns. */
