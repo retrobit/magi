@@ -192,7 +192,7 @@
 						<stop class="hex-dome-core" offset="0%" />
 						<stop class="hex-dome-mid" offset="48%" />
 						<stop offset="66%" stop-color="#000" stop-opacity="0" />
-						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.1" />
+						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.06" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
 					</radialGradient>
 				</defs>
@@ -413,13 +413,13 @@
 		   recoloured by the Orange/Red/Eva palettes). */
 		--hex-line-hot: var(--magi-hex-hot);
 		--hex-base-opacity: 0.11;
-		--hex-glow-opacity: 0.3;
+		--hex-glow-opacity: 0.2;
 		/* Lighting-dome wash. On the dark page the spotlight colour is itself light,
 		   so it brightens the cursor area; light mode overrides this to a white wash
 		   (below) so the spotlight LIGHTENS the surface rather than darkening it. */
 		--hex-dome-color: var(--hex-line-hot);
-		--hex-dome-core-op: 0.15;
-		--hex-dome-mid-op: 0.05;
+		--hex-dome-core-op: 0.09;
+		--hex-dome-mid-op: 0.03;
 	}
 
 	.hex-base {
@@ -465,7 +465,9 @@
 	   Nearly zero it in light mode — the bright core still gives the lit-bump look,
 	   just without the dark ring at the edge. */
 	:global(.light) .hex-dome-rim {
-		stop-opacity: 0.015;
+		/* Fully removed in light mode — even a faint dark rim reads as a visible
+		   ring around the spotlight on the pale surface. */
+		stop-opacity: 0;
 	}
 
 	:global(.light) .hex-svg {
