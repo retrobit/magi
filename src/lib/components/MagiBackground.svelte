@@ -189,8 +189,8 @@
 					     catching cool overhead light. A blue highlight / black shadow (no blend
 					     mode), so it's a cheap composited overlay — no per-frame raster. -->
 					<radialGradient id="magi-hex-dome">
-						<stop offset="0%" stop-color="var(--hex-line-hot)" stop-opacity="0.22" />
-						<stop offset="48%" stop-color="var(--hex-line-hot)" stop-opacity="0.08" />
+						<stop class="hex-dome-core" offset="0%" />
+						<stop class="hex-dome-mid" offset="48%" />
 						<stop offset="66%" stop-color="#000" stop-opacity="0" />
 						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.1" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
@@ -413,11 +413,26 @@
 		   recoloured by the Orange/Red/Eva palettes). */
 		--hex-line-hot: var(--magi-hex-hot);
 		--hex-base-opacity: 0.11;
-		--hex-glow-opacity: 0.36;
+		--hex-glow-opacity: 0.3;
+		/* Lighting-dome wash. On the dark page the spotlight colour is itself light,
+		   so it brightens the cursor area; light mode overrides this to a white wash
+		   (below) so the spotlight LIGHTENS the surface rather than darkening it. */
+		--hex-dome-color: var(--hex-line-hot);
+		--hex-dome-core-op: 0.15;
+		--hex-dome-mid-op: 0.05;
 	}
 
 	.hex-base {
 		opacity: var(--hex-base-opacity);
+	}
+
+	.hex-dome-core {
+		stop-color: var(--hex-dome-color);
+		stop-opacity: var(--hex-dome-core-op);
+	}
+	.hex-dome-mid {
+		stop-color: var(--hex-dome-color);
+		stop-opacity: var(--hex-dome-mid-op);
 	}
 
 	/* Finite transition (not an animation): runs once on pointer enter/leave,
@@ -457,10 +472,14 @@
 		--hex-line: #4b5563; /* gray-600 */
 		/* --hex-line-hot now comes from the global --magi-hex-hot (the .light block
 		   sets the light-mode spotlight colour, palettes override it). */
-		/* A dark stroke over a light surface needs more opacity than the inverse to
-		   read with the same presence — dark mode's lattice was far more visible by
-		   eye, so the light values are lifted to close the gap without going noisy. */
 		--hex-base-opacity: 0.12;
-		--hex-glow-opacity: 0.29;
+		/* Brightening spotlight: a WHITE dome wash lifts the cursor area instead of
+		   the dark hot colour darkening it, and the coloured lattice glow is kept
+		   light so it doesn't add ink — so the spotlight reads as a light, not a
+		   shadow, over the pale surface. */
+		--hex-glow-opacity: 0.14;
+		--hex-dome-color: #ffffff;
+		--hex-dome-core-op: 0.55;
+		--hex-dome-mid-op: 0.2;
 	}
 </style>
