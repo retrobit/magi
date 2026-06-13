@@ -453,17 +453,17 @@
 	--magi-hex-hot: #c2410c;
 }
 
-/* Red — one balanced red across the triad. */
+/* Red — one shade across the triad, matching the RGB palette's red exactly. */
 .palette-red {
-	--magi-node-red: #f87171;
-	--magi-node-green: #f87171;
-	--magi-node-blue: #f87171;
+	--magi-node-red: #ef4444;
+	--magi-node-green: #ef4444;
+	--magi-node-blue: #ef4444;
 	--magi-hex-hot: #fca5a5;
 }
 .light.palette-red {
-	--magi-node-red: #b91c1c;
-	--magi-node-green: #b91c1c;
-	--magi-node-blue: #b91c1c;
+	--magi-node-red: #dc2626;
+	--magi-node-green: #dc2626;
+	--magi-node-blue: #dc2626;
 	--magi-hex-hot: #b91c1c;
 }
 
