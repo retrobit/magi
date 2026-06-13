@@ -191,7 +191,10 @@
 					<radialGradient id="magi-hex-dome">
 						<stop class="hex-dome-core" offset="0%" />
 						<stop class="hex-dome-mid" offset="48%" />
-						<stop offset="66%" stop-color="#000" stop-opacity="0" />
+						<!-- Edge fades to the dome's OWN colour (not black) so the bright core
+						     doesn't interpolate white→gray→transparent — that gray band was the
+						     faint dark ring around the light-mode spotlight. -->
+						<stop class="hex-dome-edge" offset="66%" />
 						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.06" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
 					</radialGradient>
@@ -434,6 +437,10 @@
 		stop-color: var(--hex-dome-color);
 		stop-opacity: var(--hex-dome-mid-op);
 	}
+	.hex-dome-edge {
+		stop-color: var(--hex-dome-color);
+		stop-opacity: 0;
+	}
 
 	/* Finite transition (not an animation): runs once on pointer enter/leave,
 	   then everything is static again. */
@@ -471,7 +478,7 @@
 	}
 
 	:global(.light) .hex-svg {
-		--hex-line: #4b5563; /* gray-600 */
+		--hex-line: #374151; /* gray-700 — a touch darker so the lattice reads more */
 		/* --hex-line-hot now comes from the global --magi-hex-hot (the .light block
 		   sets the light-mode spotlight colour, palettes override it). */
 		--hex-base-opacity: 0.12;
