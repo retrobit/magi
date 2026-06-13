@@ -29,6 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { smoothSnap } from '$lib/motion';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -240,7 +241,10 @@
 			const block = content.lastElementChild;
 			const target = block?.firstElementChild ?? block;
 			if (target) {
-				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+				smoothSnap(
+					el,
+					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+				);
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -259,7 +263,10 @@
 			const rounds = content.querySelectorAll('.magi-round');
 			const target = rounds[rounds.length - 1];
 			if (target) {
-				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+				smoothSnap(
+					el,
+					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+				);
 			}
 		});
 		return () => cancelAnimationFrame(frame);

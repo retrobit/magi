@@ -29,6 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { smoothSnap } from '$lib/motion';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -258,7 +259,10 @@
 			// above the prompt rather than pinning it flush to the top edge.
 			const target = liveTurnEl?.firstElementChild ?? liveTurnEl;
 			if (target) {
-				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+				smoothSnap(
+					el,
+					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+				);
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -298,7 +302,10 @@
 				}
 			}
 			if (target) {
-				el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+				smoothSnap(
+					el,
+					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+				);
 				lastSnappedRound = desired;
 				observer.disconnect();
 			}
@@ -328,7 +335,10 @@
 		const observer = new ResizeObserver(() => {
 			const hr = Array.from(content.querySelectorAll('hr')).at(-1);
 			if (!hr) return;
-			el.scrollTop += hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+			smoothSnap(
+				el,
+				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+			);
 			snappedSynthesis = true;
 			observer.disconnect();
 		});
