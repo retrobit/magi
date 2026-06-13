@@ -442,7 +442,7 @@
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<div class="flex items-center justify-between select-none">
+		<div class="relative flex items-center justify-between select-none">
 			<div class="flex items-center gap-2">
 				<h3 class="magi-display text-base font-bold tracking-widest text-(--magi-text)">
 					MAGI CONSENSUS
@@ -454,27 +454,36 @@
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
 				{/if}
-				<!-- Debate verdict at a glance — header-level so it's readable no matter
-				     the auto-scroll position, separate from the in-stream callout. -->
-				{#if headerVerdict === 'consensus'}
-					<span
-						class="flex items-center gap-1 magi-chip"
-						use:tooltip={'The MAGI converged — they reached consensus.'}
-					>
-						<span class="magi-gradient-text font-semibold tracking-wide">Consensus reached</span>
-						<span aria-hidden="true">🔺🔻🔺</span>
-					</span>
-				{:else if headerVerdict === 'split'}
-					<span
-						class="flex items-center gap-1 magi-chip font-semibold magi-warn"
-						use:tooltip={headerSummary
-							? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
-							: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
-					>
-						Split decision <span aria-hidden="true">⚖️</span>
-					</span>
-				{/if}
 			</div>
+			<!-- Debate verdict at a glance — centred in the header so it's readable no
+			     matter the auto-scroll position, separate from the in-stream callout.
+			     Absolutely centred (pointer-events pass through the wrapper) so the
+			     title and token readout keep their edges. -->
+			{#if headerVerdict === 'consensus' || headerVerdict === 'split'}
+				<div
+					class="pointer-events-none absolute inset-0 flex items-center justify-center"
+					aria-hidden="false"
+				>
+					{#if headerVerdict === 'consensus'}
+						<span
+							class="pointer-events-auto flex items-center gap-1 magi-chip"
+							use:tooltip={'The MAGI converged — they reached consensus.'}
+						>
+							<span class="magi-gradient-text font-semibold tracking-wide">Consensus reached</span>
+							<span aria-hidden="true">🔺🔻🔺</span>
+						</span>
+					{:else}
+						<span
+							class="pointer-events-auto flex items-center gap-1 magi-chip font-semibold magi-warn"
+							use:tooltip={headerSummary
+								? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
+								: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
+						>
+							Split decision <span aria-hidden="true">⚖️</span>
+						</span>
+					{/if}
+				</div>
+			{/if}
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
 					<span class="flex items-center magi-numeric text-gray-500" use:tooltip={tokensTooltip}>
