@@ -341,18 +341,18 @@
 		letter-spacing: 0.5em;
 		padding-left: 0.5em;
 	}
-	/* Each triangle fades in (staggered left→right), then settles into an infinite
-	   pulse whose offset per triangle makes the pulse travel across the three as a
-	   wave. The fade-in holds its end frame (`forwards`) so the delayed pulse picks
-	   up cleanly from full opacity. */
+	/* Each triangle fades in (staggered left→right), then holds full opacity and
+	   breathes a coloured glow on/off. The glow's per-triangle offset makes it
+	   travel across the three as a wave. No opacity dip and no scaling during the
+	   pulse — only the drop-shadow glow animates. `forwards` holds the fade-in end
+	   frame so the delayed glow picks up from full opacity. */
 	.decode .triad .tri {
 		opacity: 0;
-		transform: scale(0.7);
 	}
 	.decode .triad.show .tri {
 		animation:
 			tri-in 420ms ease forwards,
-			tri-pulse 1.7s ease-in-out infinite;
+			tri-glow 1.9s ease-in-out infinite;
 	}
 	.decode .triad.show .tri:nth-child(1) {
 		animation-delay: 0ms, 480ms;
@@ -366,38 +366,34 @@
 	@keyframes tri-in {
 		from {
 			opacity: 0;
-			transform: scale(0.7);
 		}
 		to {
 			opacity: 1;
-			transform: scale(1);
 		}
 	}
-	@keyframes tri-pulse {
+	@keyframes tri-glow {
 		0%,
 		100% {
-			opacity: 1;
-			transform: scale(1);
+			filter: drop-shadow(0 0 0 transparent);
 		}
 		50% {
-			opacity: 0.5;
-			transform: scale(1.18);
+			filter: drop-shadow(0 0 10px var(--c));
 		}
 	}
-	/* Reduced motion: no entrance, no pulse — the triad just sits at full opacity. */
+	/* Reduced motion: no entrance, no glow — the triad just sits at full opacity. */
 	@media (prefers-reduced-motion: reduce) {
 		.decode .triad .tri,
 		.decode .triad.show .tri {
 			animation: none;
 			opacity: 1;
-			transform: none;
+			filter: none;
 		}
 	}
 	:global(.reduce-motion) .decode .triad .tri,
 	:global(.reduce-motion) .decode .triad.show .tri {
 		animation: none;
 		opacity: 1;
-		transform: none;
+		filter: none;
 	}
 
 	/* ── convergence ── */
