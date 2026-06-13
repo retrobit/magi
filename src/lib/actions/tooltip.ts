@@ -74,8 +74,13 @@ export function tooltip(node: HTMLElement, text: string | undefined) {
 		timer = setTimeout(show, SHOW_DELAY);
 	}
 
-	// Keyboard users have already made a deliberate navigation action — show at once.
+	// Keyboard users have already made a deliberate navigation action — show at
+	// once. But only for KEYBOARD focus: a click that returns focus to the control
+	// (e.g. a menu/listbox closing back onto its trigger) must not pop a tooltip
+	// and leave it stuck with the pointer elsewhere. `:focus-visible` is exactly
+	// that distinction — true for keyboard focus, false for pointer-driven focus.
 	function onFocusIn() {
+		if (!node.matches(':focus-visible')) return;
 		if (timer) clearTimeout(timer);
 		show();
 	}
