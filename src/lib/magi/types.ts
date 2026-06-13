@@ -159,14 +159,14 @@ export type BgVariant = (typeof BG_VARIANTS)[number];
 
 /** Color palette — a class on <html> that remaps the node identity triad (and,
  *  for `eva`, the background triad independently). `rgb` is the :root default. */
-export const PALETTES = ['rgb', 'orange', 'red', 'green', 'eva'] as const;
+export const PALETTES = ['eva', 'rgb', 'red', 'blue', 'green'] as const;
 export type Palette = (typeof PALETTES)[number];
 export const PALETTE_LABELS: Record<Palette, string> = {
+	eva: 'Eva',
 	rgb: 'RGB',
-	orange: 'Orange',
 	red: 'Red',
-	green: 'Green',
-	eva: 'Eva'
+	blue: 'Blue',
+	green: 'Green'
 };
 
 /** Motion preference. `normal` (the default) holds the ambient background +

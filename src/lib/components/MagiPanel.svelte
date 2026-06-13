@@ -413,8 +413,10 @@
 						: undefined}
 					open
 				>
+					<!-- The round heading is a pill in the node's identity colour so each
+					     round reads as a clear, scannable marker rather than faint text. -->
 					<summary
-						class="flex cursor-pointer items-center gap-1 magi-badge text-(--magi-text-faint) select-none hover:text-(--magi-text-secondary)"
+						class="flex w-fit cursor-pointer items-center gap-1 rounded-full border border-(--node-color)/40 bg-(--node-color)/10 px-2 py-0.5 magi-badge text-(--node-color) transition-colors select-none hover:bg-(--node-color)/20"
 					>
 						<ChevronRight size={11} class="transition-transform group-open/round:rotate-90" />
 						Round {r.round}
@@ -466,9 +468,9 @@
 					type="button"
 					class="magi-display text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
 					onclick={() => onlabelclick?.()}
-					use:tooltip={'Switch between MAGI numbers and EVA names'}
-					><span class="tracking-widest">{labelName}</span>{#if labelUnit}<span class="opacity-80">
-							• {labelUnit}</span
+					use:tooltip={'Switch between MAGI numbers and Eva names'}
+					><span class="tracking-widest">{labelName}</span>{#if labelUnit}<span
+							class="opacity-80 before:mr-1.5 before:ml-1 before:content-['•']">{labelUnit}</span
 						>{/if}</button
 				>
 				{#if temperament}
@@ -538,7 +540,7 @@
 						onclick={handleRandomize}
 						{disabled}
 						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
-						title="Randomize selection"
+						use:tooltip={'Randomize selection'}
 					>
 						<Shuffle size={12} />
 					</button>
@@ -608,7 +610,7 @@
 							onclick={handleRandomize}
 							{disabled}
 							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
-							title="Randomize selection"
+							use:tooltip={'Randomize selection'}
 						>
 							<Shuffle size={14} />
 						</button>

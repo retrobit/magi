@@ -59,10 +59,10 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 ## 3. Node Labels
 
-- [ ] Panels default to EVA names: "MELCHIOR", "BALTHASAR", "CASPAR"
+- [ ] Panels default to Eva names: "MELCHIOR", "BALTHASAR", "CASPAR"
 - [ ] Click any node label — all three panels swap to "MAGI" generic labels
 - [ ] Consensus "Synthesized by" dropdown also updates to match
-- [ ] Click again — labels revert to EVA names
+- [ ] Click again — labels revert to Eva names
 - [ ] Label toggle is independent of tier switching (global preference)
 
 ## 4. Node Configuration

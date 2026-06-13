@@ -9,6 +9,7 @@
 	import StatsPanel from './StatsPanel.svelte';
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
+	import { tooltip } from '$lib/actions/tooltip';
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
 	import type { NodeAssignment } from '$lib/magi/config';
@@ -82,7 +83,7 @@
 				type="button"
 				class="inline-block cursor-pointer transition-opacity hover:opacity-80"
 				onclick={() => onreplaysplash?.()}
-				title="Replay the MAGI intro"
+				use:tooltip={'Replay the MAGI intro'}
 				aria-label="MAGI — replay the intro animation"
 			>
 				MAGI <span class="text-base" aria-hidden="true"
@@ -98,7 +99,7 @@
 				type="button"
 				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white sm:hidden"
 				onclick={() => togglePanel('menu')}
-				title="Menu"
+				use:tooltip={'Menu'}
 				aria-label="Open menu"
 				aria-expanded={openPanel === 'menu'}
 			>
@@ -111,7 +112,7 @@
 						type="button"
 						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
 						onclick={() => togglePanel('debug')}
-						title="Debug panel (dev only)"
+						use:tooltip={'Debug panel (dev only)'}
 						aria-label="Debug panel"
 						aria-expanded={openPanel === 'debug'}
 					>
@@ -122,7 +123,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('stats')}
-					title="Stats"
+					use:tooltip={'Stats'}
 					aria-label="Stats"
 					aria-expanded={openPanel === 'stats'}
 				>
@@ -132,7 +133,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('budget')}
-					title="Budget"
+					use:tooltip={'Budget'}
 					aria-label="Budget"
 					aria-expanded={openPanel === 'budget'}
 				>
@@ -142,7 +143,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
 					onclick={() => togglePanel('settings')}
-					title="Settings"
+					use:tooltip={'Settings'}
 					aria-label="Settings"
 					aria-expanded={openPanel === 'settings'}
 				>
@@ -272,6 +273,15 @@
 		<span class="mt-3 magi-section-header text-gray-500">BACKGROUND</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={bgVariant === 'off'}
+				onclick={() => (bgVariant = 'off')}
+			>
+				Off
+			</button>
+			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
@@ -297,15 +307,6 @@
 				onclick={() => (bgVariant = 'columns')}
 			>
 				Columns
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={bgVariant === 'off'}
-				onclick={() => (bgVariant = 'off')}
-			>
-				Off
 			</button>
 		</div>
 		<span class="mt-3 magi-section-header text-gray-500">MOTION</span>

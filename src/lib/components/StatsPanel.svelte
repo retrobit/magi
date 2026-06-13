@@ -10,6 +10,7 @@
 	} from '$lib/magi/run-stats';
 	import { STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus/types';
 	import ConfirmModal from './ConfirmModal.svelte';
+	import { tooltip } from '$lib/actions/tooltip';
 	import {
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
@@ -135,7 +136,7 @@
 				onclick={exportJson}
 				disabled={records.length === 0}
 				aria-label="Export stats as JSON"
-				title="Download all stats as JSON"
+				use:tooltip={'Download all stats as JSON'}
 			>
 				<Download size={14} />
 			</button>
@@ -145,7 +146,7 @@
 				onclick={() => (confirmingClear = true)}
 				disabled={agg.total === 0}
 				aria-label="Clear stats"
-				title="Clear all recorded stats"
+				use:tooltip={'Clear all recorded stats'}
 			>
 				<Trash2 size={14} />
 			</button>
@@ -234,7 +235,9 @@
 			<h3 class="magi-subhead">Usage by gateway</h3>
 			{#each topN(agg.usageByGateway) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-28 truncate text-(--magi-text-secondary)" title={e.label}>{e.label}</span>
+					<span class="w-28 truncate text-(--magi-text-secondary)" use:tooltip={e.label}
+						>{e.label}</span
+					>
 					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 						<div
 							class="h-full bg-sky-500/70"
@@ -253,7 +256,9 @@
 			<h3 class="magi-subhead">Usage by provider</h3>
 			{#each topN(agg.usageByProvider) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="w-28 truncate text-(--magi-text-secondary)" title={e.label}>{e.label}</span>
+					<span class="w-28 truncate text-(--magi-text-secondary)" use:tooltip={e.label}
+						>{e.label}</span
+					>
 					<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 						<div
 							class="h-full bg-teal-500/70"
@@ -272,7 +277,7 @@
 			<h3 class="magi-subhead">Usage by model</h3>
 			{#each topN(agg.usageByModel) as e (e.key)}
 				<div class="flex items-center gap-2 text-xs">
-					<span class="flex-1 truncate text-(--magi-text-muted)" title={e.key}>{e.key}</span>
+					<span class="flex-1 truncate text-(--magi-text-muted)" use:tooltip={e.key}>{e.key}</span>
 					<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
 						>{e.count}</span
 					>
@@ -333,7 +338,7 @@
 				{#each v.winsByModel.slice(0, 6) as entry (entry.model + entry.node)}
 					<div class="flex items-center gap-2 text-xs">
 						<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[entry.node]}</span>
-						<span class="flex-1 truncate text-(--magi-text-muted)" title={entry.model}
+						<span class="flex-1 truncate text-(--magi-text-muted)" use:tooltip={entry.model}
 							>{entry.model}</span
 						>
 						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">

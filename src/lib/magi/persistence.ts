@@ -37,7 +37,7 @@ export interface PersistedSettings {
 	theme: 'dark' | 'light';
 	bgVariant: BgVariant;
 	/** Color palette. Optional for back-compat — older payloads fall back to the
-	 *  in-code default (`rgb`). */
+	 *  in-code default (`eva`). */
 	palette?: Palette;
 	scrollMode: ScrollMode;
 	/** Focus accordion state. Optional for back-compat with payloads saved

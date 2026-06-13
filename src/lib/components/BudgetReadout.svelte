@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { RefreshCw } from 'lucide-svelte';
+	import { tooltip } from '$lib/actions/tooltip';
 
 	type ProviderName = 'openrouter' | 'anthropic' | 'openai' | 'google';
 	type BudgetStatus = 'ok' | 'unavailable' | 'error';
@@ -82,7 +83,7 @@
 		onclick={() => fetchBudgets(true)}
 		disabled={loading || !loaded}
 		aria-label="Refresh budgets"
-		title="Refresh"
+		use:tooltip={'Refresh'}
 	>
 		<RefreshCw size={12} class={loading ? 'animate-spin' : ''} />
 	</button>

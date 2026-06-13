@@ -438,21 +438,6 @@
    stay legible on the white surface. The hex lattice base stays neutral gray for
    every palette — only the cursor spotlight (--magi-hex-hot) takes the colour. */
 
-/* Orange — one balanced orange for all three nodes (non-RGB palettes drop the
-   per-node shade variation; the colour is uniform across the triad). */
-.palette-orange {
-	--magi-node-red: #fb923c;
-	--magi-node-green: #fb923c;
-	--magi-node-blue: #fb923c;
-	--magi-hex-hot: #fdba74;
-}
-.light.palette-orange {
-	--magi-node-red: #c2410c;
-	--magi-node-green: #c2410c;
-	--magi-node-blue: #c2410c;
-	--magi-hex-hot: #c2410c;
-}
-
 /* Red — one shade across the triad, matching the RGB palette's red exactly. */
 .palette-red {
 	--magi-node-red: #ef4444;
@@ -467,12 +452,12 @@
 	--magi-hex-hot: #b91c1c;
 }
 
-/* Eva — the three EVA units' colours for the nodes (Unit-02 red, Unit-01
+/* Eva — the three Eva units' colours for the nodes (Unit-02 red, Unit-01
    purple, Unit-00 blue) over a flat orange (LCL/NERV amber) aurora. The one
    non-RGB palette that keeps a distinct colour per node — themed on the mechs,
    not a monochrome ramp — with the background decoupled to a single orange. */
 /* Node slots map MELCHIOR→red, BALTHASAR→green, CASPAR→blue var; here they
-   carry the EVA-unit hues in node order: node 1 blue, node 2 purple, node 3 red.
+   carry the Eva-unit hues in node order: node 1 blue, node 2 purple, node 3 red.
    The orbs/columns aurora inherits the node triad (so it matches the scheme), but
    the hex cursor spotlight stays a low-key neutral so it doesn't shout. */
 .palette-eva {
@@ -488,18 +473,32 @@
 	--magi-hex-hot: #64748b;
 }
 
-/* Green — one light green/teal across the triad. */
+/* Green — one shade across the triad, matching the RGB palette's green exactly. */
 .palette-green {
-	--magi-node-red: #2dd4bf;
-	--magi-node-green: #2dd4bf;
-	--magi-node-blue: #2dd4bf;
-	--magi-hex-hot: #5eead4;
+	--magi-node-red: #34d399;
+	--magi-node-green: #34d399;
+	--magi-node-blue: #34d399;
+	--magi-hex-hot: #6ee7b7;
 }
 .light.palette-green {
-	--magi-node-red: #0d9488;
-	--magi-node-green: #0d9488;
-	--magi-node-blue: #0d9488;
-	--magi-hex-hot: #0f766e;
+	--magi-node-red: #047857;
+	--magi-node-green: #047857;
+	--magi-node-blue: #047857;
+	--magi-hex-hot: #065f46;
+}
+
+/* Blue — one shade across the triad, matching the RGB palette's blue exactly. */
+.palette-blue {
+	--magi-node-red: #3b82f6;
+	--magi-node-green: #3b82f6;
+	--magi-node-blue: #3b82f6;
+	--magi-hex-hot: #93c5fd;
+}
+.light.palette-blue {
+	--magi-node-red: #2563eb;
+	--magi-node-green: #2563eb;
+	--magi-node-blue: #2563eb;
+	--magi-hex-hot: #1d4ed8;
 }
 
 /* Keyboard focus ring. Scoped to `:focus-visible` so it appears for keyboard and

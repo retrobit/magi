@@ -466,15 +466,21 @@
 				>
 					{#if headerVerdict === 'consensus'}
 						<span
-							class="pointer-events-auto flex items-center gap-1 magi-chip"
+							class="pointer-events-auto flex items-center gap-1.5 text-sm"
 							use:tooltip={'The MAGI converged — they reached consensus.'}
 						>
 							<span class="magi-gradient-text font-semibold tracking-wide">Consensus reached</span>
-							<span aria-hidden="true">🔺🔻🔺</span>
+							<!-- Themed glyph triad, identical to the app-title mark, so it tracks the
+							     active palette instead of a fixed-colour emoji. -->
+							<span aria-hidden="true" class="text-xs"
+								><span class="text-(--magi-node-red)">▲</span><span class="text-(--magi-node-green)"
+									>▼</span
+								><span class="text-(--magi-node-blue)">▲</span></span
+							>
 						</span>
 					{:else}
 						<span
-							class="pointer-events-auto flex items-center gap-1 magi-chip font-semibold magi-warn"
+							class="pointer-events-auto flex items-center gap-1.5 text-sm font-semibold magi-warn"
 							use:tooltip={headerSummary
 								? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
 								: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
@@ -512,7 +518,7 @@
 								class="text-(--magi-text-muted) transition-colors hover:text-(--magi-text)"
 								onclick={copyConsensus}
 								aria-label={copied ? 'Copied' : 'Copy consensus'}
-								title="Copy consensus"
+								use:tooltip={'Copy consensus'}
 							>
 								{#if copied}
 									<Check size={14} class="magi-success" />
@@ -592,7 +598,6 @@
 						{#if synthesisLabel && consensusNodeApplies}
 							<span
 								class="min-w-0 truncate text-xs text-(--magi-text-muted)"
-								title={synthesisLabel}
 								use:tooltip={synthesisLabel}>{synthesisLabel}</span
 							>
 						{/if}

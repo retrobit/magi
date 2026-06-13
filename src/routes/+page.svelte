@@ -113,10 +113,12 @@
 	let copiedQuery = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
-	let bgVariant = $state<BgVariant>('hex');
-	let palette = $state<Palette>('rgb');
+	let bgVariant = $state<BgVariant>('off');
+	let palette = $state<Palette>('eva');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
+	// Footer copyright year — derived from the clock so it rolls over on its own.
+	const currentYear = new Date().getFullYear();
 	// Motion preference. `normal` (default) stills the ambient background + cursor
 	// spotlight but keeps every other UI animation; `full` animates everything;
 	// `reduced` stills all motion. Drives two <html> classes downstream: `.calm-bg`
@@ -447,7 +449,7 @@
 	});
 
 	// Names each near-limit seat with the label the UI is currently showing —
-	// EVA names or generic MAGI numbers — rather than the raw node key.
+	// Eva names or generic MAGI numbers — rather than the raw node key.
 	const contextWarningLabels = $derived(
 		contextWarnings.map((name) =>
 			name === 'consensus' ? 'Consensus' : (genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS)[name]
@@ -609,7 +611,7 @@
 		genericLabels = s.genericLabels;
 		theme = s.theme;
 		bgVariant = s.bgVariant;
-		palette = s.palette ?? 'rgb';
+		palette = s.palette ?? 'eva';
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
 		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
@@ -662,12 +664,11 @@
 		modelsLoading = false;
 	}
 
-	// Intro splash. Auto-plays once ever (first visit); the header MAGI mark
-	// replays it. Only `decode` is active; `boot` and `convergence` stay
+	// Intro splash. Auto-plays on every page load; the header MAGI mark replays
+	// it on demand. Only `decode` is active; `boot` and `convergence` stay
 	// implemented in Splash.svelte but aren't reachable from the UI (a
 	// `?splash=<concept>` query param can still force them for dev/preview).
-	const SPLASH_SEEN_KEY = 'magi:splash-seen:v1';
-	// The only active concept — first-visit default and the header-mark replay.
+	// The only active concept — the per-load default and the header-mark replay.
 	const SPLASH_CONCEPTS = ['decode'] as const;
 	// All implemented concepts — kept for the `?splash=` dev/preview param only.
 	const SPLASH_CONCEPTS_ALL = ['decode', 'boot', 'convergence'] as const;
@@ -683,19 +684,17 @@
 	}
 
 	onMount(async () => {
-		// Splash gate runs first so it can paint over the hydrating shell.
+		// Splash runs first so it can paint over the hydrating shell. It plays on
+		// every load; the `?splash=<concept>` param only overrides which concept.
 		try {
 			const forced = new URLSearchParams(location.search).get('splash');
 			if (forced && (SPLASH_CONCEPTS_ALL as readonly string[]).includes(forced)) {
 				splashConcept = forced as SplashConcept;
-				showSplash = true;
-			} else if (!localStorage.getItem(SPLASH_SEEN_KEY)) {
-				showSplash = true;
-				localStorage.setItem(SPLASH_SEEN_KEY, '1');
 			}
 		} catch {
-			// Storage unavailable — just skip the splash.
+			// `location` unavailable — fall back to the default concept.
 		}
+		showSplash = true;
 
 		const prefs = loadPrefs();
 		if (prefs) {
@@ -1360,7 +1359,7 @@
 						type="button"
 						class="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 transition-colors hover:text-white"
 						onclick={copyQuery}
-						title="Copy prompt"
+						use:tooltip={'Copy prompt'}
 					>
 						{#if copiedQuery}
 							<Check size={14} class="text-green-400" />
@@ -1505,7 +1504,7 @@
 							onclick={() => handleSwap(i - 1, i)}
 							disabled={loading}
 							class="magi-randomize rounded p-1 transition-colors disabled:opacity-50"
-							title="Swap configurations"
+							use:tooltip={'Swap configurations'}
 							aria-label="Swap {activeNodeLabels[assignments[i - 1].node]} and {activeNodeLabels[
 								assignment.node
 							]} configurations"
@@ -1600,7 +1599,7 @@
 			href="https://github.com/retrobit"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="transition-colors hover:text-gray-400">© 2026 retrobit</a
+			class="transition-colors hover:text-gray-400">© {currentYear} retrobit</a
 		>
 		·
 		<a

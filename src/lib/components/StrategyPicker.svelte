@@ -212,7 +212,7 @@
 								{/if}
 								<span
 									class="flex items-center gap-0.5"
-									title="{STRATEGY_INTENSITY[s]} of 3 — relative cost"
+									use:tooltip={`${STRATEGY_INTENSITY[s]} of 3 — relative cost`}
 								>
 									{#each [1, 2, 3] as dot (dot)}
 										{@const filled = dot <= STRATEGY_INTENSITY[s]}
