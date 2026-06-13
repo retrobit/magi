@@ -653,18 +653,20 @@
 	}
 
 	// Intro splash. Auto-plays once ever (first visit); the header MAGI mark
-	// replays it, cycling through the three concepts so all are reachable. A
-	// `?splash=<concept>` query param force-plays a specific one (dev/preview).
+	// replays it. Only `decode` is active; `boot` and `convergence` stay
+	// implemented in Splash.svelte but aren't reachable from the UI (a
+	// `?splash=<concept>` query param can still force them for dev/preview).
 	const SPLASH_SEEN_KEY = 'magi:splash-seen:v1';
-	// Decode is the first-visit default; the header-mark replay then cycles
-	// decode → boot → convergence so the other two stay reachable.
-	const SPLASH_CONCEPTS = ['decode', 'boot', 'convergence'] as const;
-	type SplashConcept = (typeof SPLASH_CONCEPTS)[number];
+	// The only active concept — first-visit default and the header-mark replay.
+	const SPLASH_CONCEPTS = ['decode'] as const;
+	// All implemented concepts — kept for the `?splash=` dev/preview param only.
+	const SPLASH_CONCEPTS_ALL = ['decode', 'boot', 'convergence'] as const;
+	type SplashConcept = (typeof SPLASH_CONCEPTS_ALL)[number];
 	let showSplash = $state(false);
 	let splashConcept = $state<SplashConcept>('decode');
 	let splashNonce = $state(0);
 	function replaySplash() {
-		const i = SPLASH_CONCEPTS.indexOf(splashConcept);
+		const i = SPLASH_CONCEPTS.indexOf(splashConcept as (typeof SPLASH_CONCEPTS)[number]);
 		splashConcept = SPLASH_CONCEPTS[(i + 1) % SPLASH_CONCEPTS.length];
 		splashNonce += 1;
 		showSplash = true;
@@ -674,7 +676,7 @@
 		// Splash gate runs first so it can paint over the hydrating shell.
 		try {
 			const forced = new URLSearchParams(location.search).get('splash');
-			if (forced && (SPLASH_CONCEPTS as readonly string[]).includes(forced)) {
+			if (forced && (SPLASH_CONCEPTS_ALL as readonly string[]).includes(forced)) {
 				splashConcept = forced as SplashConcept;
 				showSplash = true;
 			} else if (!localStorage.getItem(SPLASH_SEEN_KEY)) {

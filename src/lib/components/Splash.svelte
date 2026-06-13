@@ -340,13 +340,62 @@
 		font-size: clamp(1.1rem, 3vw, 1.6rem);
 		letter-spacing: 0.5em;
 		padding-left: 0.5em;
+	}
+	/* Each triangle fades in (staggered left→right), then settles into an infinite
+	   pulse whose offset per triangle makes the pulse travel across the three as a
+	   wave. The fade-in holds its end frame (`forwards`) so the delayed pulse picks
+	   up cleanly from full opacity. */
+	.decode .triad .tri {
 		opacity: 0;
 		transform: scale(0.7);
-		transition:
-			opacity 300ms ease,
-			transform 300ms ease;
 	}
-	.decode .triad.show {
+	.decode .triad.show .tri {
+		animation:
+			tri-in 420ms ease forwards,
+			tri-pulse 1.7s ease-in-out infinite;
+	}
+	.decode .triad.show .tri:nth-child(1) {
+		animation-delay: 0ms, 480ms;
+	}
+	.decode .triad.show .tri:nth-child(2) {
+		animation-delay: 170ms, 650ms;
+	}
+	.decode .triad.show .tri:nth-child(3) {
+		animation-delay: 340ms, 820ms;
+	}
+	@keyframes tri-in {
+		from {
+			opacity: 0;
+			transform: scale(0.7);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	@keyframes tri-pulse {
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.5;
+			transform: scale(1.18);
+		}
+	}
+	/* Reduced motion: no entrance, no pulse — the triad just sits at full opacity. */
+	@media (prefers-reduced-motion: reduce) {
+		.decode .triad .tri,
+		.decode .triad.show .tri {
+			animation: none;
+			opacity: 1;
+			transform: none;
+		}
+	}
+	:global(.reduce-motion) .decode .triad .tri,
+	:global(.reduce-motion) .decode .triad.show .tri {
+		animation: none;
 		opacity: 1;
 		transform: none;
 	}
