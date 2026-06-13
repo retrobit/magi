@@ -449,25 +449,31 @@
 	--magi-hex-hot: #b91c1c;
 }
 
-/* Eva — one balanced blue across the triad; orange hex/background kept
-   decoupled (the Eva signature: blue panels over an orange aurora). */
+/* Eva — the three EVA units' colours for the nodes (Unit-02 red, Unit-01
+   purple, Unit-00 blue) over a flat orange (LCL/NERV amber) aurora. The one
+   non-RGB palette that keeps a distinct colour per node — themed on the mechs,
+   not a monochrome ramp — with the background decoupled to a single orange. */
+/* Node slots map MELCHIOR→red, BALTHASAR→green, CASPAR→blue var; here they
+   carry the EVA-unit hues in node order: node 1 blue, node 2 purple, node 3 red.
+   The background stays deliberately low-colour — a cool near-white aurora and
+   spotlight — so the three node colours carry the palette without competing. */
 .palette-eva {
-	--magi-node-red: #60a5fa;
-	--magi-node-green: #60a5fa;
-	--magi-node-blue: #60a5fa;
-	--magi-bg-1: #fdba74;
-	--magi-bg-2: #fb923c;
-	--magi-bg-3: #f97316;
-	--magi-hex-hot: #fb923c;
+	--magi-node-red: #3b82f6; /* node 1 — blue */
+	--magi-node-green: #a855f7; /* node 2 — purple (Unit-01) */
+	--magi-node-blue: #ef4444; /* node 3 — red (Unit-02) */
+	--magi-bg-1: #cbd5e1;
+	--magi-bg-2: #cbd5e1;
+	--magi-bg-3: #cbd5e1;
+	--magi-hex-hot: #cbd5e1;
 }
 .light.palette-eva {
-	--magi-node-red: #1d4ed8;
-	--magi-node-green: #1d4ed8;
-	--magi-node-blue: #1d4ed8;
-	--magi-bg-1: #ea580c;
-	--magi-bg-2: #c2410c;
-	--magi-bg-3: #9a3412;
-	--magi-hex-hot: #c2410c;
+	--magi-node-red: #2563eb; /* blue */
+	--magi-node-green: #7c3aed; /* purple */
+	--magi-node-blue: #dc2626; /* red */
+	--magi-bg-1: #94a3b8;
+	--magi-bg-2: #94a3b8;
+	--magi-bg-3: #94a3b8;
+	--magi-hex-hot: #64748b;
 }
 
 /* Keyboard focus ring. Scoped to `:focus-visible` so it appears for keyboard and

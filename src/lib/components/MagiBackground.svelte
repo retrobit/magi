@@ -189,8 +189,8 @@
 					     catching cool overhead light. A blue highlight / black shadow (no blend
 					     mode), so it's a cheap composited overlay — no per-frame raster. -->
 					<radialGradient id="magi-hex-dome">
-						<stop offset="0%" stop-color="#bcd6ff" stop-opacity="0.05" />
-						<stop offset="48%" stop-color="#bcd6ff" stop-opacity="0.01" />
+						<stop offset="0%" stop-color="var(--hex-line-hot)" stop-opacity="0.28" />
+						<stop offset="48%" stop-color="var(--hex-line-hot)" stop-opacity="0.1" />
 						<stop offset="66%" stop-color="#000" stop-opacity="0" />
 						<stop class="hex-dome-rim" offset="84%" stop-color="#000" stop-opacity="0.1" />
 						<stop offset="100%" stop-color="#000" stop-opacity="0" />
@@ -413,7 +413,7 @@
 		   recoloured by the Orange/Red/Eva palettes). */
 		--hex-line-hot: var(--magi-hex-hot);
 		--hex-base-opacity: 0.11;
-		--hex-glow-opacity: 0.19;
+		--hex-glow-opacity: 0.42;
 	}
 
 	.hex-base {
@@ -461,6 +461,6 @@
 		   read with the same presence — dark mode's lattice was far more visible by
 		   eye, so the light values are lifted to close the gap without going noisy. */
 		--hex-base-opacity: 0.12;
-		--hex-glow-opacity: 0.17;
+		--hex-glow-opacity: 0.34;
 	}
 </style>
