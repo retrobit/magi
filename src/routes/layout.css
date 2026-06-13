@@ -8,6 +8,15 @@
    Michroma ships a single weight (400); the bold display marks faux-bold it. */
 @import '@fontsource/michroma/400.css';
 
+/* Atkinson Hyperlegible — the reading face for reply bodies (model responses +
+   consensus). Designed by the Braille Institute for maximum legibility, with
+   letterforms disambiguated for long-form reading. Self-hosted via @fontsource;
+   400/700 + italics cover the markdown body, bold, and emphasis. */
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+@import '@fontsource/atkinson-hyperlegible/400-italic.css';
+@import '@fontsource/atkinson-hyperlegible/700-italic.css';
+
 /* ── Typography tokens — semantic utilities for cohesion ──
    Use these instead of bare text-/font-/tracking- combinations so retuning
    the typography happens in one place. Some size utilities also bake in a
@@ -165,6 +174,9 @@
 	/* Display font for the MAGI marks — the intro splash and the three section
 	   titles (app / nodes / consensus) share this so they read as one system. */
 	--magi-font-display: 'Michroma', ui-sans-serif, system-ui, sans-serif;
+	/* Reading font for reply bodies (model responses + consensus prose) — a
+	   high-legibility face distinct from the UI/display fonts. */
+	--magi-font-body: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
 	/* Background-triad colors — what the aurora tints with. Default to the node
 	   identity triad so the RGB/Orange/Red palettes keep panels and background in
 	   sync; the Eva palette overrides these to decouple them (blue panels, orange
@@ -277,6 +289,12 @@
 	   rounded-lg clips this to the panel's bottom corners. */
 	.magi-output {
 		background-color: var(--magi-output-bg);
+	}
+
+	/* Reply bodies render as `.prose` (model responses + consensus). Give them the
+	   dedicated reading face; the UI chrome and display marks keep their own fonts. */
+	.prose {
+		font-family: var(--magi-font-body);
 	}
 
 	/* Randomize button — match the auto-bordered <select> controls */

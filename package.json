@@ -53,6 +53,7 @@
 		"@ai-sdk/anthropic": "^3.0.81",
 		"@ai-sdk/google": "^3.0.80",
 		"@ai-sdk/openai": "^3.0.67",
+		"@fontsource/atkinson-hyperlegible": "^5.2.8",
 		"@fontsource/michroma": "^5.2.8",
 		"ai": "^6.0.193",
 		"dompurify": "^3.4.7",
