@@ -172,6 +172,29 @@
 	// synthesis is on screen. Gradient-clipped text reuses the three-MAGI triad.
 	const debateComplete = $derived(strategy === 'debate' && !loading && text !== '');
 
+	// Header verdict badge — a glanceable, auto-scroll-independent label of the
+	// debate outcome that lives in the panel header (always visible, unlike the
+	// in-stream callout). Shows the live verdict the instant a debate completes,
+	// then the last committed debate turn's verdict once the live turn settles.
+	// Nothing during a fresh debate's streaming (never a stale outcome), for
+	// non-debate turns, or for a walkover.
+	const headerVerdict = $derived(
+		debateComplete
+			? debateVerdict
+			: !liveQuery && transcript[transcript.length - 1]?.strategy === 'debate'
+				? transcript[transcript.length - 1]?.debateVerdict
+				: undefined
+	);
+	// The coalition shape behind a split verdict, paired with `headerVerdict` so the
+	// header badge's tooltip can name who aligned against whom.
+	const headerSummary = $derived(
+		debateComplete
+			? debateSummary
+			: !liveQuery && transcript[transcript.length - 1]?.strategy === 'debate'
+				? transcript[transcript.length - 1]?.debateSummary
+				: undefined
+	);
+
 	// Debate streams its round ledger into `text`, then a `---` divider, then the
 	// synthesized answer. While the rounds are still running (no divider yet) the
 	// ledger sits static between rounds — so we keep the pulsating verb beneath it
@@ -408,36 +431,6 @@
 	</div>
 {/snippet}
 
-<!-- Headline banner crowning a completed multi-round debate. Two faces: a
-     gradient "Consensus reached" when the MAGI agreed, an amber "Split decision"
-     when they stayed divided. A walkover (one responder) earns no banner. -->
-{#snippet debateBanner(verdict: DebateVerdict | undefined, summary: string | undefined)}
-	{#if verdict === 'consensus'}
-		<div class="flex flex-col gap-1">
-			<div class="flex items-center gap-2">
-				<span class="magi-gradient-text magi-banner-headline">Consensus reached</span>
-				<span class="text-xs" aria-hidden="true">🔺🔻🔺</span>
-			</div>
-			<div
-				class="h-0.5 w-full rounded-full"
-				style="background: var(--magi-consensus-gradient)"
-			></div>
-		</div>
-	{:else if verdict === 'split'}
-		<div class="flex flex-col gap-1">
-			<div class="flex items-center gap-2">
-				<span class="magi-banner-headline magi-warn">Split decision</span>
-				<span class="text-xs" aria-hidden="true">⚖️</span>
-			</div>
-			<p class="magi-banner-detail">
-				{#if summary}No full consensus — {summary}.{:else}The MAGI did not fully agree — the
-					differing positions are laid out below.{/if}
-			</p>
-			<div class="h-0.5 w-full rounded-full bg-amber-500/60"></div>
-		</div>
-	{/if}
-{/snippet}
-
 <div
 	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
 		? 'min-h-0'
@@ -460,6 +453,26 @@
 						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
+				{/if}
+				<!-- Debate verdict at a glance — header-level so it's readable no matter
+				     the auto-scroll position, separate from the in-stream callout. -->
+				{#if headerVerdict === 'consensus'}
+					<span
+						class="flex items-center gap-1 magi-chip"
+						use:tooltip={'The MAGI converged — they reached consensus.'}
+					>
+						<span class="magi-gradient-text font-semibold tracking-wide">Consensus reached</span>
+						<span aria-hidden="true">🔺🔻🔺</span>
+					</span>
+				{:else if headerVerdict === 'split'}
+					<span
+						class="flex items-center gap-1 magi-chip font-semibold magi-warn"
+						use:tooltip={headerSummary
+							? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
+							: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
+					>
+						Split decision <span aria-hidden="true">⚖️</span>
+					</span>
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">
@@ -675,10 +688,6 @@
 							</p>
 						{/if}
 						{#if turn.consensus}
-							{#if turn.strategy === 'debate'}{@render debateBanner(
-									turn.debateVerdict,
-									turn.debateSummary
-								)}{/if}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={turn.consensus} />
 							</div>
@@ -728,7 +737,6 @@
 						{:else if loading && !text}
 							<p class="magi-loader-text">{consensusLoadingText}…</p>
 						{:else if text}
-							{#if debateComplete}{@render debateBanner(debateVerdict, debateSummary)}{/if}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>

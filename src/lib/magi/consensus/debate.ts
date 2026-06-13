@@ -506,18 +506,21 @@ export const debateStrategy: ConsensusStrategy = {
 			if (verdict === 'split') dissenterForStats = findDissenter(respNodes, status);
 
 			const roundWord = round === 1 ? 'round' : 'rounds';
+			// A blockquote callout — a clearly set-apart status line between the round
+			// ledger and the synthesized answer (which follows after the divider). The
+			// glanceable verdict also rides in the consensus panel header.
 			if (verdict === 'consensus') {
 				yield emit(
 					hitLimit
-						? `\n_Reached the ${MAX_ROUNDS}-round limit — the MAGI are in agreement._\n`
-						: `\n_Converged after ${round} ${roundWord} — the MAGI are in agreement._\n`
+						? `\n> 🔺🔻🔺 **Reached the ${MAX_ROUNDS}-round limit** — the MAGI are in agreement.\n`
+						: `\n> 🔺🔻🔺 **Converged after ${round} ${roundWord}** — the MAGI are in agreement.\n`
 				);
 			} else {
 				debateSummary = coalitionPhrase(respNodes, status, labels);
 				yield emit(
 					hitLimit
-						? `\n_Reached the ${MAX_ROUNDS}-round limit without full agreement — ${debateSummary}._\n`
-						: `\n_Stalemate after ${round} ${roundWord} — ${debateSummary}._\n`
+						? `\n> ⚖️ **Reached the ${MAX_ROUNDS}-round limit without full agreement** — ${debateSummary}.\n`
+						: `\n> ⚖️ **Stalemate after ${round} ${roundWord}** — ${debateSummary}.\n`
 				);
 			}
 		}
