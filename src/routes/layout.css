@@ -473,25 +473,33 @@
    not a monochrome ramp — with the background decoupled to a single orange. */
 /* Node slots map MELCHIOR→red, BALTHASAR→green, CASPAR→blue var; here they
    carry the EVA-unit hues in node order: node 1 blue, node 2 purple, node 3 red.
-   The background stays deliberately low-colour — a cool near-white aurora and
-   spotlight — so the three node colours carry the palette without competing. */
+   The orbs/columns aurora inherits the node triad (so it matches the scheme), but
+   the hex cursor spotlight stays a low-key neutral so it doesn't shout. */
 .palette-eva {
 	--magi-node-red: #3b82f6; /* node 1 — blue */
 	--magi-node-green: #a855f7; /* node 2 — purple (Unit-01) */
 	--magi-node-blue: #ef4444; /* node 3 — red (Unit-02) */
-	--magi-bg-1: #cbd5e1;
-	--magi-bg-2: #cbd5e1;
-	--magi-bg-3: #cbd5e1;
 	--magi-hex-hot: #cbd5e1;
 }
 .light.palette-eva {
 	--magi-node-red: #2563eb; /* blue */
 	--magi-node-green: #7c3aed; /* purple */
 	--magi-node-blue: #dc2626; /* red */
-	--magi-bg-1: #94a3b8;
-	--magi-bg-2: #94a3b8;
-	--magi-bg-3: #94a3b8;
 	--magi-hex-hot: #64748b;
+}
+
+/* Green — one light green/teal across the triad. */
+.palette-green {
+	--magi-node-red: #2dd4bf;
+	--magi-node-green: #2dd4bf;
+	--magi-node-blue: #2dd4bf;
+	--magi-hex-hot: #5eead4;
+}
+.light.palette-green {
+	--magi-node-red: #0d9488;
+	--magi-node-green: #0d9488;
+	--magi-node-blue: #0d9488;
+	--magi-hex-hot: #0f766e;
 }
 
 /* Keyboard focus ring. Scoped to `:focus-visible` so it appears for keyboard and
