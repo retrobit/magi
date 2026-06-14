@@ -167,6 +167,33 @@ describe('synthesisStrategy.execute', () => {
 		expect(lastArgs().system).toContain('dispositional lens');
 	});
 
+	it('spells out the actual built-in lenses (truthful, not inferred) when awareness is on', async () => {
+		await collect(synthesisStrategy.execute(baseContext({ synthesizerAwareness: true })));
+		const system = lastArgs().system as string;
+		expect(system).toContain('Rationalist');
+		expect(system).toContain('Caretaker');
+		expect(system).toContain('Individualist');
+	});
+
+	it('uses a custom temperament label + persona in the lens roster and response tags', async () => {
+		await collect(
+			synthesisStrategy.execute(
+				baseContext({
+					synthesizerAwareness: true,
+					customTemperaments: { MELCHIOR: { label: 'Skeptic', prompt: 'You doubt every claim.' } }
+				})
+			)
+		);
+		const system = lastArgs().system as string;
+		// The actual custom lens is named, not the built-in Rationalist.
+		expect(system).toContain('Skeptic');
+		expect(system).toContain('You doubt every claim.');
+		// The per-response tag in the user message is also tagged with the custom label.
+		const messages = lastArgs().messages as ModelMessage[];
+		const lastUser = messages[messages.length - 1].content as string;
+		expect(lastUser).toContain('Skeptic');
+	});
+
 	it('starts the system prompt with the consensus role text when no consensus temperament is set', async () => {
 		await collect(synthesisStrategy.execute(baseContext()));
 		expect((lastArgs().system as string).startsWith('You are the MAGI consensus system')).toBe(

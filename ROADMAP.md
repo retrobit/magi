@@ -20,7 +20,7 @@ Planned features, improvements, and known items for the MAGI project.
 ## Temperaments
 
 - **Per-node temperament customization** ✅ **shipped 2026-06-14** — A ✏️ pencil button next to the TEMPERAMENT toggle opens an editor where each seat's name and persona text are editable in place. Blank fields fall back to the built-in default; each seat has a "Reset to \<default\>" action. Custom names appear in the node panel's temperament badge; the hover tooltip shows the full custom persona. Customizations are stored sparsely in `localStorage` and validated server-side. Built-in defaults remain Rationalist / Caretaker / Individualist.
-- **Neutral synthesis lens (awareness)** ✅ **shipped 2026-06-14** — When Temperament Awareness is on, the synthesis prompt no longer hard-codes the three built-in persona names. It describes the idea generically and asks the synthesizer to infer each node's lens from the actual response text, avoiding bias and staying correct when personas are customized.
+- **Truthful, dynamic synthesis lens (awareness)** ✅ **shipped 2026-06-14** — When Temperament Awareness is on, the synthesis prompt names the actual lens each node used this turn — its real label and persona, resolved from the live config (`resolveNodeTemperament`, custom-aware) and threaded through `ConsensusContext.customTemperaments`. No hard-coded persona names and no guessing: it reflects the truth and stays correct when personas are customized.
 
 ## Clients
 

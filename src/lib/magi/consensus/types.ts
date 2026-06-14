@@ -7,6 +7,7 @@ import type {
 	DebateVerdict
 } from '../types';
 import type { NodeAssignment } from '../config';
+import type { CustomTemperaments } from '../temperaments';
 
 /** Per-juror breakdown of which anonymized candidate got which score. */
 export interface VotingJurorBreakdown {
@@ -136,6 +137,10 @@ export interface ConsensusContext {
 	/** Whether the MAGI answered in-character (the main Temperaments toggle). Debate
 	 *  uses this to decide if the debaters argue through their dispositional lens. */
 	nodeTemperaments?: boolean;
+	/** Per-node temperament overrides (edited personas). When awareness is on,
+	 *  synthesis resolves these so the synthesizer is told the ACTUAL lens each node
+	 *  used (custom label + persona), not the hard-coded built-in name. */
+	customTemperaments?: CustomTemperaments;
 	/** Opinionated mode: push each model to commit to a single answer on open-ended
 	 *  questions rather than hedge. Shapes the phase-1 answers and the synthesizer. */
 	opinionated?: boolean;

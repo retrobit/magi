@@ -6,14 +6,8 @@ import {
 	type ConsensusEvent,
 	SECTION_RULE
 } from './types';
-import {
-	NODE_TEMPERAMENTS,
-	NODE_LABELS,
-	NODE_LABELS_GENERIC,
-	TEMPERAMENT_LABELS,
-	type MagiNodeName
-} from '../types';
-import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
+import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '../types';
+import { resolveNodeTemperament } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { OPINIONATED_DIRECTIVE } from './deliberation';
 
@@ -31,6 +25,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 			consensusNodeIndex,
 			consensusTemperament,
 			synthesizerAwareness,
+			customTemperaments,
 			opinionated,
 			genericLabels,
 			signal,
@@ -42,8 +37,10 @@ export const synthesisStrategy: ConsensusStrategy = {
 		const formattedResponses = responses
 			.map((r) => {
 				const nodeName = nodeLabels[r.node];
+				// Truthful tag: the ACTUAL temperament this node used (custom or built-in),
+				// not a hard-coded guess — so the synthesizer attributes by real lens.
 				const label = synthesizerAwareness
-					? `${nodeName} (${r.provider}) — ${TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[r.node]]}`
+					? `${nodeName} (${r.provider}) — ${resolveNodeTemperament(r.node, customTemperaments).label}`
 					: `${nodeName} (${r.provider})`;
 				return `=== ${label} ===\n${r.text}`;
 			})
@@ -75,11 +72,21 @@ export const synthesisStrategy: ConsensusStrategy = {
 
 		const consensusNode = nodeAssignments[consensusNodeIndex].node as MagiNodeName;
 		const consensusLens = consensusTemperament
-			? `${TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[consensusNode]]}${SECTION_RULE}`
+			? `${resolveNodeTemperament(consensusNode, customTemperaments).prompt}${SECTION_RULE}`
 			: '';
 
+		// Truthful, dynamic awareness lens: spell out the ACTUAL persona each
+		// responding node was given (custom or built-in), keyed to the same label
+		// used in the response tags, so the synthesizer attributes divergence to the
+		// real lens rather than guessing one.
+		const lensRoster = responses
+			.map((r) => {
+				const t = resolveNodeTemperament(r.node, customTemperaments);
+				return `- ${nodeLabels[r.node]} — ${t.label}: ${t.description}`;
+			})
+			.join('\n');
 		const awarenessContext = synthesizerAwareness
-			? `\n\nEach model answered through its own distinct dispositional lens, so they may weigh the same facts differently — some leaning on evidence and logic, others on human impact, others on conviction or originality. When their perspectives diverge, surface WHY they diverge: name the underlying priority or value driving each position, rather than just noting that they disagree. Do not assume any fixed set of personas or label the models — infer each lens from what the response actually argues.`
+			? `\n\nEach model answered through a distinct dispositional lens it was given as a system instruction. These are the actual lenses in play this turn:\n${lensRoster}\n\nWhen their perspectives diverge, surface WHY: attribute each position to the specific lens above that produced it. Use these exact lenses — do not invent, merge, or relabel them.`
 			: '';
 
 		const synthesisPrompt = `Original query: ${query}

@@ -642,6 +642,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					consensusTemperament: useConsensusTemperament ?? false,
 					synthesizerAwareness: useAwareness ?? false,
 					nodeTemperaments: useTemperaments ?? false,
+					customTemperaments,
 					opinionated: useOpinionated ?? false,
 					collaborative: useCollaborative ?? false,
 					genericLabels: useGenericLabels ?? true,
