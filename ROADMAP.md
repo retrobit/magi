@@ -4,7 +4,7 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## UI / UX
 
-- **UI/UX overhaul** ✅ **shipped 2026-06-09 → 06-10** — var-driven theme architecture, cursor-reactive hex-mesh background (default), node-identity tinting, config-collapse chips, error-lifecycle rework, and the animated ASCII intro / splash (`Splash.svelte` — three concepts: decode, boot, convergence; plays once on first visit, header mark replays it, any key/click skips, reduced-motion safe).
+- **UI/UX overhaul** ✅ **shipped 2026-06-09 → 06-10** — var-driven theme architecture, cursor-reactive hex-mesh background, node-identity tinting, config-collapse chips, error-lifecycle rework, and the animated ASCII intro / splash (`Splash.svelte` — three concepts: decode, boot, convergence; plays on every page load; only the `decode` concept is reachable in the UI — boot/convergence remain in code for the `?splash=` dev preview; header mark replays it, any key/click skips, reduced-motion safe).
 
 ## Infrastructure
 

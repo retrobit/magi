@@ -264,15 +264,27 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 	it('round-trips a settings slice including palette, layoutFocus, and reduceMotion', () => {
 		const settings: PersistedSettings = {
 			...validSettings,
-			palette: 'eva',
+			palette: 'nebula',
 			layoutFocus: 'nodes',
 			reduceMotion: true
 		};
 		savePrefs({ ...validPrefs, settings });
 		const loaded = loadPrefs();
-		expect(loaded?.settings?.palette).toBe('eva');
+		expect(loaded?.settings?.palette).toBe('nebula');
 		expect(loaded?.settings?.layoutFocus).toBe('nodes');
 		expect(loaded?.settings?.reduceMotion).toBe(true);
+	});
+
+	it('migrates a legacy palette: "eva" stored in settings loads as "nebula"', () => {
+		localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({
+				...validPrefs,
+				settings: { ...validSettings, palette: 'eva' }
+			})
+		);
+		const result = loadPrefs();
+		expect(result?.settings?.palette).toBe('nebula');
 	});
 
 	it('round-trips the motionMode field', () => {

@@ -417,7 +417,7 @@
 		will-change: transform;
 		--hex-line: #9ca3af; /* gray-400 on the gray-950 page */
 		/* Spotlight colour comes from the global palette var (blue by default,
-		   recoloured by the Orange/Red/Eva palettes). */
+		   recoloured by the Red/Nebula/Green/Blue palettes). */
 		--hex-line-hot: var(--magi-hex-hot);
 		--hex-base-opacity: 0.11;
 		--hex-glow-opacity: 0.2;

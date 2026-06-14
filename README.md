@@ -49,17 +49,20 @@ graph TD
 - **Token tracking** — Per-node input/output token counts, a cumulative conversation total, prompt-cache hits surfaced on hover, and a per-model context-window gauge that warns as a model nears its limit.
 - **Pre-flight health checks** — Models are checked before dispatching. Unhealthy models show a clear error in their panel without burning tokens on any API call.
 - **Per-tier model memory** — Custom node/model selections are saved per tier and restored on reload.
-- **All UI settings persist** — Strategy, temperament toggles, generic labels, theme, background, and auto-scroll mode all survive a reload via `localStorage`.
+- **All UI settings persist** — Strategy, temperament toggles, generic labels, theme, background, color palette, motion mode, debate rounds, Opinionated/Collaborative toggles, and auto-scroll mode all survive a reload via `localStorage`.
 - **Provider budget readout** — The settings panel shows each paid provider's spend so far today. OpenRouter reads its key's usage/limit out of the box; Anthropic and OpenAI report today's cost from their organization Cost APIs when an admin key is configured (with optional `*_MONTHLY_BUDGET` env vars as a bar denominator); Google falls back to a clear "unavailable" message since AI Studio exposes no public per-key usage.
 - **Syntax highlighting** — Fenced code blocks in model and consensus responses are highlighted, with a token palette that adapts to dark and light mode.
 - **Auto-scroll modes** — Off, Follow (pin to the newest streamed text while scrolled to the bottom), or Snap to top (jump each panel to the start of its latest response once that response finishes). Set in the ⚙️ settings menu.
-- **Background variants** — Cursor-reactive hex mesh (default), animated orbs, RGB columns, or off — chosen in the ⚙️ settings menu. All motion can be paused with the **Reduce motion** toggle (also honored from the OS `prefers-reduced-motion` setting).
+- **Background variants** — Off (default), cursor-reactive hex mesh, animated orbs, or RGB columns — chosen in the ⚙️ settings menu.
+- **Motion modes** — Three modes in ⚙️ Settings: **Normal (default)** — holds the ambient background and cursor-spotlight still but keeps every other UI animation; **Full** — animates everything including the background; **Reduced** — stills all motion (also honored from the OS `prefers-reduced-motion` setting).
 - **Dark / Light mode** — Toggle via the ⚙️ settings gear in the top-right header.
 - **Example & random prompts** — On a fresh conversation the consensus panel offers example-prompt chips and a 🎲 dice button that _fill_ the input without submitting; Execute stays disabled until the input is non-empty. If a conversation is already underway, picking one first confirms before starting over.
 - **Copy buttons** — One-click copy on each node response, the consensus, and the prompt input. Node copy is a split button with a scope menu (final response, query + final, or — for debate — final + rounds / everything).
 - **Layout focus** — A toggle (plus panel-header / status-bar clicks) cycles the view between a balanced split, node-heavy, and consensus-heavy; the choice persists, and the switch animates. Nodes pulse while they're actively thinking each round.
-- **Animated ASCII intro** — A full-screen splash plays once on first visit, cycling through three concepts: `decode` (default — the MAGI wordmark resolves letter by letter from noise), `boot` (node-by-node power-on sequence), and `convergence` (three labeled nodes beam into the central ▲▼▲ mark). Clicking the header MAGI mark replays it and cycles concepts. Any key or click skips; `prefers-reduced-motion` jumps straight to the final frame.
-- **Color palettes** — Four palettes selectable in ⚙️ Settings: **RGB** (default — red/green/blue node identity), **Orange**, **Red**, and **Eva** (blue node panels paired with an amber background).
+- **Opinionated mode** — A toggle in the top control strip that pushes each model to commit to a single definitive answer on open-ended questions instead of hedging or listing options. Applies to all strategies (shapes phase-1 answers and the synthesizer).
+- **Collaborative mode** — A toggle shown next to TEMPERAMENT when the Debate strategy is active. Pushes debaters to genuinely weigh each other's reasoning and lean toward convergence (without caving). Only meaningful for Multi-Round Debate.
+- **Animated ASCII intro** — A full-screen splash plays on every page load. Only the `decode` concept (the MAGI wordmark resolving letter by letter from noise) is reachable in the UI; `boot` (node-by-node power-on sequence) and `convergence` (three labeled nodes beaming into the central ▲▼▲ mark) remain implemented in code and are previewable via the `?splash=<concept>` query param. Clicking the header MAGI mark replays the splash. Any key or click skips; `prefers-reduced-motion` jumps straight to the final frame.
+- **Color palettes** — Five palettes selectable in ⚙️ Settings: **Nebula (default)** — vivid blue / purple / red node triad over a neutral background; **RGB** — red/green/blue node identity; **Red**, **Blue**, and **Green** — monochrome triads matching the RGB palette's respective shade.
 - **Per-node retry** — An errored node surfaces a "Retry this node" button that re-runs only that node and re-synthesizes consensus — without re-billing the nodes that already responded. Implemented via `forceRetry`, `retryNodes`, and `priorResponses` API fields.
 - **Per-turn peer-order randomization** — Voting jurors and debate peers see rivals anonymized as Candidate A/B. The seating is shuffled server-side each turn (seeded Fisher–Yates) so position bias washes out across runs; the stats panel measures the residual effect.
 - **Stats panel** — Filterable run history: strategy and date-range chips (24 h / 7 d / 30 d), JSON export, and a confirm-guarded clear action.
@@ -116,7 +119,7 @@ The consensus engine is pluggable. Available strategies:
 
 - **Synthesis** — A model reads all three responses, identifies where they agree and disagree, and combines the best elements into a single unified answer. The consensus model is configurable via the `consensusNode` request parameter (defaults to the first node, MELCHIOR).
 - **Structured Voting** — Each responding node acts as a juror that scores its peers' answers (anonymized as Candidate A/B) from 0 to 10. The highest aggregate score wins, and that response becomes the consensus, shown with a tally table followed by the winning response **verbatim**. Voting therefore makes _no_ additional consensus-model call — only the three juror calls — so the Consensus Node dropdown shows "None" and is disabled. Juror calls use plain `generateText` + lenient score parsing, so voting works on every tier, including free OpenRouter models that don't support structured output. Temperament toggles have no effect here — the vote is judged purely on each answer's substance.
-- **Multi-Round Debate** — Each node first stakes out an initial position, then reads anonymized peer responses and revises across one or more rounds before a final synthesis combines the converged positions. Each round is shown per node as a collapsible section, and a node's panel pulses while it's working that round.
+- **Multi-Round Debate** — Each node first stakes out an initial position, then reads anonymized peer responses and revises across one or more rounds before a final synthesis combines the converged positions. A **Rounds** picker (2–5, default 3) shown next to the Strategy selector sets the round ceiling; the debate still stops early on convergence. Each round is shown per node as a collapsible section, and a node's panel pulses while it's working that round.
 - **None** — Skips the consensus phase entirely. The three model responses stream side by side with no synthesis step — for when you just want to compare them yourself. No consensus tokens are spent.
 
 ## 📋 Prerequisites
@@ -170,7 +173,7 @@ bun run format       # Auto-format with Prettier
 
 For manual UI testing, see [TESTING.md](TESTING.md).
 
-In dev mode (`bun run dev`), a 🐞 button next to the settings gear opens a **dev-only debug panel** that injects synthetic error and context-limit UI states into the live turn — useful for exercising failure modes and near-full-context views without making a real model request. The button is gated by `import.meta.env.DEV` and never renders in production builds.
+In dev mode (`bun run dev`), a 🐞 button next to the settings gear opens a **dev-only debug panel** that injects synthetic error and context-limit UI states into the live turn — useful for exercising failure modes and near-full-context views without making a real model request. It also includes a **"View states catalog"** button that opens a dev-only catalog enumerating every status/result/progress indicator and banner, making it easy to eyeball transient states deterministically. The button is gated by `import.meta.env.DEV` and never renders in production builds.
 
 ## 🔌 API
 
@@ -296,6 +299,9 @@ Authorization: Bearer <MAGI_API_KEY>   # only if MAGI_API_KEY is set
 | `forceRetry`           | boolean | No       | Bypass and clear the unhealthy-model cache for every model in the request — forces a real re-call rather than bouncing off a stale health entry.     |
 | `retryNodes`           | array   | No       | Per-node retry: restrict phase-1 dispatch to these node names (max 3), clearing their health cache. Pass the still-good answers in `priorResponses`. |
 | `priorResponses`       | array   | No       | Per-node retry: the already-good answers for nodes NOT being retried — `[{ node, text }]`, max 3. Gateway/provider are resolved server-side.         |
+| `debateRounds`         | number  | No       | Multi-Round Debate round ceiling, 2–5. Out-of-range values are clamped. Absent ⇒ default 3.                                                          |
+| `opinionated`          | boolean | No       | Push each model to commit to a single definitive answer on open-ended questions instead of hedging. Applies to all strategies. Defaults to `false`.  |
+| `collaborative`        | boolean | No       | Push debaters to weigh each other's reasoning and lean toward convergence. Meaningful for Multi-Round Debate only. Defaults to `false`.              |
 
 **SSE events:**
 
@@ -448,7 +454,8 @@ src/
 - **AI SDK**: Vercel AI SDK
 - **Styling**: Tailwind CSS
 - **Validation**: Zod
-- **Display font**: Courier Prime (self-hosted via `@fontsource/courier-prime`) — used for the MAGI marks and the ASCII splash
+- **Display/title font**: Michroma — used for the MAGI marks and headings
+- **Body/reply font**: Atkinson Hyperlegible — used for model and consensus response text
 
 ## 🔐 Security
 

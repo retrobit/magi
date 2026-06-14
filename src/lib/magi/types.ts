@@ -158,16 +158,22 @@ export const BG_VARIANTS = ['columns', 'orbs', 'hex', 'off'] as const;
 export type BgVariant = (typeof BG_VARIANTS)[number];
 
 /** Color palette — a class on <html> that remaps the node identity triad (and,
- *  for `eva`, the background triad independently). `rgb` is the :root default. */
-export const PALETTES = ['eva', 'rgb', 'red', 'blue', 'green'] as const;
+ *  for `nebula`, the hex spotlight independently). `rgb` is the :root default. */
+export const PALETTES = ['nebula', 'rgb', 'red', 'blue', 'green'] as const;
 export type Palette = (typeof PALETTES)[number];
 export const PALETTE_LABELS: Record<Palette, string> = {
-	eva: 'Eva',
+	nebula: 'Nebula',
 	rgb: 'RGB',
 	red: 'Red',
 	blue: 'Blue',
 	green: 'Green'
 };
+
+/** Dev-only escape hatch for the MAGI node proper-names (MELCHIOR / BALTHASAR /
+ *  CASPAR). When false (shipped default) the app shows only the neutral generic
+ *  labels (MAGI · 1/2/3) and the name-reveal toggle is removed; the proper-name
+ *  data in NODE_LABELS stays in the code for when this is flipped on in dev. */
+export const REVEAL_NODE_NAMES = false;
 
 /** Motion preference. `normal` (the default) holds the ambient background +
  *  cursor-spotlight motion still but keeps every other UI animation; `full`

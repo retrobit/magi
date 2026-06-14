@@ -40,6 +40,7 @@
 		type ScrollMode,
 		type BgVariant,
 		PALETTES,
+		REVEAL_NODE_NAMES,
 		type Palette,
 		type MotionMode
 	} from '$lib/magi/types';
@@ -123,7 +124,7 @@
 	let opinionated = $state(false);
 	let collaborative = $state(false);
 	let bgVariant = $state<BgVariant>('off');
-	let palette = $state<Palette>('eva');
+	let palette = $state<Palette>('nebula');
 	let theme = $state<'dark' | 'light'>('dark');
 	let scrollMode = $state<ScrollMode>('snap');
 	// Footer copyright year — derived from the clock so it rolls over on its own.
@@ -458,7 +459,7 @@
 	});
 
 	// Names each near-limit seat with the label the UI is currently showing —
-	// Eva names or generic MAGI numbers — rather than the raw node key.
+	// code names or generic MAGI numbers — rather than the raw node key.
 	const contextWarningLabels = $derived(
 		contextWarnings.map((name) =>
 			name === 'consensus' ? 'Consensus' : (genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS)[name]
@@ -620,10 +621,10 @@
 		temperamentAwareness = s.temperamentAwareness;
 		opinionated = s.opinionated ?? false;
 		collaborative = s.collaborative ?? false;
-		genericLabels = s.genericLabels;
+		genericLabels = REVEAL_NODE_NAMES ? s.genericLabels : true;
 		theme = s.theme;
 		bgVariant = s.bgVariant;
-		palette = s.palette ?? 'eva';
+		palette = s.palette ?? 'nebula';
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
 		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
@@ -1600,7 +1601,7 @@
 					canRetry={!effectiveLoading}
 					onretry={() => retryNode(assignment.node)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
-					onlabelclick={() => (genericLabels = !genericLabels)}
+					onlabelclick={REVEAL_NODE_NAMES ? () => (genericLabels = !genericLabels) : undefined}
 				/>
 			{/each}
 		</div>

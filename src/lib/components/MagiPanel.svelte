@@ -464,15 +464,24 @@
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
 		<div class="flex items-center justify-between select-none">
 			<div class="flex items-center gap-2">
-				<button
-					type="button"
-					class="magi-display text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
-					onclick={() => onlabelclick?.()}
-					use:tooltip={'Switch between MAGI numbers and Eva names'}
-					><span class="tracking-widest">{labelName}</span>{#if labelUnit}<span
+				{#snippet labelContent()}
+					<span class="tracking-widest">{labelName}</span>{#if labelUnit}<span
 							class="opacity-80 before:mr-1.5 before:ml-1 before:content-['•']">{labelUnit}</span
-						>{/if}</button
-				>
+						>{/if}
+				{/snippet}
+				{#if onlabelclick}
+					<button
+						type="button"
+						class="magi-display text-base font-bold text-(--node-color) transition-opacity hover:opacity-75"
+						onclick={() => onlabelclick?.()}
+						use:tooltip={'Switch between MAGI numbers and code names'}
+						>{@render labelContent()}</button
+					>
+				{:else}
+					<span class="magi-display text-base font-bold text-(--node-color)"
+						>{@render labelContent()}</span
+					>
+				{/if}
 				{#if temperament}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"

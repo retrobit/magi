@@ -49,7 +49,7 @@ export interface PersistedSettings {
 	theme: 'dark' | 'light';
 	bgVariant: BgVariant;
 	/** Color palette. Optional for back-compat — older payloads fall back to the
-	 *  in-code default (`eva`). */
+	 *  in-code default (`nebula`). */
 	palette?: Palette;
 	scrollMode: ScrollMode;
 	/** Focus accordion state. Optional for back-compat with payloads saved
@@ -164,7 +164,19 @@ export function loadPrefs(): MagiPrefs | null {
 		// `settings` is optional — payloads saved before it existed simply omit
 		// it, and a malformed slice is dropped without losing tier or snapshots.
 		const prefs: MagiPrefs = { tier: parsed.tier as TierName, snapshots };
-		const settings = persistedSettingsSchema.safeParse(parsed.settings);
+
+		// One-time rename migration: `palette: 'eva'` was renamed to 'nebula'.
+		// Rewrite before validation so the enum check doesn't drop the whole slice.
+		let rawSettings = parsed.settings;
+		if (
+			rawSettings &&
+			typeof rawSettings === 'object' &&
+			(rawSettings as Record<string, unknown>).palette === 'eva'
+		) {
+			rawSettings = { ...(rawSettings as Record<string, unknown>), palette: 'nebula' };
+		}
+
+		const settings = persistedSettingsSchema.safeParse(rawSettings);
 		if (settings.success) prefs.settings = settings.data;
 		return prefs;
 	} catch {

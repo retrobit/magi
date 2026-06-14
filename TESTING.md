@@ -59,11 +59,10 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 ## 3. Node Labels
 
-- [ ] Panels default to Eva names: "MELCHIOR", "BALTHASAR", "CASPAR"
-- [ ] Click any node label — all three panels swap to "MAGI" generic labels
-- [ ] Consensus "Synthesized by" dropdown also updates to match
-- [ ] Click again — labels revert to Eva names
-- [ ] Label toggle is independent of tier switching (global preference)
+- [ ] All panels show generic labels: "MAGI · 1", "MAGI · 2", "MAGI · 3"
+- [ ] Node titles are non-interactive spans (no hover opacity, no click handler)
+- [ ] Proper names (MELCHIOR / BALTHASAR / CASPAR) are hidden; to reveal them in
+      dev, set `REVEAL_NODE_NAMES = true` in `src/lib/magi/types.ts`
 
 ## 4. Node Configuration
 

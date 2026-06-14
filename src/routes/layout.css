@@ -179,7 +179,7 @@
 	--magi-font-body: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
 	/* Background-triad colors — what the aurora tints with. Default to the node
 	   identity triad so the RGB/Orange/Red palettes keep panels and background in
-	   sync; the Eva palette overrides these to decouple them (blue panels, orange
+	   sync; the Nebula palette overrides these to decouple them (blue panels, orange
 	   background). --magi-hex-hot is the cursor-spotlight colour for the hex variant. */
 	--magi-bg-1: var(--magi-node-red);
 	--magi-bg-2: var(--magi-node-green);
@@ -432,7 +432,7 @@
 
 /* ── Color palettes ──────────────────────────────────────────────────────────
    A palette is a class on <html> that remaps the node identity triad (and, for
-   Eva, the background triad + hex spotlight independently). `rgb` is the :root
+   Nebula, the background triad + hex spotlight independently). `rgb` is the :root
    default and needs no class. Each palette ships a dark block plus a `.light`
    companion (higher specificity, so it wins over the base `.light` overrides) to
    stay legible on the white surface. The hex lattice base stays neutral gray for
@@ -452,21 +452,16 @@
 	--magi-hex-hot: #b91c1c;
 }
 
-/* Eva — the three Eva units' colours for the nodes (Unit-02 red, Unit-01
-   purple, Unit-00 blue) over a flat orange (LCL/NERV amber) aurora. The one
-   non-RGB palette that keeps a distinct colour per node — themed on the mechs,
-   not a monochrome ramp — with the background decoupled to a single orange. */
-/* Node slots map MELCHIOR→red, BALTHASAR→green, CASPAR→blue var; here they
-   carry the Eva-unit hues in node order: node 1 blue, node 2 purple, node 3 red.
-   The orbs/columns aurora inherits the node triad (so it matches the scheme), but
-   the hex cursor spotlight stays a low-key neutral so it doesn't shout. */
-.palette-eva {
+/* Nebula — a vivid blue → purple → red node triad over a neutral background.
+   The one non-RGB palette that keeps a distinct colour per node (not a monochrome
+   ramp). The hex cursor spotlight stays low-key neutral so it doesn't shout. */
+.palette-nebula {
 	--magi-node-red: #3b82f6; /* node 1 — blue */
-	--magi-node-green: #a855f7; /* node 2 — purple (Unit-01) */
-	--magi-node-blue: #ef4444; /* node 3 — red (Unit-02) */
+	--magi-node-green: #a855f7; /* node 2 — purple */
+	--magi-node-blue: #ef4444; /* node 3 — red */
 	--magi-hex-hot: #cbd5e1;
 }
-.light.palette-eva {
+.light.palette-nebula {
 	--magi-node-red: #2563eb; /* blue */
 	--magi-node-green: #7c3aed; /* purple */
 	--magi-node-blue: #dc2626; /* red */
