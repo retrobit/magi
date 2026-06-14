@@ -157,7 +157,7 @@ const PREFS = {
 		collaborative: true,
 		genericLabels: true,
 		theme: 'dark',
-		bgVariant: 'hex',
+		bgVariant: 'off',
 		palette: 'nebula',
 		scrollMode: 'follow',
 		motionMode: 'full'
