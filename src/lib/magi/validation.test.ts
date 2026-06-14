@@ -118,6 +118,37 @@ describe('magiRequestSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('accepts a sparse customTemperaments map', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			temperaments: true,
+			customTemperaments: { MELCHIOR: { label: 'Skeptic', prompt: 'You doubt everything.' } }
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('rejects a customTemperaments prompt over the cap', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			customTemperaments: { CASPAR: { label: 'X', prompt: 'y'.repeat(5000) } }
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('rejects a customTemperaments key that is not a node name', () => {
+		const result = magiRequestSchema.safeParse({
+			query: 'hello',
+			tier: 'balanced',
+			strategy: 'synthesis',
+			customTemperaments: { NOTANODE: { label: 'X', prompt: 'y' } }
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it('accepts request without temperaments (defaults to undefined)', () => {
 		const result = magiRequestSchema.safeParse({
 			query: 'hello',

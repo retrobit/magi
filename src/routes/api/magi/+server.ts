@@ -13,14 +13,13 @@ import {
 	type NodeAssignment
 } from '$lib/magi/config';
 import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
-import { NODE_TEMPERAMENTS } from '$lib/magi/types';
 import { magiRequestSchema, type HistoryTurn } from '$lib/magi/validation';
 import {
 	encodeStreamEvent,
 	type StreamEventName,
 	type StreamEventPayloads
 } from '$lib/magi/stream-events';
-import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
+import { resolveNodeTemperament } from '$lib/magi/temperaments';
 import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
 import { findModelEntry } from '$lib/magi/registry';
 import { isRateLimited, retryAfterSeconds } from '$lib/server/rate-limit';
@@ -221,6 +220,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		temperaments: useTemperaments,
 		consensusTemperament: useConsensusTemperament,
 		temperamentAwareness: useAwareness,
+		customTemperaments,
 		opinionated: useOpinionated,
 		collaborative: useCollaborative,
 		genericLabels: useGenericLabels,
@@ -441,7 +441,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						try {
 							const model = getModel(gateway, modelId);
 							const temperamentPrompt = useTemperaments
-								? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[node]]
+								? resolveNodeTemperament(node, customTemperaments).prompt
 								: undefined;
 							// OpenRouter models may not support the system role —
 							// prepend temperament to the first user message instead

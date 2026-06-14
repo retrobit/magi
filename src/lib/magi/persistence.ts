@@ -21,6 +21,11 @@ import {
 	MAX_DEBATE_ROUNDS,
 	type StrategyName
 } from './consensus/types';
+import {
+	MAX_TEMPERAMENT_LABEL,
+	MAX_TEMPERAMENT_PROMPT,
+	type CustomTemperaments
+} from './temperaments';
 
 const STORAGE_KEY = 'magi:prefs:v1';
 const CONVERSATION_KEY = 'magi:conversation:v1';
@@ -41,6 +46,9 @@ export interface PersistedSettings {
 	temperaments: boolean;
 	consensusTemperament: boolean;
 	temperamentAwareness: boolean;
+	/** Per-node temperament overrides (edited personas). Optional/sparse — absent
+	 *  nodes keep their built-in temperament. */
+	customTemperaments?: CustomTemperaments;
 	/** Opinionated / Collaborative deliberation toggles. Optional for back-compat —
 	 *  older payloads fall back to the in-code defaults (both off). */
 	opinionated?: boolean;
@@ -55,6 +63,10 @@ export interface PersistedSettings {
 	/** Focus accordion state. Optional for back-compat with payloads saved
 	 *  before this field existed — those simply fall back to the in-code default. */
 	layoutFocus?: 'balanced' | 'nodes' | 'consensus';
+	/** Auto-layout: let the focus accordion follow the run lifecycle (nodes while
+	 *  they think → balanced while consensus streams → consensus when done).
+	 *  Optional for back-compat; older payloads fall back to the in-code default (on). */
+	autoLayout?: boolean;
 	/** Motion preference (`normal` | `full` | `reduced`). Optional for back-compat;
 	 *  payloads without it fall back to the in-code default (`normal`). */
 	motionMode?: MotionMode;
@@ -98,6 +110,15 @@ const persistedSettingsSchema = z.object({
 	temperaments: z.boolean(),
 	consensusTemperament: z.boolean(),
 	temperamentAwareness: z.boolean(),
+	customTemperaments: z
+		.partialRecord(
+			z.enum(MAGI_NODE_NAMES),
+			z.object({
+				label: z.string().max(MAX_TEMPERAMENT_LABEL),
+				prompt: z.string().max(MAX_TEMPERAMENT_PROMPT)
+			})
+		)
+		.optional(),
 	opinionated: z.boolean().optional(),
 	collaborative: z.boolean().optional(),
 	genericLabels: z.boolean(),
@@ -106,6 +127,7 @@ const persistedSettingsSchema = z.object({
 	palette: z.enum(PALETTES).optional(),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
 	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional(),
+	autoLayout: z.boolean().optional(),
 	motionMode: z.enum(MOTION_MODES).optional(),
 	reduceMotion: z.boolean().optional()
 });

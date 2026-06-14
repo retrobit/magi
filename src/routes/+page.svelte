@@ -45,6 +45,8 @@
 		type MotionMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
+	import { resolveNodeTemperament, type CustomTemperaments } from '$lib/magi/temperaments';
+	import TemperamentEditor from '$lib/components/TemperamentEditor.svelte';
 	import { DEFAULT_STRATEGY, DEFAULT_DEBATE_ROUNDS, type StrategyName } from '$lib/magi/consensus';
 	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
@@ -70,7 +72,8 @@
 		Copy,
 		Check,
 		Dices,
-		MessageSquarePlus
+		MessageSquarePlus,
+		Pencil
 	} from 'lucide-svelte';
 
 	interface MagiModelError {
@@ -118,6 +121,17 @@
 	let copiedQuery = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
+	// Per-node temperament overrides (the "edit personas" feature). Sparse — a seat
+	// absent here keeps its built-in temperament. Only used when `temperaments` is on.
+	let customTemperaments = $state<CustomTemperaments>({});
+	let showTemperamentEditor = $state(false);
+	// Effective temperament (label + persona + badge gloss) per seat, override applied.
+	const resolvedTemperaments = $derived.by(() => {
+		const out = {} as Record<MagiNodeName, ReturnType<typeof resolveNodeTemperament>>;
+		for (const node of MAGI_NODE_NAMES)
+			out[node] = resolveNodeTemperament(node, customTemperaments);
+		return out;
+	});
 	// Deliberation modifiers. Opinionated → models commit to one answer on open-ended
 	// questions (all strategies). Collaborative → debaters lean toward convergence
 	// (Multi-Round Debate only). Independent of each other and of Temperaments.
@@ -126,7 +140,7 @@
 	let bgVariant = $state<BgVariant>('off');
 	let palette = $state<Palette>('nebula');
 	let theme = $state<'dark' | 'light'>('dark');
-	let scrollMode = $state<ScrollMode>('snap');
+	let scrollMode = $state<ScrollMode>('follow');
 	// Footer copyright year — derived from the clock so it rolls over on its own.
 	const currentYear = new Date().getFullYear();
 	// Motion preference. `normal` (default) stills the ambient background + cursor
@@ -139,6 +153,11 @@
 	// balanced split (the default — both zones share the view so neither buries
 	// the other before the user has decided where to focus).
 	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
+	// Auto-layout: when on (the default), the focus accordion follows the run
+	// lifecycle — nodes while they think, balanced while the consensus streams,
+	// consensus once it lands. Picking any manual segment turns it off; the Auto
+	// segment turns it back on and immediately reasserts the current phase.
+	let autoLayout = $state(true);
 	const nodesCollapsed = $derived(layoutFocus === 'consensus');
 	const consensusCollapsed = $derived(layoutFocus === 'nodes');
 	// The two resizable layout zones, tweened on a focus change.
@@ -193,6 +212,55 @@
 			});
 		});
 	}
+
+	// Coarse run lifecycle, used to drive auto-layout. `thinking` = nodes are
+	// generating phase-1 answers and the consensus hasn't emitted yet; `synthesizing`
+	// = the consensus is streaming (debate ledger or final synthesis); `done` = the
+	// latest committed turn has a consensus; `idle` = nothing has run yet.
+	type RunPhase = 'idle' | 'thinking' | 'synthesizing' | 'done';
+	const runPhase = $derived.by<RunPhase>(() => {
+		if (effectiveLoading) return live.consensusStream ? 'synthesizing' : 'thinking';
+		if (conversation.length > 0 && conversation.at(-1)?.consensus) return 'done';
+		return 'idle';
+	});
+
+	const PHASE_FOCUS: Record<RunPhase, 'balanced' | 'nodes' | 'consensus' | null> = {
+		idle: null,
+		thinking: 'nodes',
+		synthesizing: 'balanced',
+		done: 'consensus'
+	};
+
+	// Auto-layout: when on, move the focus accordion as the run progresses. Only
+	// fires on a *phase change* (so a manual nudge between phases sticks until the
+	// next transition), and stays disarmed until the first real `thinking` phase so
+	// a restored conversation doesn't yank the layout on load. Plain `let` (not
+	// $state) — these are effect-local bookkeeping, never rendered.
+	let lastRunPhase: RunPhase | null = null;
+	let autoLayoutArmed = false;
+	$effect(() => {
+		const phase = runPhase;
+		const prev = lastRunPhase;
+		lastRunPhase = phase;
+		if (phase === 'thinking') autoLayoutArmed = true;
+		if (!autoLayout || !autoLayoutArmed || phase === prev) return;
+		const focus = PHASE_FOCUS[phase];
+		if (focus) setLayoutFocus(focus);
+	});
+
+	// LayoutToggle dispatch: the Auto segment re-arms auto-follow and snaps to the
+	// current phase's focus; any manual segment turns auto off and pins that focus.
+	function handleLayoutChoice(choice: 'auto' | 'balanced' | 'nodes' | 'consensus') {
+		if (choice === 'auto') {
+			autoLayout = true;
+			autoLayoutArmed = true;
+			setLayoutFocus(PHASE_FOCUS[runPhase] ?? layoutFocus);
+		} else {
+			autoLayout = false;
+			setLayoutFocus(choice);
+		}
+	}
+
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
 	// localStorage without us having to thread the record list through props.
@@ -619,6 +687,7 @@
 		temperaments = s.temperaments;
 		consensusTemperament = s.consensusTemperament;
 		temperamentAwareness = s.temperamentAwareness;
+		customTemperaments = s.customTemperaments ?? {};
 		opinionated = s.opinionated ?? false;
 		collaborative = s.collaborative ?? false;
 		genericLabels = REVEAL_NODE_NAMES ? s.genericLabels : true;
@@ -627,6 +696,7 @@
 		palette = s.palette ?? 'nebula';
 		scrollMode = s.scrollMode;
 		if (s.layoutFocus) layoutFocus = s.layoutFocus;
+		autoLayout = s.autoLayout ?? true;
 		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
 		// reduced, false → full (an explicit Full choice); a fresh payload with
 		// neither field defaults to the new `normal` mode.
@@ -736,6 +806,7 @@
 			temperaments,
 			consensusTemperament,
 			temperamentAwareness,
+			customTemperaments,
 			opinionated,
 			collaborative,
 			genericLabels,
@@ -744,6 +815,7 @@
 			palette,
 			scrollMode,
 			layoutFocus,
+			autoLayout,
 			motionMode
 		};
 		if (!prefsHydrated) return;
@@ -1037,6 +1109,10 @@
 		activeTurnQuery = '';
 		debugScenario = freshDebugScenario();
 		resetLiveState();
+		// Back to a clean slate: when auto-layout is on, return the focus accordion
+		// to the balanced/shared view so the next turn starts from neutral ground
+		// (rather than lingering on the previous turn's expanded-consensus layout).
+		if (autoLayout) setLayoutFocus('balanced');
 	}
 
 	// Build the POST body for a MAGI request. Extracted so the retry paths can
@@ -1060,6 +1136,8 @@
 			opinionated,
 			collaborative,
 			genericLabels,
+			// Only send overrides when some exist (and only matter when temperaments on).
+			...(Object.keys(customTemperaments).length ? { customTemperaments } : {}),
 			history: buildHistory(),
 			...(opts.forceRetry ? { forceRetry: true } : {}),
 			...(opts.retryNodes ? { retryNodes: opts.retryNodes } : {}),
@@ -1327,11 +1405,21 @@
 							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
 						use:tooltip={temperaments
-							? 'Temperaments active — each MAGI node answers through its own dispositional lens (Rationalist, Caretaker, Individualist). Click to turn off.'
-							: `Enable temperaments — give each MAGI node a distinct personality: ${activeNodeLabels.MELCHIOR} Rationalist, ${activeNodeLabels.BALTHASAR} Caretaker, ${activeNodeLabels.CASPAR} Individualist. Click to turn on.`}
+							? `Temperaments active — each MAGI answers through its own persona (${resolvedTemperaments.MELCHIOR.label}, ${resolvedTemperaments.BALTHASAR.label}, ${resolvedTemperaments.CASPAR.label}). Click to turn off.`
+							: `Enable temperaments — give each MAGI a distinct persona: ${activeNodeLabels.MELCHIOR} ${resolvedTemperaments.MELCHIOR.label}, ${activeNodeLabels.BALTHASAR} ${resolvedTemperaments.BALTHASAR.label}, ${activeNodeLabels.CASPAR} ${resolvedTemperaments.CASPAR.label}. Click to turn on.`}
 					>
 						<Brain size={12} />
-						{temperaments ? 'ON' : 'OFF'}
+						<span class="inline-block w-7 text-left">{temperaments ? 'ON' : 'OFF'}</span>
+					</button>
+					<button
+						type="button"
+						onclick={() => (showTemperamentEditor = true)}
+						disabled={loading}
+						class="magi-temperament-off flex items-center justify-center rounded-lg bg-gray-800 p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:opacity-50"
+						use:tooltip={'Edit temperaments — rename each MAGI and write its persona'}
+						aria-label="Edit temperaments"
+					>
+						<Pencil size={12} />
 					</button>
 				</div>
 				<div class="flex items-center gap-2">
@@ -1348,7 +1436,7 @@
 							: 'Enable Opinionated — push each MAGI to choose one definitive answer on open-ended questions, rather than presenting many equally-weighted options. Click to turn on.'}
 					>
 						<Target size={12} />
-						{opinionated ? 'ON' : 'OFF'}
+						<span class="inline-block w-7 text-left">{opinionated ? 'ON' : 'OFF'}</span>
 					</button>
 				</div>
 				<!-- Collaborative only does anything in Multi-Round Debate (the only
@@ -1368,7 +1456,7 @@
 								: 'Enable Collaborative — encourage the MAGI to consider each other’s positions and move toward agreement when warranted. Click to turn on.'}
 						>
 							<Handshake size={12} />
-							{collaborative ? 'ON' : 'OFF'}
+							<span class="inline-block w-7 text-left">{collaborative ? 'ON' : 'OFF'}</span>
 						</button>
 					</div>
 				{/if}
@@ -1491,7 +1579,7 @@
 				>
 					<MessageSquarePlus size={12} /> New conversation
 				</button>
-				<LayoutToggle focus={layoutFocus} onchange={setLayoutFocus} />
+				<LayoutToggle focus={layoutFocus} auto={autoLayout} onchange={handleLayoutChoice} />
 			</div>
 			<div class="-mx-4 border-t border-gray-800 sm:hidden" aria-hidden="true"></div>
 			<div
@@ -1594,6 +1682,10 @@
 					status={getNodeStatus(assignment.node)}
 					pulse={nodePulse(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
+					temperamentLabel={temperaments ? resolvedTemperaments[assignment.node].label : undefined}
+					temperamentDescription={temperaments
+						? resolvedTemperaments[assignment.node].description
+						: undefined}
 					{genericLabels}
 					{scrollMode}
 					disabled={loading}
@@ -1671,6 +1763,15 @@
 		>
 	</footer>
 </div>
+
+{#if showTemperamentEditor}
+	<TemperamentEditor
+		value={customTemperaments}
+		labels={activeNodeLabels}
+		onsave={(next) => (customTemperaments = next)}
+		onclose={() => (showTemperamentEditor = false)}
+	/>
+{/if}
 
 {#if pendingPrompt !== null}
 	<ConfirmModal

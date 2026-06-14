@@ -274,6 +274,31 @@
 		return () => observer.disconnect();
 	});
 
+	// Re-engage follow at the start of each new live turn. A manual scroll-up while
+	// reading a previous turn leaves `pinned` false; without this, follow would
+	// stay paused for the next turn and never track the new consensus.
+	let prevLiveQuery = '';
+	$effect(() => {
+		if (liveQuery && liveQuery !== prevLiveQuery) pinned = true;
+		prevLiveQuery = liveQuery;
+	});
+
+	// Complement the ResizeObserver: when the streamed consensus text changes, also
+	// follow on the next frames. The consensus body is re-rendered (not just grown)
+	// as Markdown re-parses the whole source each chunk, and a full re-render can
+	// settle without a net height delta the observer would catch — so nudge directly.
+	$effect(() => {
+		void text;
+		void fullText;
+		if (scrollMode !== 'follow' || !pinned || !scrollEl) return;
+		const el = scrollEl;
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => {
+				if (scrollMode === 'follow' && pinned) el.scrollTop = el.scrollHeight;
+			})
+		);
+	});
+
 	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
 	// the new turn block sits at the top of the panel — the blank line above the
 	// prompt lands at the very top, and the consensus then streams in below it.

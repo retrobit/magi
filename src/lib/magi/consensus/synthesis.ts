@@ -79,12 +79,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 			: '';
 
 		const awarenessContext = synthesizerAwareness
-			? `\n\nEach model responded through a distinct dispositional lens:
-- Rationalist: cold logic, empirical reasoning, data above all.
-- Caretaker: empathy-first, weighs human cost and safety.
-- Individualist: bold conviction, authenticity, the perspective no one else would give.
-
-When perspectives diverge, surface WHY they diverge — which dispositional lens drives the disagreement. For example: "The Rationalist and Individualist agree on X, but the Caretaker flags Y as a human cost."`
+			? `\n\nEach model answered through its own distinct dispositional lens, so they may weigh the same facts differently — some leaning on evidence and logic, others on human impact, others on conviction or originality. When their perspectives diverge, surface WHY they diverge: name the underlying priority or value driving each position, rather than just noting that they disagree. Do not assume any fixed set of personas or label the models — infer each lens from what the response actually argues.`
 			: '';
 
 		const synthesisPrompt = `Original query: ${query}

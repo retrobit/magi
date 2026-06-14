@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { TIER_NAMES, MAGI_NODE_NAMES, GATEWAY_NAMES } from './types';
 import { STRATEGY_NAMES, MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS } from './consensus/types';
+import { MAX_TEMPERAMENT_LABEL, MAX_TEMPERAMENT_PROMPT } from './temperaments';
+
+// A single per-node temperament override. Both fields are capped so a crafted
+// payload can't bloat the injected prompt; either may be blank (the server fills
+// in the built-in for an empty field).
+const temperamentOverrideSchema = z.object({
+	label: z.string().max(MAX_TEMPERAMENT_LABEL),
+	prompt: z.string().max(MAX_TEMPERAMENT_PROMPT)
+});
 
 export const nodeAssignmentSchema = z.object({
 	node: z.enum(MAGI_NODE_NAMES),
@@ -37,6 +46,12 @@ export const magiRequestSchema = z.object({
 	temperaments: z.boolean().optional(),
 	consensusTemperament: z.boolean().optional(),
 	temperamentAwareness: z.boolean().optional(),
+	/** Per-node temperament overrides (the "edit personas" feature). Sparse —
+	 *  nodes absent here keep their built-in temperament. Only consulted when
+	 *  `temperaments` is on. */
+	customTemperaments: z
+		.partialRecord(z.enum(MAGI_NODE_NAMES), temperamentOverrideSchema)
+		.optional(),
 	/** Push models to commit to a single answer on open-ended questions. */
 	opinionated: z.boolean().optional(),
 	/** Push debaters to weigh peers and lean toward convergence (debate only). */

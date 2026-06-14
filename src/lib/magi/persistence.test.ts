@@ -275,6 +275,35 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 		expect(loaded?.settings?.reduceMotion).toBe(true);
 	});
 
+	it('round-trips the autoLayout flag', () => {
+		savePrefs({ ...validPrefs, settings: { ...validSettings, autoLayout: false } });
+		expect(loadPrefs()?.settings?.autoLayout).toBe(false);
+	});
+
+	it('round-trips a sparse customTemperaments override', () => {
+		const customTemperaments = {
+			MELCHIOR: { label: 'Skeptic', prompt: 'You doubt every claim.' }
+		};
+		savePrefs({ ...validPrefs, settings: { ...validSettings, customTemperaments } });
+		expect(loadPrefs()?.settings?.customTemperaments).toEqual(customTemperaments);
+	});
+
+	it('drops the settings slice when a customTemperaments prompt exceeds the cap', () => {
+		localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({
+				...validPrefs,
+				settings: {
+					...validSettings,
+					customTemperaments: { CASPAR: { label: 'X', prompt: 'y'.repeat(5000) } }
+				}
+			})
+		);
+		// The over-cap prompt fails schema validation, so the whole settings slice is
+		// dropped (tier + snapshots survive).
+		expect(loadPrefs()?.settings).toBeUndefined();
+	});
+
 	it('migrates a legacy palette: "eva" stored in settings loads as "nebula"', () => {
 		localStorage.setItem(
 			STORAGE_KEY,

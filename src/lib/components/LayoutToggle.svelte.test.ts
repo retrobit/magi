@@ -16,11 +16,11 @@ async function noAxeViolations(container: HTMLElement) {
 }
 
 describe('LayoutToggle', () => {
-	it('renders one button per layout state with the right aria-pressed', () => {
-		render(LayoutToggle, { props: { focus: 'balanced', onchange: vi.fn() } });
+	it('renders one button per segment (auto + three focuses) with the right aria-pressed', () => {
+		render(LayoutToggle, { props: { focus: 'balanced', auto: false, onchange: vi.fn() } });
 		const buttons = screen.getAllByRole('button');
-		expect(buttons).toHaveLength(3);
-		// The middle button (balanced) is the pressed one; the other two are not.
+		expect(buttons).toHaveLength(4);
+		// With auto off, the focus segment (balanced) is the pressed one.
 		expect(buttons.filter((b) => b.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
 		expect(screen.getByRole('button', { pressed: true })).toHaveAttribute(
 			'aria-label',
@@ -28,18 +28,40 @@ describe('LayoutToggle', () => {
 		);
 	});
 
+	it('highlights the Auto segment when auto is on, not the live focus', () => {
+		render(LayoutToggle, { props: { focus: 'consensus', auto: true, onchange: vi.fn() } });
+		expect(screen.getByRole('button', { pressed: true })).toHaveAttribute(
+			'aria-label',
+			expect.stringMatching(/Auto layout/)
+		);
+	});
+
 	it('invokes onchange with the segment value on click', async () => {
 		const onchange = vi.fn();
-		render(LayoutToggle, { props: { focus: 'balanced', onchange } });
+		render(LayoutToggle, { props: { focus: 'balanced', auto: false, onchange } });
 		screen.getByRole('button', { name: /MAGI node panels/i }).click();
 		expect(onchange).toHaveBeenCalledWith('nodes');
 	});
 
-	it('has no axe a11y violations in any of its three states', async () => {
-		for (const focus of ['consensus', 'balanced', 'nodes'] as const) {
-			const { container, unmount } = render(LayoutToggle, { props: { focus, onchange: vi.fn() } });
+	it('invokes onchange with "auto" when the Auto segment is clicked', async () => {
+		const onchange = vi.fn();
+		render(LayoutToggle, { props: { focus: 'balanced', auto: false, onchange } });
+		screen.getByRole('button', { name: /Auto layout/i }).click();
+		expect(onchange).toHaveBeenCalledWith('auto');
+	});
+
+	it('has no axe a11y violations in any of its states', async () => {
+		for (const [focus, auto] of [
+			['consensus', false],
+			['balanced', false],
+			['nodes', false],
+			['balanced', true]
+		] as const) {
+			const { container, unmount } = render(LayoutToggle, {
+				props: { focus, auto, onchange: vi.fn() }
+			});
 			const violations = await noAxeViolations(container);
-			expect(violations, `axe violations for focus=${focus}`).toEqual([]);
+			expect(violations, `axe violations for focus=${focus} auto=${auto}`).toEqual([]);
 			unmount();
 		}
 	});

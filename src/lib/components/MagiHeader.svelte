@@ -327,15 +327,6 @@
 		<span class="mt-3 magi-section-header text-gray-500">AUTO-SCROLL</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={scrollMode === 'snap'}
-				onclick={() => (scrollMode = 'snap')}
-			>
-				Snap to top
-			</button>
-			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
 					? 'bg-gray-600 text-white'
 					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
@@ -343,6 +334,15 @@
 				onclick={() => (scrollMode = 'follow')}
 			>
 				Follow
+			</button>
+			<button
+				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
+					? 'bg-gray-600 text-white'
+					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+				aria-pressed={scrollMode === 'snap'}
+				onclick={() => (scrollMode = 'snap')}
+			>
+				Snap to top
 			</button>
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'

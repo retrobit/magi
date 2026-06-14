@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { TEMPERAMENT_SYSTEM_PROMPTS } from './temperaments';
+import {
+	TEMPERAMENT_SYSTEM_PROMPTS,
+	defaultNodeTemperament,
+	resolveNodeTemperament
+} from './temperaments';
 import {
 	TEMPERAMENT_NAMES,
 	TEMPERAMENT_LABELS,
+	TEMPERAMENT_TOOLTIPS,
 	NODE_TEMPERAMENTS,
 	MAGI_NODE_NAMES,
 	MAGI_NODES,
@@ -100,5 +105,54 @@ describe('TEMPERAMENT_SYSTEM_PROMPTS', () => {
 		for (const name of TEMPERAMENT_NAMES) {
 			expect(TEMPERAMENT_SYSTEM_PROMPTS[name]).toContain(expectedKeywords[name]);
 		}
+	});
+});
+
+describe('defaultNodeTemperament', () => {
+	it('returns the built-in label, persona, and gloss for a node', () => {
+		const def = defaultNodeTemperament('MELCHIOR');
+		expect(def.base).toBe('rationalist');
+		expect(def.label).toBe(TEMPERAMENT_LABELS.rationalist);
+		expect(def.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.rationalist);
+		expect(def.description).toBe(TEMPERAMENT_TOOLTIPS.rationalist);
+	});
+});
+
+describe('resolveNodeTemperament', () => {
+	it('falls back to the built-in when there is no override', () => {
+		const r = resolveNodeTemperament('CASPAR');
+		expect(r.custom).toBe(false);
+		expect(r.label).toBe(TEMPERAMENT_LABELS.individualist);
+		expect(r.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.individualist);
+		// A built-in uses its curated gloss, not the raw persona, as the description.
+		expect(r.description).toBe(TEMPERAMENT_TOOLTIPS.individualist);
+	});
+
+	it('applies an override and marks it custom', () => {
+		const r = resolveNodeTemperament('MELCHIOR', {
+			MELCHIOR: { label: 'Skeptic', prompt: 'You doubt everything.' }
+		});
+		expect(r.custom).toBe(true);
+		expect(r.label).toBe('Skeptic');
+		expect(r.prompt).toBe('You doubt everything.');
+		// A custom temperament surfaces its own persona as the badge description.
+		expect(r.description).toBe('You doubt everything.');
+	});
+
+	it('fills a blank field from the built-in (half-filled override stays usable)', () => {
+		const r = resolveNodeTemperament('BALTHASAR', {
+			BALTHASAR: { label: 'Guardian', prompt: '   ' }
+		});
+		expect(r.label).toBe('Guardian');
+		expect(r.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.caretaker);
+		expect(r.custom).toBe(true);
+	});
+
+	it('treats an override equal to the default as not custom', () => {
+		const def = defaultNodeTemperament('CASPAR');
+		const r = resolveNodeTemperament('CASPAR', {
+			CASPAR: { label: def.label, prompt: def.prompt }
+		});
+		expect(r.custom).toBe(false);
 	});
 });

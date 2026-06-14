@@ -72,6 +72,10 @@
 		contextUsed?: number;
 		contextWindow?: number;
 		temperament?: TemperamentName;
+		/** Badge text + hover for the temperament. Default to the built-in label /
+		 *  tooltip for `temperament`; an edited persona passes its own. */
+		temperamentLabel?: string;
+		temperamentDescription?: string;
 		genericLabels?: boolean;
 		scrollMode?: ScrollMode;
 		disabled?: boolean;
@@ -106,6 +110,8 @@
 		contextUsed = 0,
 		contextWindow,
 		temperament,
+		temperamentLabel,
+		temperamentDescription,
 		genericLabels = false,
 		scrollMode = 'follow',
 		disabled = false,
@@ -485,7 +491,8 @@
 				{#if temperament}
 					<span
 						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"
-						use:tooltip={TEMPERAMENT_TOOLTIPS[temperament]}>{TEMPERAMENT_LABELS[temperament]}</span
+						use:tooltip={temperamentDescription ?? TEMPERAMENT_TOOLTIPS[temperament]}
+						>{temperamentLabel ?? TEMPERAMENT_LABELS[temperament]}</span
 					>
 				{/if}
 			</div>
