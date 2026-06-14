@@ -7,3 +7,7 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Standalone demo-recording harness — its own mini-project (separate
+# package.json / node_modules), not subject to the app's formatting rules.
+/demo/

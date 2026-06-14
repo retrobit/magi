@@ -12,6 +12,9 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	// Standalone demo-recording harness — its own mini-project (separate
+	// package.json / node_modules), excluded from the app's lint pass.
+	{ ignores: ['demo/'] },
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
