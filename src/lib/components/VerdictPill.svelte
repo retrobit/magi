@@ -23,17 +23,17 @@
 	</span>
 {:else}
 	<span
-		class="verdict-pill verdict-pill-split pointer-events-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium magi-warn"
+		class="verdict-pill verdict-pill-split pointer-events-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium magi-warn"
 		use:tooltip={tooltipText}
 	>
-		Split decision <span aria-hidden="true">⚖️</span>
+		Split decision
 	</span>
 {/if}
 
 <style>
-	/* Gradient border via the padding-box/border-box fill trick, plus a blurred
-	   gradient ::before behind the pill for the glow. isolate + z-index:-1 keeps
-	   the glow behind the pill's opaque body so only the blurred halo shows. */
+	/* Crisp gradient border via the padding-box/border-box fill trick, plus a
+	   blurred gradient RING (masked to just the border band) sitting a hair
+	   outside the edge — so only the outer border glows, not the whole pill. */
 	.verdict-pill {
 		position: relative;
 		isolation: isolate;
@@ -42,12 +42,23 @@
 	.verdict-pill::before {
 		content: '';
 		position: absolute;
-		inset: 0;
+		inset: -1px;
 		border-radius: inherit;
 		z-index: -1;
 		pointer-events: none;
-		filter: blur(6px);
-		opacity: 0.55;
+		/* Ring: fill the box, then keep only the 1.5px band between content-box
+		   and border-box so the centre stays transparent (no body glow). */
+		padding: 1.5px;
+		-webkit-mask:
+			linear-gradient(#000 0 0) content-box,
+			linear-gradient(#000 0 0);
+		mask:
+			linear-gradient(#000 0 0) content-box,
+			linear-gradient(#000 0 0);
+		-webkit-mask-composite: xor;
+		mask-composite: exclude;
+		filter: blur(2.5px);
+		opacity: 0.9;
 	}
 	.verdict-pill-consensus {
 		--pill-grad: linear-gradient(
@@ -70,6 +81,5 @@
 	}
 	.verdict-pill-split::before {
 		background: var(--magi-color-warn);
-		opacity: 0.4;
 	}
 </style>
