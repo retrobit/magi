@@ -3,8 +3,17 @@
 🔺🔻🔺
 
 [![CI](https://github.com/retrobit/magi/actions/workflows/ci.yml/badge.svg)](https://github.com/retrobit/magi/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-ff3e00?logo=svelte&logoColor=white)](https://kit.svelte.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
 Three AI models. One consensus.
+
+<p align="center">
+  <a href="docs/media/magi-demo.mp4">
+    <img src="docs/media/magi-demo.gif" alt="MAGI — three AI models answer in parallel, then debate to a consensus" width="100%">
+  </a>
+</p>
 
 Inspired by the MAGI system (IYKYK) concept — three independent supercomputers (MELCHIOR, BALTHASAR, CASPAR) that deliberate and reach consensus.
 

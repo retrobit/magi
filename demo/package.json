@@ -1,0 +1,12 @@
+{
+  "name": "magi-demo",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic, mocked Playwright recording harness for the MAGI demo.",
+  "scripts": {
+    "record": "node record.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.60.0"
+  }
+}
