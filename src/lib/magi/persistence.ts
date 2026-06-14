@@ -15,7 +15,12 @@ import {
 	type MotionMode
 } from './types';
 import type { NodeAssignment } from './config';
-import { STRATEGY_NAMES, type StrategyName } from './consensus/types';
+import {
+	STRATEGY_NAMES,
+	MIN_DEBATE_ROUNDS,
+	MAX_DEBATE_ROUNDS,
+	type StrategyName
+} from './consensus/types';
 
 const STORAGE_KEY = 'magi:prefs:v1';
 const CONVERSATION_KEY = 'magi:conversation:v1';
@@ -30,9 +35,16 @@ export interface PersistedSnapshot {
 /** Global (not per-tier) UI preferences worth surviving a page reload. */
 export interface PersistedSettings {
 	strategy: StrategyName;
+	/** Multi-Round Debate round ceiling. Optional for back-compat — older payloads
+	 *  fall back to the in-code default. */
+	debateRounds?: number;
 	temperaments: boolean;
 	consensusTemperament: boolean;
 	temperamentAwareness: boolean;
+	/** Opinionated / Collaborative deliberation toggles. Optional for back-compat —
+	 *  older payloads fall back to the in-code defaults (both off). */
+	opinionated?: boolean;
+	collaborative?: boolean;
 	genericLabels: boolean;
 	theme: 'dark' | 'light';
 	bgVariant: BgVariant;
@@ -82,9 +94,12 @@ const persistedSnapshotSchema = z.object({
 
 const persistedSettingsSchema = z.object({
 	strategy: z.enum(STRATEGY_NAMES),
+	debateRounds: z.number().int().min(MIN_DEBATE_ROUNDS).max(MAX_DEBATE_ROUNDS).optional(),
 	temperaments: z.boolean(),
 	consensusTemperament: z.boolean(),
 	temperamentAwareness: z.boolean(),
+	opinionated: z.boolean().optional(),
+	collaborative: z.boolean().optional(),
 	genericLabels: z.boolean(),
 	theme: z.enum(['dark', 'light']),
 	bgVariant: z.enum(BG_VARIANTS),

@@ -136,6 +136,12 @@ export interface ConsensusContext {
 	/** Whether the MAGI answered in-character (the main Temperaments toggle). Debate
 	 *  uses this to decide if the debaters argue through their dispositional lens. */
 	nodeTemperaments?: boolean;
+	/** Opinionated mode: push each model to commit to a single answer on open-ended
+	 *  questions rather than hedge. Shapes the phase-1 answers and the synthesizer. */
+	opinionated?: boolean;
+	/** Collaborative mode: push debaters to weigh peers and lean toward convergence.
+	 *  Only meaningful for Multi-Round Debate (where models see each other). */
+	collaborative?: boolean;
 	genericLabels?: boolean;
 	signal?: AbortSignal;
 	/** Tier label for stats annotation (purely informational; strategies don't branch on it). */
@@ -145,7 +151,21 @@ export interface ConsensusContext {
 	 *  the path unit tests take. The server supplies a fresh random seed per request
 	 *  so real runs rotate the seating and position bias washes out. */
 	peerOrderSeed?: number;
+	/** Multi-Round Debate only: the maximum number of critique/revise rounds before
+	 *  the synthesizer writes the final answer. The debate still stops early on
+	 *  convergence, so this is a ceiling. Clamped to the selectable range; omitted ⇒
+	 *  [[DEFAULT_DEBATE_ROUNDS]]. Inert for every other strategy. */
+	debateRounds?: number;
 }
+
+/** Selectable round counts for Multi-Round Debate's "Rounds" picker — each value
+ *  is the maximum number of critique/revise rounds (the debate may converge
+ *  sooner). Single source of truth shared by the picker, the request validator,
+ *  and the debate runner's clamp. */
+export const DEBATE_ROUND_OPTIONS = [2, 3, 4, 5] as const;
+export const DEFAULT_DEBATE_ROUNDS = 3;
+export const MIN_DEBATE_ROUNDS = DEBATE_ROUND_OPTIONS[0];
+export const MAX_DEBATE_ROUNDS = DEBATE_ROUND_OPTIONS[DEBATE_ROUND_OPTIONS.length - 1];
 
 export interface ConsensusStrategy {
 	name: string;

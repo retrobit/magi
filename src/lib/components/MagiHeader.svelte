@@ -8,6 +8,7 @@
 	import BudgetReadout from './BudgetReadout.svelte';
 	import StatsPanel from './StatsPanel.svelte';
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
+	import StatesCatalog from './StatesCatalog.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
@@ -24,7 +25,7 @@
 		type MotionMode
 	} from '$lib/magi/types';
 
-	type HeaderPanel = 'debug' | 'stats' | 'budget' | 'settings' | 'menu';
+	type HeaderPanel = 'debug' | 'catalog' | 'stats' | 'budget' | 'settings' | 'menu';
 
 	interface Props {
 		theme: 'dark' | 'light';
@@ -401,7 +402,15 @@
 		disabled={loading}
 		onchange={(next) => ondebugchange(next)}
 		onclose={() => (openPanel = null)}
+		onopencatalog={() => (openPanel = 'catalog')}
 	/>
+{/snippet}
+
+{#if openPanel === 'catalog' && import.meta.env.DEV}
+	{@render panelShell('w-[44rem] max-w-full', catalogBody)}
+{/if}
+{#snippet catalogBody()}
+	<StatesCatalog {genericLabels} onclose={() => (openPanel = null)} />
 {/snippet}
 
 {#if openPanel === 'stats'}

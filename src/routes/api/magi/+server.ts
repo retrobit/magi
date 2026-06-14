@@ -21,6 +21,7 @@ import {
 	type StreamEventPayloads
 } from '$lib/magi/stream-events';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '$lib/magi/temperaments';
+import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
 import { findModelEntry } from '$lib/magi/registry';
 import { isRateLimited, retryAfterSeconds } from '$lib/server/rate-limit';
 import {
@@ -214,11 +215,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		query,
 		tier,
 		strategy: strategyName,
+		debateRounds,
 		consensusNode: requestedConsensusNode,
 		assignments: clientAssignments,
 		temperaments: useTemperaments,
 		consensusTemperament: useConsensusTemperament,
 		temperamentAwareness: useAwareness,
+		opinionated: useOpinionated,
+		collaborative: useCollaborative,
 		genericLabels: useGenericLabels,
 		history = [],
 		forceRetry = false,
@@ -450,6 +454,17 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									content: `${temperamentPrompt}\n\n---\n\n${first.content as string}`
 								};
 							}
+							// Opinionated mode: nudge each model to commit to a single answer on
+							// open-ended questions. Appended to the current query only (never the
+							// replayed history) and before the debate SUMMARY line so that line
+							// stays at the very end where the parser expects it.
+							if (useOpinionated) {
+								const last = messages[messages.length - 1];
+								messages[messages.length - 1] = {
+									role: 'user',
+									content: `${last.content as string}\n\n${OPINIONATED_DIRECTIVE}`
+								};
+							}
 							// Multi-Round Debate uses each model's opening answer as round 0, so we
 							// ask each model to seal its reply with a `SUMMARY:` line — those become
 							// the "Initial positions" ledger entries (rather than a heuristic first-
@@ -627,13 +642,18 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					consensusTemperament: useConsensusTemperament ?? false,
 					synthesizerAwareness: useAwareness ?? false,
 					nodeTemperaments: useTemperaments ?? false,
+					opinionated: useOpinionated ?? false,
+					collaborative: useCollaborative ?? false,
 					genericLabels: useGenericLabels ?? true,
 					signal: abortController.signal,
 					tier,
 					// Fresh per-request seed so voting/debate rotate which peer sits in
 					// slot A/B each turn — keeps the consensus blind to node order and
 					// washes out the position bias the stats panel tracks.
-					peerOrderSeed: Math.floor(Math.random() * 0x100000000)
+					peerOrderSeed: Math.floor(Math.random() * 0x100000000),
+					// Debate round ceiling from the request; the runner clamps and the
+					// other strategies ignore it.
+					debateRounds
 				};
 
 				const consensusTimer = startTimer();

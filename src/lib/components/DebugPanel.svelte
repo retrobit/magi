@@ -50,7 +50,7 @@
 <script lang="ts">
 	import type { NodeAssignment } from '$lib/magi/config';
 	import { NODE_HEX_COLORS, NODE_LABELS, NODE_LABELS_GENERIC } from '$lib/magi/types';
-	import { Bug, X } from 'lucide-svelte';
+	import { Bug, X, CircleHelp } from 'lucide-svelte';
 
 	interface Props {
 		scenario: DebugScenario;
@@ -59,6 +59,8 @@
 		disabled?: boolean;
 		onchange: (scenario: DebugScenario) => void;
 		onclose: () => void;
+		/** Open the dev states catalog (enumerates every status/result/progress indicator). */
+		onopencatalog: () => void;
 	}
 
 	let {
@@ -67,7 +69,8 @@
 		genericLabels = false,
 		disabled = false,
 		onchange,
-		onclose
+		onclose,
+		onopencatalog
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
@@ -229,8 +232,16 @@
 
 	<button
 		type="button"
+		class="mt-3 flex w-full items-center justify-center gap-1.5 rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white"
+		onclick={onopencatalog}
+	>
+		<CircleHelp size={13} /> View states catalog
+	</button>
+
+	<button
+		type="button"
 		{disabled}
-		class="mt-3 w-full rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
+		class="mt-1.5 w-full rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
 		onclick={() => onchange(freshDebugScenario())}
 	>
 		Reset all

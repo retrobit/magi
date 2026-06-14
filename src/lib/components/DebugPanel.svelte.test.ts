@@ -12,8 +12,9 @@ const assignments: NodeAssignment[] = [
 function setup(scenario = freshDebugScenario()) {
 	const onchange = vi.fn();
 	const onclose = vi.fn();
-	render(DebugPanel, { props: { scenario, assignments, onchange, onclose } });
-	return { onchange, onclose };
+	const onopencatalog = vi.fn();
+	render(DebugPanel, { props: { scenario, assignments, onchange, onclose, onopencatalog } });
+	return { onchange, onclose, onopencatalog };
 }
 
 describe('freshDebugScenario / isDebugScenarioActive', () => {

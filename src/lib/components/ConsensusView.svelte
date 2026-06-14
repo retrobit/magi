@@ -20,7 +20,7 @@
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import { type StrategyName } from '$lib/magi/consensus';
+	import { type StrategyName, DEBATE_ROUND_OPTIONS } from '$lib/magi/consensus';
 	import {
 		STRATEGY_VERBS,
 		GENERIC_VERBS,
@@ -32,6 +32,7 @@
 	import { smoothSnap } from '$lib/motion';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
+	import VerdictPill from './VerdictPill.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import {
 		Copy,
@@ -72,6 +73,8 @@
 		contextUsed?: number;
 		contextWindow?: number;
 		strategy: StrategyName;
+		/** Multi-Round Debate round ceiling — drives the "Rounds" picker (debate only). */
+		debateRounds?: number;
 		consensusNode: MagiNodeName;
 		consensusGateway?: GatewayName;
 		consensusProvider?: string;
@@ -82,6 +85,8 @@
 		scrollMode?: ScrollMode;
 		disabled?: boolean;
 		onstrategychange?: (strategy: StrategyName) => void;
+		/** Fires when the Rounds picker changes the debate round ceiling. */
+		ondebateroundschange?: (rounds: number) => void;
 		/** Fills the main query input with an example prompt (never submits). */
 		onexampleselect?: (prompt: string) => void;
 		onconsensuschange?: (node: MagiNodeName) => void;
@@ -110,6 +115,7 @@
 		contextUsed = 0,
 		contextWindow,
 		strategy,
+		debateRounds = 3,
 		consensusNode,
 		consensusGateway,
 		consensusProvider,
@@ -120,6 +126,7 @@
 		scrollMode = 'follow',
 		disabled = false,
 		onstrategychange,
+		ondebateroundschange,
 		onexampleselect,
 		onconsensuschange,
 		onconsensustemperamentchange,
@@ -410,6 +417,10 @@
 		const node = (e.target as HTMLSelectElement).value as MagiNodeName;
 		onconsensuschange?.(node);
 	}
+
+	function handleRoundsChange(e: Event) {
+		ondebateroundschange?.(Number((e.target as HTMLSelectElement).value));
+	}
 </script>
 
 {#snippet tokenFooter(input: number, output: number, estimated: boolean)}
@@ -465,28 +476,17 @@
 					aria-hidden="false"
 				>
 					{#if headerVerdict === 'consensus'}
-						<span
-							class="pointer-events-auto flex items-center gap-1.5 text-sm"
-							use:tooltip={'The MAGI converged — they reached consensus.'}
-						>
-							<span class="magi-gradient-text font-semibold tracking-wide">Consensus reached</span>
-							<!-- Themed glyph triad, identical to the app-title mark, so it tracks the
-							     active palette instead of a fixed-colour emoji. -->
-							<span aria-hidden="true" class="text-xs"
-								><span class="text-(--magi-node-red)">▲</span><span class="text-(--magi-node-green)"
-									>▼</span
-								><span class="text-(--magi-node-blue)">▲</span></span
-							>
-						</span>
+						<VerdictPill
+							verdict="consensus"
+							tooltipText="The MAGI converged — they reached consensus."
+						/>
 					{:else}
-						<span
-							class="pointer-events-auto flex items-center gap-1.5 text-sm font-semibold magi-warn"
-							use:tooltip={headerSummary
+						<VerdictPill
+							verdict="split"
+							tooltipText={headerSummary
 								? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
 								: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
-						>
-							Split decision <span aria-hidden="true">⚖️</span>
-						</span>
+						/>
 					{/if}
 				</div>
 			{/if}
@@ -558,6 +558,25 @@
 						<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
 					</div>
 					<span class="hidden text-xs text-gray-700 sm:inline">·</span>
+					<!-- Rounds picker — the debate round ceiling. Debate-only; the debate
+					     may still converge before the limit, so it's a maximum. -->
+					{#if strategy === 'debate' && ondebateroundschange}
+						<div class="flex items-center gap-x-2">
+							<span class="text-xs text-gray-500">Rounds</span>
+							<select
+								class="magi-select rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+								value={debateRounds}
+								onchange={handleRoundsChange}
+								{disabled}
+								use:tooltip={'Maximum debate rounds — the MAGI may converge and finish sooner'}
+							>
+								{#each DEBATE_ROUND_OPTIONS as n (n)}
+									<option value={n}>{n}</option>
+								{/each}
+							</select>
+						</div>
+						<span class="hidden text-xs text-gray-700 sm:inline">·</span>
+					{/if}
 				{/if}
 				{#if onconsensuschange || (synthesisLabel && consensusNodeApplies)}
 					<div class="flex w-full items-center gap-x-2 sm:contents">

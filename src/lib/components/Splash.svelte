@@ -84,8 +84,10 @@
 			decoded = DECODE_TARGET.split('');
 			triadOn = true;
 		});
-		// Linger on the resolved wordmark + triad (parity with the boot hold).
-		after(settled + 1900, finish);
+		// Linger on the resolved wordmark + triad long enough for the triangles'
+		// glow pulse to complete a full cycle before dissolving — the last triangle
+		// starts its pulse 820ms after the triad lands and one cycle runs 1.9s.
+		after(settled + 2800, finish);
 	}
 
 	// ── convergence ───────────────────────────────────────────────────────

@@ -5,7 +5,10 @@ import {
 	type ConsensusContext,
 	type ConsensusEvent,
 	type DebateStats,
-	SECTION_RULE
+	SECTION_RULE,
+	DEFAULT_DEBATE_ROUNDS,
+	MIN_DEBATE_ROUNDS,
+	MAX_DEBATE_ROUNDS
 } from './types';
 import {
 	NODE_LABELS,
@@ -15,13 +18,15 @@ import {
 	type DebateVerdict
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
+import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE } from './deliberation';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { makePeerOrderer } from './peer-order';
 
-// Upper bound on debate rounds. Each round is one model call per responding node;
-// the debate stops early once a round produces no material change (convergence),
-// so most runs use fewer. The final synthesis pass is one additional call.
-const MAX_ROUNDS = 3;
+// Default upper bound on debate rounds when the request doesn't pick one. Each
+// round is one model call per responding node; the debate stops early once a
+// round produces no material change (convergence), so most runs use fewer. The
+// final synthesis pass is one additional call. The ceiling is user-selectable
+// per request (the "Rounds" picker) within [MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS].
 
 interface UsageTotals {
 	inputTokens: number;
@@ -72,13 +77,17 @@ function buildDebaterPrompt(
 	query: string,
 	ownAnswer: string,
 	peers: PeerView[],
-	lens?: string
+	lens?: string,
+	collaborative = false
 ): string {
 	const peerTags = peers.map((_, i) => peerTag(i));
 	// Ask for a stance toward each peer by name, so the verdict can tell a 2-vs-1
 	// split (one holdout) from a three-way one — not just "agree" in the abstract.
 	const agreeFormat = peerTags.map((t) => `${t}: <yes or no>`).join(', ');
-	const instructions = `Several AI models are debating the best answer to a question. Below is your current answer and your anonymized peers' current answers — and, from the second round on, the reasoning each peer gave for their position. Engage with their reasoning directly: where a peer's argument is stronger, adopt it; where you disagree, say why and hold your ground — do not cave just to agree.
+	// Collaborative mode amplifies the baseline "engage, don't cave" instruction
+	// toward genuine convergence.
+	const collabLine = collaborative ? `\n\n${COLLABORATIVE_DIRECTIVE}` : '';
+	const instructions = `Several AI models are debating the best answer to a question. Below is your current answer and your anonymized peers' current answers — and, from the second round on, the reasoning each peer gave for their position. Engage with their reasoning directly: where a peer's argument is stronger, adopt it; where you disagree, say why and hold your ground — do not cave just to agree.${collabLine}
 
 Question:
 ${query}
@@ -169,6 +178,32 @@ export function stripSummaryTail(text: string): string {
 		.slice(0, i + 1)
 		.join('\n')
 		.trimEnd();
+}
+
+/** The standalone verdict status line emitted between the round ledger and the
+ *  synthesized answer (bold, framed by horizontal rules). Pure + exported so the
+ *  dev states catalog can enumerate every variant verbatim without driving a real
+ *  debate. Returns '' for a walkover, which shows an inline note rather than a
+ *  framed banner. `summary` is the coalition phrase behind a split. */
+export function debateVerdictLine(opts: {
+	verdict: DebateVerdict;
+	hitLimit: boolean;
+	round: number;
+	maxRounds: number;
+	summary?: string;
+}): string {
+	const { verdict, hitLimit, round, maxRounds, summary } = opts;
+	if (verdict === 'walkover') return '';
+	const roundWord = round === 1 ? 'round' : 'rounds';
+	if (verdict === 'consensus') {
+		return hitLimit
+			? `**Reached the ${maxRounds}-round limit — the MAGI are in agreement.**`
+			: `**Converged after ${round} ${roundWord} — the MAGI are in agreement.**`;
+	}
+	const coalition = summary ?? 'positions differ';
+	return hitLimit
+		? `**Reached the ${maxRounds}-round limit without full agreement — ${coalition}.**`
+		: `**Stalemate after ${round} ${roundWord} — ${coalition}.**`;
 }
 
 // The trimmed inputs surfaced in the node panel — the substance the node reacted
@@ -288,8 +323,19 @@ export const debateStrategy: ConsensusStrategy = {
 			genericLabels,
 			signal,
 			tier,
-			peerOrderSeed
+			peerOrderSeed,
+			debateRounds,
+			opinionated,
+			collaborative
 		} = ctx;
+
+		// The round ceiling for this run. Clamp the requested value into the
+		// selectable range and round it, so a malformed number can never spin the
+		// debate loop forever or below one round.
+		const maxRounds = Math.min(
+			MAX_DEBATE_ROUNDS,
+			Math.max(MIN_DEBATE_ROUNDS, Math.round(debateRounds ?? DEFAULT_DEBATE_ROUNDS))
+		);
 
 		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
 		// This turn's seat order for the anonymized Peer A/B presentation. Built once
@@ -403,7 +449,7 @@ export const debateStrategy: ConsensusStrategy = {
 			// built from `current` before any await resolves, the revisions are
 			// effectively simultaneous (peers see the prior round's answers).
 			let round = 1;
-			for (; round <= MAX_ROUNDS; round += 1) {
+			for (; round <= maxRounds; round += 1) {
 				const runs = await Promise.allSettled(
 					responses.map(async (r) => {
 						const assignment = nodeAssignments.find((a) => a.node === r.node);
@@ -426,7 +472,7 @@ export const debateStrategy: ConsensusStrategy = {
 							: undefined;
 						const { text, usage: u } = await generateText({
 							model: getModel(assignment.gateway, assignment.modelId),
-							prompt: buildDebaterPrompt(query, ownAnswer, peers, lens),
+							prompt: buildDebaterPrompt(query, ownAnswer, peers, lens, collaborative),
 							abortSignal: signal
 						});
 						return {
@@ -488,7 +534,7 @@ export const debateStrategy: ConsensusStrategy = {
 			//   • every pair explicitly agrees         → consensus
 			//   • no explicit signal → infer: stabilized early = consensus,
 			//     hit the round limit still changing = split.
-			const hitLimit = round > MAX_ROUNDS;
+			const hitLimit = round > maxRounds;
 			const respNodes = responses.map((r) => r.node);
 			const status = (a: MagiNodeName, b: MagiNodeName) => pairStatus(directed, a, b);
 			const pairs: PairStatus[] = [];
@@ -502,27 +548,18 @@ export const debateStrategy: ConsensusStrategy = {
 			// Capture for [[debate-stats]] — the inner-block locals don't escape.
 			verdictForStats = verdict;
 			hitLimitForStats = hitLimit;
-			roundsRun = hitLimit ? MAX_ROUNDS : round;
+			roundsRun = hitLimit ? maxRounds : round;
 			if (verdict === 'split') dissenterForStats = findDissenter(respNodes, status);
 
-			const roundWord = round === 1 ? 'round' : 'rounds';
-			// A blockquote callout — a clearly set-apart status line between the round
-			// ledger and the synthesized answer (which follows after the divider). The
-			// glanceable verdict also rides in the consensus panel header.
-			if (verdict === 'consensus') {
-				yield emit(
-					hitLimit
-						? `\n> 🔺🔻🔺 **Reached the ${MAX_ROUNDS}-round limit** — the MAGI are in agreement.\n`
-						: `\n> 🔺🔻🔺 **Converged after ${round} ${roundWord}** — the MAGI are in agreement.\n`
-				);
-			} else {
-				debateSummary = coalitionPhrase(respNodes, status, labels);
-				yield emit(
-					hitLimit
-						? `\n> ⚖️ **Reached the ${MAX_ROUNDS}-round limit without full agreement** — ${debateSummary}.\n`
-						: `\n> ⚖️ **Stalemate after ${round} ${roundWord}** — ${debateSummary}.\n`
-				);
-			}
+			// The verdict is a standalone status line framed by horizontal rules — a
+			// leading rule here and the trailing SECTION_RULE before the synthesis (see
+			// below) sandwich it, setting it apart from both the round ledger above and
+			// the final answer below. No blockquote, no emoji; the glanceable verdict
+			// also rides in the consensus panel header.
+			if (verdict === 'split') debateSummary = coalitionPhrase(respNodes, status, labels);
+			yield emit(
+				`${SECTION_RULE}${debateVerdictLine({ verdict, hitLimit, round, maxRounds, summary: debateSummary })}`
+			);
 		}
 
 		// Final synthesis: a NEUTRAL scribe. All the perspective and reasoning lives
@@ -565,7 +602,7 @@ ${
 You are writing as ${labels[assignment.node]}. Your own answer above carries NO extra weight just because it's yours — present every position at full strength, including the one(s) you disagree with. If your seat is in the minority coalition, your view does not get to crowd out the majority.
 
 Do not paper over the disagreement: state what they agree on, then lay out each distinct position and the strongest case for it, and be explicit that the MAGI are divided.`
-		: 'Provide the synthesized consensus response.'
+		: `Provide the synthesized consensus response.${opinionated ? ` ${OPINIONATED_DIRECTIVE}` : ''}`
 }`;
 
 		const messages: ModelMessage[] = [];

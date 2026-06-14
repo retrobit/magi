@@ -281,6 +281,34 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 		expect(loadPrefs()?.settings?.motionMode).toBe('normal');
 	});
 
+	it('round-trips the opinionated and collaborative flags', () => {
+		const settings: PersistedSettings = {
+			...validSettings,
+			opinionated: true,
+			collaborative: true
+		};
+		savePrefs({ ...validPrefs, settings });
+		const loaded = loadPrefs();
+		expect(loaded?.settings?.opinionated).toBe(true);
+		expect(loaded?.settings?.collaborative).toBe(true);
+	});
+
+	it('round-trips the debateRounds field', () => {
+		const settings: PersistedSettings = { ...validSettings, debateRounds: 4 };
+		savePrefs({ ...validPrefs, settings });
+		expect(loadPrefs()?.settings?.debateRounds).toBe(4);
+	});
+
+	it('drops the settings slice when debateRounds is out of range', () => {
+		const bad = {
+			tier: 'balanced',
+			snapshots: validPrefs.snapshots,
+			settings: { ...validSettings, debateRounds: 99 }
+		};
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(bad));
+		expect(loadPrefs()?.settings).toBeUndefined();
+	});
+
 	it('drops the whole settings slice when palette is invalid, but keeps tier and snapshots', () => {
 		// A stored payload whose settings contain an invalid palette value fails
 		// persistedSettingsSchema.safeParse — the settings key is omitted from the

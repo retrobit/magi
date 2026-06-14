@@ -115,6 +115,35 @@ describe('debateStrategy.execute', () => {
 		expect(streamTextMock).toHaveBeenCalledTimes(1);
 	});
 
+	it('caps the debate at the requested round ceiling', async () => {
+		// Debaters never converge; a ceiling of 2 stops the loop after 2 rounds.
+		generateTextMock.mockResolvedValue(debaterReply('yes') as never);
+		await collect(debateStrategy.execute(context({ debateRounds: 2 })));
+		// 3 debaters × 2 rounds = 6 debater calls.
+		expect(generateTextMock).toHaveBeenCalledTimes(6);
+	});
+
+	it('clamps an out-of-range round ceiling into the selectable range', async () => {
+		// A wild value clamps up to MAX_DEBATE_ROUNDS (5): 3 debaters × 5 = 15 calls.
+		generateTextMock.mockResolvedValue(debaterReply('yes') as never);
+		await collect(debateStrategy.execute(context({ debateRounds: 99 })));
+		expect(generateTextMock).toHaveBeenCalledTimes(15);
+	});
+
+	it('injects the collaborative directive into debater prompts when enabled', async () => {
+		generateTextMock.mockResolvedValue(debaterReply('no') as never);
+		await collect(debateStrategy.execute(context({ collaborative: true })));
+		const prompt = String(generateTextMock.mock.calls[0]?.[0].prompt);
+		expect(prompt).toContain('collaboration aimed at convergence');
+	});
+
+	it('omits the collaborative directive by default', async () => {
+		generateTextMock.mockResolvedValue(debaterReply('no') as never);
+		await collect(debateStrategy.execute(context()));
+		const prompt = String(generateTextMock.mock.calls[0]?.[0].prompt);
+		expect(prompt).not.toContain('collaboration aimed at convergence');
+	});
+
 	it('early-stops the moment a round produces no material change', async () => {
 		generateTextMock.mockResolvedValue(debaterReply('no') as never);
 		await collect(debateStrategy.execute(context()));

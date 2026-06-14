@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
+import { OPINIONATED_DIRECTIVE } from './deliberation';
 
 export const synthesisStrategy: ConsensusStrategy = {
 	name: 'synthesis',
@@ -30,6 +31,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 			consensusNodeIndex,
 			consensusTemperament,
 			synthesizerAwareness,
+			opinionated,
 			genericLabels,
 			signal,
 			tier
@@ -118,7 +120,9 @@ Provide the synthesized consensus response.`;
 3. Combining the best elements into a single, clear, definitive response.
 4. Flagging any remaining uncertainty honestly.
 
-Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${awarenessContext}`,
+Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${awarenessContext}${
+				opinionated ? `\n\n${OPINIONATED_DIRECTIVE}` : ''
+			}`,
 			messages,
 			abortSignal: signal
 		});

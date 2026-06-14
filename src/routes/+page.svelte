@@ -44,7 +44,7 @@
 		type MotionMode
 	} from '$lib/magi/types';
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
-	import { DEFAULT_STRATEGY, type StrategyName } from '$lib/magi/consensus';
+	import { DEFAULT_STRATEGY, DEFAULT_DEBATE_ROUNDS, type StrategyName } from '$lib/magi/consensus';
 	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
 		loadPrefs,
@@ -64,6 +64,8 @@
 		ArrowLeftRight,
 		X,
 		Brain,
+		Target,
+		Handshake,
 		Copy,
 		Check,
 		Dices,
@@ -101,6 +103,8 @@
 
 	let tier: TierName = $state(DEFAULT_TIER);
 	let strategy: StrategyName = $state(DEFAULT_STRATEGY);
+	// Multi-Round Debate round ceiling (the "Rounds" picker). Inert for other strategies.
+	let debateRounds = $state(DEFAULT_DEBATE_ROUNDS);
 	let temperaments = $state(false);
 	let genericLabels = $state(true);
 	const activeNodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
@@ -113,6 +117,11 @@
 	let copiedQuery = $state(false);
 	let consensusTemperament = $state(false);
 	let temperamentAwareness = $state(false);
+	// Deliberation modifiers. Opinionated → models commit to one answer on open-ended
+	// questions (all strategies). Collaborative → debaters lean toward convergence
+	// (Multi-Round Debate only). Independent of each other and of Temperaments.
+	let opinionated = $state(false);
+	let collaborative = $state(false);
 	let bgVariant = $state<BgVariant>('off');
 	let palette = $state<Palette>('eva');
 	let theme = $state<'dark' | 'light'>('dark');
@@ -605,9 +614,12 @@
 	// Restore the global (not per-tier) UI settings saved from a previous visit.
 	function applyPersistedSettings(s: PersistedSettings) {
 		strategy = s.strategy;
+		debateRounds = s.debateRounds ?? DEFAULT_DEBATE_ROUNDS;
 		temperaments = s.temperaments;
 		consensusTemperament = s.consensusTemperament;
 		temperamentAwareness = s.temperamentAwareness;
+		opinionated = s.opinionated ?? false;
+		collaborative = s.collaborative ?? false;
 		genericLabels = s.genericLabels;
 		theme = s.theme;
 		bgVariant = s.bgVariant;
@@ -719,9 +731,12 @@
 		};
 		const settings: PersistedSettings = {
 			strategy,
+			debateRounds,
 			temperaments,
 			consensusTemperament,
 			temperamentAwareness,
+			opinionated,
+			collaborative,
 			genericLabels,
 			theme,
 			bgVariant,
@@ -1035,11 +1050,14 @@
 			query: opts.turnQuery,
 			tier,
 			strategy,
+			debateRounds,
 			consensusNode,
 			assignments,
 			temperaments,
 			consensusTemperament,
 			temperamentAwareness,
+			opinionated,
+			collaborative,
 			genericLabels,
 			history: buildHistory(),
 			...(opts.forceRetry ? { forceRetry: true } : {}),
@@ -1297,22 +1315,62 @@
 				<span class="text-xs text-gray-500">TIER</span>
 				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
 			</div>
-			<div class="flex items-center gap-2">
-				<span class="text-xs text-gray-500">TEMPERAMENT</span>
-				<button
-					type="button"
-					onclick={() => (temperaments = !temperaments)}
-					disabled={loading}
-					class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
-						? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-						: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-					use:tooltip={temperaments
-						? 'Temperaments active — each MAGI node answers through its own dispositional lens (Rationalist, Caretaker, Individualist). Click to turn off.'
-						: `Enable temperaments — give each MAGI node a distinct personality: ${activeNodeLabels.MELCHIOR} Rationalist, ${activeNodeLabels.BALTHASAR} Caretaker, ${activeNodeLabels.CASPAR} Individualist. Click to turn on.`}
-				>
-					<Brain size={12} />
-					{temperaments ? 'ON' : 'OFF'}
-				</button>
+			<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+				<div class="flex items-center gap-2">
+					<span class="text-xs text-gray-500">TEMPERAMENT</span>
+					<button
+						type="button"
+						onclick={() => (temperaments = !temperaments)}
+						disabled={loading}
+						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
+							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						use:tooltip={temperaments
+							? 'Temperaments active — each MAGI node answers through its own dispositional lens (Rationalist, Caretaker, Individualist). Click to turn off.'
+							: `Enable temperaments — give each MAGI node a distinct personality: ${activeNodeLabels.MELCHIOR} Rationalist, ${activeNodeLabels.BALTHASAR} Caretaker, ${activeNodeLabels.CASPAR} Individualist. Click to turn on.`}
+					>
+						<Brain size={12} />
+						{temperaments ? 'ON' : 'OFF'}
+					</button>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="text-xs text-gray-500">OPINIONATED</span>
+					<button
+						type="button"
+						onclick={() => (opinionated = !opinionated)}
+						disabled={loading}
+						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {opinionated
+							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						use:tooltip={opinionated
+							? 'Opinionated active — on open-ended questions the MAGI commit to a single answer instead of hedging or listing options. Click to turn off.'
+							: 'Enable Opinionated — push each MAGI to choose one definitive answer on open-ended questions, rather than presenting many equally-weighted options. Click to turn on.'}
+					>
+						<Target size={12} />
+						{opinionated ? 'ON' : 'OFF'}
+					</button>
+				</div>
+				<!-- Collaborative only does anything in Multi-Round Debate (the only
+				     strategy where models see each other), so it's shown only there. -->
+				{#if strategy === 'debate'}
+					<div class="flex items-center gap-2">
+						<span class="text-xs text-gray-500">COLLABORATIVE</span>
+						<button
+							type="button"
+							onclick={() => (collaborative = !collaborative)}
+							disabled={loading}
+							class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {collaborative
+								? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
+								: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+							use:tooltip={collaborative
+								? 'Collaborative active — the MAGI weigh each other’s reasoning and lean toward genuine convergence (without caving). Click to turn off.'
+								: 'Enable Collaborative — encourage the MAGI to consider each other’s positions and move toward agreement when warranted. Click to turn on.'}
+						>
+							<Handshake size={12} />
+							{collaborative ? 'ON' : 'OFF'}
+						</button>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -1569,6 +1627,7 @@
 				erroredCount={live.modelErrors.length}
 				warning={live.consensusWarning}
 				{strategy}
+				{debateRounds}
 				{consensusNode}
 				consensusGateway={consensusAssignment.gateway}
 				consensusProvider={consensusAssignment.provider}
@@ -1580,6 +1639,7 @@
 				disabled={loading}
 				collapsed={consensusCollapsed}
 				onstrategychange={(s) => (strategy = s)}
+				ondebateroundschange={(n) => (debateRounds = n)}
 				onconsensuschange={(node) => (consensusNode = node)}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
 				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}

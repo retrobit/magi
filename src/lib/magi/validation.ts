@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TIER_NAMES, MAGI_NODE_NAMES, GATEWAY_NAMES } from './types';
-import { STRATEGY_NAMES } from './consensus/types';
+import { STRATEGY_NAMES, MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS } from './consensus/types';
 
 export const nodeAssignmentSchema = z.object({
 	node: z.enum(MAGI_NODE_NAMES),
@@ -27,6 +27,9 @@ export const magiRequestSchema = z.object({
 	query: z.string().min(1, 'Query must not be empty').max(10_000, 'Query too long'),
 	tier: z.enum(TIER_NAMES),
 	strategy: z.enum(STRATEGY_NAMES),
+	/** Multi-Round Debate round ceiling. Out-of-range values are clamped by the
+	 *  debate runner; absent ⇒ the runner's default. Inert for other strategies. */
+	debateRounds: z.number().int().min(MIN_DEBATE_ROUNDS).max(MAX_DEBATE_ROUNDS).optional(),
 	consensusNode: z.enum(MAGI_NODE_NAMES).optional(),
 	assignments: z
 		.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema])
@@ -34,6 +37,10 @@ export const magiRequestSchema = z.object({
 	temperaments: z.boolean().optional(),
 	consensusTemperament: z.boolean().optional(),
 	temperamentAwareness: z.boolean().optional(),
+	/** Push models to commit to a single answer on open-ended questions. */
+	opinionated: z.boolean().optional(),
+	/** Push debaters to weigh peers and lean toward convergence (debate only). */
+	collaborative: z.boolean().optional(),
 	genericLabels: z.boolean().optional(),
 	history: z.array(historyTurnSchema).max(50).optional(),
 	/** When true, bypasses the pre-flight unhealthy-cache check for every model in
