@@ -55,9 +55,10 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
-		/** Pending-glow control: null = not thinking (no glow); a number = thinking,
-		 *  and its value is a restart key — when it changes (a new debate round
-		 *  begins) the glow re-triggers so each round reads as a fresh heartbeat. */
+		/** Thinking-glow control: null = not thinking (no glow); a non-null value =
+		 *  thinking. The value is a restart key — it stays constant for the whole
+		 *  time the node is working (so the glow is one continuous heartbeat, never
+		 *  restarting mid-run), and only a change re-triggers the animation. */
 		pulse?: number | null;
 		/** Live debate rounds for this node (Multi-Round Debate only). */
 		debateRounds?: DebateRoundEntry[];
@@ -461,7 +462,9 @@
 >
 	{#if pulse !== null}
 		<!-- Static inset-glow overlay; only its opacity animates (compositor-cheap).
-		     Keyed on `pulse` so each new round of thinking restarts the pulse. -->
+		     Keyed on `pulse` so a fresh thinking phase (next turn) restarts the
+		     pulse — but the key holds steady through a single run, so the glow stays
+		     one continuous heartbeat from phase 1 through every debate round. -->
 		{#key pulse}
 			<div class="node-glow" aria-hidden="true"></div>
 		{/key}
@@ -715,9 +718,10 @@
 	   element; only its opacity animates, which the compositor handles without
 	   re-rasterizing the shadow each frame. Animating box-shadow directly (the
 	   old approach) repaints every frame and stuttered against the markdown
-	   streaming into the same panel. The overlay is keyed on `pulse` so it
-	   re-mounts — and the animation restarts — at the start of each thinking
-	   round. isolate + z-index:-1 keeps it above the panel bg but behind content. */
+	   streaming into the same panel. The overlay is keyed on `pulse`, which holds
+	   steady for a whole run — so the glow is one continuous heartbeat from phase 1
+	   through every debate round, restarting only on the next turn. isolate +
+	   z-index:-1 keeps it above the panel bg but behind content. */
 	.pulse-glow {
 		position: relative;
 		isolation: isolate;

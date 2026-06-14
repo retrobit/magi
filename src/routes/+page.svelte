@@ -625,13 +625,15 @@
 		);
 	}
 
-	// Pulse-glow control for a node: null = not thinking. Otherwise a restart key —
-	// phase-1 thinking is 0; each debate round bumps it so the glow stops and
-	// restarts as the node begins deliberating the next round.
+	// Pulse-glow control for a node: null = not thinking (no glow). A stable,
+	// non-null key means "thinking" — the glow runs as ONE continuous heartbeat for
+	// as long as the node is working: phase 1 (pending) and, in a Multi-Round Debate,
+	// straight through every critique/revise round until the synthesis begins. The
+	// key is constant across the whole run (not a per-round counter) so the animation
+	// never restarts mid-flight; it drops to null when the node is done, so the next
+	// turn re-triggers a fresh glow.
 	function nodePulse(node: MagiNodeName): number | null {
-		if (getNodeStatus(node) === 'pending') return 0;
-		if (nodeDebating(node)) return (live.debateRounds[node]?.length ?? 0) + 1;
-		return null;
+		return getNodeStatus(node) === 'pending' || nodeDebating(node) ? 1 : null;
 	}
 
 	function getModelDisplayName(assignment: NodeAssignment): string {
