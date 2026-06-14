@@ -169,10 +169,10 @@ await run();
 async function run() {
 	const browser = await chromium.launch({ executablePath: EXECUTABLE, headless: true });
 	const context = await browser.newContext({
-		viewport: { width: 1440, height: 900 },
+		viewport: { width: 1440, height: 1080 },
 		deviceScaleFactor: 2,
 		reducedMotion: 'no-preference',
-		recordVideo: { dir: VIDEO_DIR, size: { width: 1440, height: 900 } }
+		recordVideo: { dir: VIDEO_DIR, size: { width: 1440, height: 1080 } }
 	});
 
 	// Seed prefs + install the fetch mock BEFORE any app code runs.

@@ -213,13 +213,24 @@
 		});
 	}
 
-	// Coarse run lifecycle, used to drive auto-layout. `thinking` = nodes are
-	// generating phase-1 answers and the consensus hasn't emitted yet; `synthesizing`
-	// = the consensus is streaming (debate ledger or final synthesis); `done` = the
-	// latest committed turn has a consensus; `idle` = nothing has run yet.
-	type RunPhase = 'idle' | 'thinking' | 'synthesizing' | 'done';
+	// Coarse run lifecycle, used to drive auto-layout. `thinking` = some MAGI is
+	// still generating (phase-1 answer or a debate round) and the consensus hasn't
+	// emitted yet; `synthesizing` = a MAGI is still working while the consensus
+	// streams alongside (the debate ledger); `reviewing` = every MAGI is done but
+	// the consensus is still streaming — hand it the full panel now rather than
+	// waiting for it to finish; `done` = the committed turn has a consensus; `idle`
+	// = nothing has run yet.
+	type RunPhase = 'idle' | 'thinking' | 'synthesizing' | 'reviewing' | 'done';
 	const runPhase = $derived.by<RunPhase>(() => {
-		if (effectiveLoading) return live.consensusStream ? 'synthesizing' : 'thinking';
+		if (effectiveLoading) {
+			const nodesThinking = MAGI_NODE_NAMES.some(
+				(n) => getNodeStatus(n) === 'pending' || nodeDebating(n)
+			);
+			if (nodesThinking) return live.consensusStream ? 'synthesizing' : 'thinking';
+			// All MAGI have settled — expand the consensus even though it's still
+			// streaming, so we're not stuck in the split view waiting on it to finish.
+			return 'reviewing';
+		}
 		if (conversation.length > 0 && conversation.at(-1)?.consensus) return 'done';
 		return 'idle';
 	});
@@ -228,6 +239,7 @@
 		idle: null,
 		thinking: 'nodes',
 		synthesizing: 'balanced',
+		reviewing: 'consensus',
 		done: 'consensus'
 	};
 
