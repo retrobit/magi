@@ -412,8 +412,12 @@
 	const consensusVerbs = $derived(strategy === 'none' ? GENERIC_VERBS : STRATEGY_VERBS[strategy]);
 	let cVerbIndex = $state(0);
 	let cSweep = $state(0);
+	// The block overwrites the previous verb; the first verb writes onto blank.
+	const cPrevVerb = $derived(
+		cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length]
+	);
 	const consensusLoadingText = $derived(
-		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep)
+		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb)
 	);
 	$effect(() => {
 		if (!showConsensusLoader) return;
@@ -421,7 +425,8 @@
 		cSweep = 0;
 		const id = setInterval(() => {
 			const word = consensusVerbs[cVerbIndex % consensusVerbs.length];
-			if (cSweep + 1 >= sweepCycleLength(word)) {
+			const prev = cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length];
+			if (cSweep + 1 >= sweepCycleLength(word, prev)) {
 				cSweep = 0;
 				cVerbIndex += 1;
 			} else {

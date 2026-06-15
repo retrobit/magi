@@ -24,9 +24,14 @@ export const STRATEGY_VERBS: Record<Exclude<StrategyName, 'none'>, string[]> = {
 	debate: ['Debating', 'Arguing', 'Deliberating', 'Rebutting', 'Converging']
 };
 
-// A solid block sweeps left-to-right *through* the verb, replacing one
-// character at a time ("Th█nking" → "Thi█king" → …), à la Claude Code. After it
-// reaches the end it holds the full word for a beat, then the next verb sweeps.
+// A solid block is the writing head: it sweeps left-to-right and lays the verb
+// down behind it, one character at a time, à la Claude Code. The very first verb
+// is written onto blank ("█      " → "Th█    " → "Thinking"); every verb after
+// overwrites the *previous* word in place as the block passes — the outgoing
+// letters stay on screen ahead of the block until it reaches them ("█ondering" →
+// "Po█dering" → "Pondering"), and a shorter new word erases the tail with spaces.
+// After it reaches the end it holds the full word for a beat, then the next sweep
+// begins. Widths are padded with spaces so the line stays steady in the mono font.
 export const SWEEP_CHAR = '█';
 export const SWEEP_MS = 70;
 // Ticks the full word is held (block gone) before advancing to the next verb.
@@ -34,13 +39,25 @@ export const SWEEP_MS = 70;
 // feeling frantic — the sweep is the motion, the hold is the breath.
 export const PAUSE_TICKS = 18;
 
-/** The verb with a block at `sweep`, or the plain word during the trailing pause. */
-export function sweepVerb(word: string, sweep: number): string {
-	if (sweep < word.length) return word.slice(0, sweep) + SWEEP_CHAR + word.slice(sweep + 1);
-	return word;
+/**
+ * The line mid-sweep: the incoming `word` laid down up to the block at `sweep`,
+ * the block itself, then whatever's left of the outgoing `prevWord` ahead of it
+ * (blank on the first verb). Once `sweep` clears the swept span it's the plain
+ * word — the trailing pause. Both words are padded to the wider of the two so a
+ * shorter incoming word erases the outgoing tail with spaces and the width holds.
+ */
+export function sweepVerb(word: string, sweep: number, prevWord = ''): string {
+	const width = Math.max(word.length, prevWord.length);
+	if (sweep >= width) return word;
+	const incoming = word.padEnd(width, ' ');
+	const outgoing = prevWord.padEnd(width, ' ');
+	return incoming.slice(0, sweep) + SWEEP_CHAR + outgoing.slice(sweep + 1);
 }
 
-/** Total ticks for one verb: one per character, then the pause. */
-export function sweepCycleLength(word: string): number {
-	return word.length + PAUSE_TICKS;
+/**
+ * Total ticks for one verb: one per swept column (the wider of the incoming and
+ * outgoing words, so a longer previous word is fully overwritten), then the pause.
+ */
+export function sweepCycleLength(word: string, prevWord = ''): number {
+	return Math.max(word.length, prevWord.length) + PAUSE_TICKS;
 }

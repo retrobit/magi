@@ -285,14 +285,22 @@
 	const loadingVerbs = $derived(temperament ? TEMPERAMENT_VERBS[temperament] : GENERIC_VERBS);
 	let verbIndex = $state(0);
 	let sweep = $state(0);
-	const loadingText = $derived(sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep));
+	// The previous verb is what the block overwrites; the first verb (index 0)
+	// writes onto blank instead.
+	const prevVerb = $derived(
+		verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length]
+	);
+	const loadingText = $derived(
+		sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb)
+	);
 	$effect(() => {
 		if (status !== 'pending' || text) return;
 		verbIndex = 0;
 		sweep = 0;
 		const id = setInterval(() => {
 			const word = loadingVerbs[verbIndex % loadingVerbs.length];
-			if (sweep + 1 >= sweepCycleLength(word)) {
+			const prev = verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length];
+			if (sweep + 1 >= sweepCycleLength(word, prev)) {
 				sweep = 0;
 				verbIndex += 1;
 			} else {

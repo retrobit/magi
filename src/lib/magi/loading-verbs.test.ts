@@ -10,16 +10,26 @@ import {
 } from './loading-verbs';
 
 describe('sweepVerb', () => {
-	it('places the block at the sweep position, replacing that character', () => {
-		expect(sweepVerb('Thinking', 0)).toBe('█hinking');
-		expect(sweepVerb('Thinking', 2)).toBe('Th█nking');
+	it('writes the first verb onto blank (no previous word)', () => {
+		expect(sweepVerb('Thinking', 0)).toBe('█       ');
+		expect(sweepVerb('Thinking', 2)).toBe('Th█     ');
 		expect(sweepVerb('Thinking', 7)).toBe('Thinkin█');
 	});
 
-	it('keeps the word the same length (one char swapped for the block)', () => {
-		for (let i = 0; i < 'Pondering'.length; i++) {
-			expect(sweepVerb('Pondering', i)).toHaveLength('Pondering'.length);
-			expect(sweepVerb('Pondering', i)).toContain(SWEEP_CHAR);
+	it('overwrites the previous word, which stays visible ahead of the block', () => {
+		// Pondering (9) → Mulling: outgoing letters remain until the block reaches them.
+		expect(sweepVerb('Mulling', 0, 'Pondering')).toBe('█ondering');
+		expect(sweepVerb('Mulling', 2, 'Pondering')).toBe('Mu█dering');
+		// A shorter incoming word erases the outgoing tail with spaces.
+		expect(sweepVerb('Mulling', 7, 'Pondering')).toBe('Mulling█g');
+		expect(sweepVerb('Mulling', 8, 'Pondering')).toBe('Mulling █');
+	});
+
+	it('keeps the line padded to the wider of the two words', () => {
+		const width = Math.max('Mulling'.length, 'Pondering'.length);
+		for (let i = 0; i < width; i++) {
+			expect(sweepVerb('Mulling', i, 'Pondering')).toHaveLength(width);
+			expect(sweepVerb('Mulling', i, 'Pondering')).toContain(SWEEP_CHAR);
 		}
 	});
 
@@ -33,6 +43,11 @@ describe('sweepCycleLength', () => {
 	it('is the word length plus the trailing pause', () => {
 		expect(sweepCycleLength('abc')).toBe(3 + PAUSE_TICKS);
 		expect(sweepCycleLength('Tallying')).toBe('Tallying'.length + PAUSE_TICKS);
+	});
+
+	it('spans the wider word so a longer previous one is fully overwritten', () => {
+		expect(sweepCycleLength('Mulling', 'Pondering')).toBe('Pondering'.length + PAUSE_TICKS);
+		expect(sweepCycleLength('Pondering', 'Mulling')).toBe('Pondering'.length + PAUSE_TICKS);
 	});
 });
 

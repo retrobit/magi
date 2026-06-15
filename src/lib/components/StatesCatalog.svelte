@@ -47,19 +47,24 @@
 	let nSweep = $state(0);
 	let cVerb = $state(0);
 	let cSweep = $state(0);
-	const nodeLoadingText = $derived(sweepVerb(nodeVerbs[nVerb % nodeVerbs.length], nSweep));
+	// The block overwrites the previous verb; the first verb writes onto blank.
+	const nPrev = $derived(nVerb === 0 ? '' : nodeVerbs[(nVerb - 1) % nodeVerbs.length]);
+	const cPrev = $derived(cVerb === 0 ? '' : consensusVerbs[(cVerb - 1) % consensusVerbs.length]);
+	const nodeLoadingText = $derived(sweepVerb(nodeVerbs[nVerb % nodeVerbs.length], nSweep, nPrev));
 	const consensusLoadingText = $derived(
-		sweepVerb(consensusVerbs[cVerb % consensusVerbs.length], cSweep)
+		sweepVerb(consensusVerbs[cVerb % consensusVerbs.length], cSweep, cPrev)
 	);
 	$effect(() => {
 		const id = setInterval(() => {
 			const nw = nodeVerbs[nVerb % nodeVerbs.length];
-			if (nSweep + 1 >= sweepCycleLength(nw)) {
+			const np = nVerb === 0 ? '' : nodeVerbs[(nVerb - 1) % nodeVerbs.length];
+			if (nSweep + 1 >= sweepCycleLength(nw, np)) {
 				nSweep = 0;
 				nVerb += 1;
 			} else nSweep += 1;
 			const cw = consensusVerbs[cVerb % consensusVerbs.length];
-			if (cSweep + 1 >= sweepCycleLength(cw)) {
+			const cp = cVerb === 0 ? '' : consensusVerbs[(cVerb - 1) % consensusVerbs.length];
+			if (cSweep + 1 >= sweepCycleLength(cw, cp)) {
 				cSweep = 0;
 				cVerb += 1;
 			} else cSweep += 1;
