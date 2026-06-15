@@ -160,7 +160,11 @@
 		</div>
 	{:else if concept === 'decode'}
 		<div class="decode">
-			<div class="word">{decoded.join('')}</div>
+			<!-- Each glyph sits in a fixed-width slot so the scramble can't shift the
+			     word horizontally as differently-sized characters cycle through. -->
+			<div class="word">
+				{#each decoded as ch, i (i)}<span class="ch">{ch}</span>{/each}
+			</div>
 			<div class="triad" class:show={triadOn}>
 				<span class="tri r">▲</span><span class="tri g">▼</span><span class="tri b">▲</span>
 			</div>
@@ -332,11 +336,20 @@
 		gap: 1rem;
 	}
 	.decode .word {
+		/* Monospace so every scramble glyph shares one cell width — the root of the
+		   horizontal jitter was the proportional display font. */
+		font-family: var(--font-mono, ui-monospace, 'Courier New', monospace);
 		font-size: clamp(2rem, 8vw, 3.5rem);
 		font-weight: 700;
 		letter-spacing: 0.12em;
-		white-space: pre;
 		min-height: 1.2em;
+	}
+	/* Fixed-width slot per glyph: even a non-mono fallback glyph (▲▼█░▒▓) is centred
+	   in one cell and can't push its neighbours, so the word never shifts. */
+	.decode .word .ch {
+		display: inline-block;
+		width: 1ch;
+		text-align: center;
 	}
 	.decode .triad {
 		font-size: clamp(1.1rem, 3vw, 1.6rem);
