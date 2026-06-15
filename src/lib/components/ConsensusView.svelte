@@ -25,8 +25,8 @@
 		STRATEGY_VERBS,
 		GENERIC_VERBS,
 		SWEEP_MS,
-		sweepVerb,
-		sweepCycleLength
+		loaderFrame,
+		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
@@ -415,17 +415,9 @@
 	// Reduced motion freezes the sweep on the plain verb — a JS interval can't be
 	// stopped by CSS, so we gate it here. Captured per loader phase.
 	let cStaticVerb = $state(false);
-	// The block overwrites the previous verb; the first verb writes onto blank.
-	const cPrevVerb = $derived(
-		cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length]
-	);
-	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
-	// text instead of floating past blank space. When reduced-motion is on, show
-	// the plain verb with no sweep.
+	// The active verb (ellipsis included) being written/overwritten by the block.
 	const consensusLoadingText = $derived(
-		cStaticVerb
-			? consensusVerbs[cVerbIndex % consensusVerbs.length]
-			: sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb).trimEnd()
+		loaderFrame(consensusVerbs, cVerbIndex, cSweep, cStaticVerb)
 	);
 	$effect(() => {
 		if (!showConsensusLoader) return;
@@ -434,9 +426,7 @@
 		cStaticVerb = prefersReducedMotion();
 		if (cStaticVerb) return; // honor reduced motion: no animated sweep
 		const id = setInterval(() => {
-			const word = consensusVerbs[cVerbIndex % consensusVerbs.length];
-			const prev = cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length];
-			if (cSweep + 1 >= sweepCycleLength(word, prev)) {
+			if (cSweep + 1 >= loaderCycleLength(consensusVerbs, cVerbIndex)) {
 				cSweep = 0;
 				cVerbIndex += 1;
 			} else {
@@ -808,13 +798,13 @@
 								{waitingLabel}
 							</p>
 						{:else if loading && !text}
-							<p class="magi-loader-text">{consensusLoadingText}…</p>
+							<p class="magi-loader-text">{consensusLoadingText}</p>
 						{:else if text}
 							<div class="prose max-w-none prose-invert">
 								<Markdown source={text} />
 							</div>
 							{#if debateRounding}
-								<p class="magi-loader-text">{consensusLoadingText}…</p>
+								<p class="magi-loader-text">{consensusLoadingText}</p>
 							{/if}
 						{:else}
 							<p class="magi-placeholder">Consensus pending — awaiting MAGI responses…</p>

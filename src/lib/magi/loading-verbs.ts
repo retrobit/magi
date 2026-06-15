@@ -61,3 +61,35 @@ export function sweepVerb(word: string, sweep: number, prevWord = ''): string {
 export function sweepCycleLength(word: string, prevWord = ''): number {
 	return Math.max(word.length, prevWord.length) + PAUSE_TICKS;
 }
+
+// The trailing ellipsis is part of the written token, so the block lays it down
+// too ("Think█" → "Thinking█" → "Thinking…") rather than sitting there statically.
+export const LOADER_ELLIPSIS = '…';
+
+const withEllipsis = (verbs: readonly string[], index: number): string =>
+	verbs[index % verbs.length] + LOADER_ELLIPSIS;
+
+/**
+ * The loader line for the current frame: the active verb — ellipsis included —
+ * being written, then overwritten by the next verb, by the block. When `reduced`
+ * is true (prefers-reduced-motion) it's the plain verb + ellipsis, no sweep.
+ * Trailing to-be-filled padding is trimmed so the line ends at the live content.
+ */
+export function loaderFrame(
+	verbs: readonly string[],
+	index: number,
+	sweep: number,
+	reduced = false
+): string {
+	const word = withEllipsis(verbs, index);
+	if (reduced) return word;
+	const prev = index === 0 ? '' : withEllipsis(verbs, index - 1);
+	return sweepVerb(word, sweep, prev).trimEnd();
+}
+
+/** Ticks in the current verb's cycle, ellipsis included (the block writes it too). */
+export function loaderCycleLength(verbs: readonly string[], index: number): number {
+	const word = withEllipsis(verbs, index);
+	const prev = index === 0 ? '' : withEllipsis(verbs, index - 1);
+	return sweepCycleLength(word, prev);
+}

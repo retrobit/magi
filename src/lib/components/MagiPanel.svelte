@@ -25,8 +25,8 @@
 		GENERIC_VERBS,
 		TEMPERAMENT_VERBS,
 		SWEEP_MS,
-		sweepVerb,
-		sweepCycleLength
+		loaderFrame,
+		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
@@ -288,19 +288,8 @@
 	// Reduced motion freezes the sweep on the plain verb — a JS interval can't be
 	// stopped by CSS, so we gate it here. Captured per pending phase.
 	let staticVerb = $state(false);
-	// The previous verb is what the block overwrites; the first verb (index 0)
-	// writes onto blank instead.
-	const prevVerb = $derived(
-		verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length]
-	);
-	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
-	// text instead of floating past blank space. When reduced-motion is on, show
-	// the plain verb with no sweep.
-	const loadingText = $derived(
-		staticVerb
-			? loadingVerbs[verbIndex % loadingVerbs.length]
-			: sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb).trimEnd()
-	);
+	// The active verb (ellipsis included) being written/overwritten by the block.
+	const loadingText = $derived(loaderFrame(loadingVerbs, verbIndex, sweep, staticVerb));
 	$effect(() => {
 		if (status !== 'pending' || text) return;
 		verbIndex = 0;
@@ -308,9 +297,7 @@
 		staticVerb = prefersReducedMotion();
 		if (staticVerb) return; // honor reduced motion: no animated sweep
 		const id = setInterval(() => {
-			const word = loadingVerbs[verbIndex % loadingVerbs.length];
-			const prev = verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length];
-			if (sweep + 1 >= sweepCycleLength(word, prev)) {
+			if (sweep + 1 >= loaderCycleLength(loadingVerbs, verbIndex)) {
 				sweep = 0;
 				verbIndex += 1;
 			} else {
@@ -720,7 +707,7 @@
 						{:else if status === 'success'}
 							<p class="text-sm text-gray-500">The model returned an empty response.</p>
 						{:else}
-							<p class="magi-loader-text">{loadingText}…</p>
+							<p class="magi-loader-text">{loadingText}</p>
 						{/if}
 						{@render roundList(debateRounds, true)}
 						{@render tokenFooter(liveInput, liveOutput, liveEstimated)}

@@ -15,8 +15,8 @@
 		GENERIC_VERBS,
 		STRATEGY_VERBS,
 		SWEEP_MS,
-		sweepVerb,
-		sweepCycleLength
+		loaderFrame,
+		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { prefersReducedMotion } from '$lib/motion';
 	import Markdown from './Markdown.svelte';
@@ -48,37 +48,21 @@
 	let nSweep = $state(0);
 	let cVerb = $state(0);
 	let cSweep = $state(0);
-	// The block overwrites the previous verb; the first verb writes onto blank.
-	const nPrev = $derived(nVerb === 0 ? '' : nodeVerbs[(nVerb - 1) % nodeVerbs.length]);
-	const cPrev = $derived(cVerb === 0 ? '' : consensusVerbs[(cVerb - 1) % consensusVerbs.length]);
 	// Reduced motion freezes the sweep on the plain verb (a JS interval can't be
 	// stopped by CSS). Captured once on mount for this dev-only catalog.
 	let staticVerb = $state(false);
-	// Trim the to-be-filled padding so the trailing "…" hugs the live text. When
-	// reduced-motion is on, show the plain verb with no sweep.
-	const nodeLoadingText = $derived(
-		staticVerb
-			? nodeVerbs[nVerb % nodeVerbs.length]
-			: sweepVerb(nodeVerbs[nVerb % nodeVerbs.length], nSweep, nPrev).trimEnd()
-	);
-	const consensusLoadingText = $derived(
-		staticVerb
-			? consensusVerbs[cVerb % consensusVerbs.length]
-			: sweepVerb(consensusVerbs[cVerb % consensusVerbs.length], cSweep, cPrev).trimEnd()
-	);
+	// The active verb (ellipsis included) being written/overwritten by the block.
+	const nodeLoadingText = $derived(loaderFrame(nodeVerbs, nVerb, nSweep, staticVerb));
+	const consensusLoadingText = $derived(loaderFrame(consensusVerbs, cVerb, cSweep, staticVerb));
 	$effect(() => {
 		staticVerb = prefersReducedMotion();
 		if (staticVerb) return; // honor reduced motion: no animated sweep
 		const id = setInterval(() => {
-			const nw = nodeVerbs[nVerb % nodeVerbs.length];
-			const np = nVerb === 0 ? '' : nodeVerbs[(nVerb - 1) % nodeVerbs.length];
-			if (nSweep + 1 >= sweepCycleLength(nw, np)) {
+			if (nSweep + 1 >= loaderCycleLength(nodeVerbs, nVerb)) {
 				nSweep = 0;
 				nVerb += 1;
 			} else nSweep += 1;
-			const cw = consensusVerbs[cVerb % consensusVerbs.length];
-			const cp = cVerb === 0 ? '' : consensusVerbs[(cVerb - 1) % consensusVerbs.length];
-			if (cSweep + 1 >= sweepCycleLength(cw, cp)) {
+			if (cSweep + 1 >= loaderCycleLength(consensusVerbs, cVerb)) {
 				cSweep = 0;
 				cVerb += 1;
 			} else cSweep += 1;
@@ -218,11 +202,11 @@
 			<span class="magi-section-header text-gray-500">Progress indicators</span>
 			<div class="flex flex-col gap-2">
 				<div class="flex flex-col gap-0.5">
-					<p class="magi-loader-text">{nodeLoadingText}…</p>
+					<p class="magi-loader-text">{nodeLoadingText}</p>
 					<span class="magi-meta">Node loader — sweeping verb (neutral set)</span>
 				</div>
 				<div class="flex flex-col gap-0.5">
-					<p class="magi-loader-text">{consensusLoadingText}…</p>
+					<p class="magi-loader-text">{consensusLoadingText}</p>
 					<span class="magi-meta">Consensus loader — strategy-flavoured verb (debate)</span>
 				</div>
 				<div class="flex flex-col gap-0.5">
