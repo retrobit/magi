@@ -107,7 +107,9 @@ describe('run-stats persistence', () => {
 		// Oldest 10 were dropped — the first remaining record's total is 10.
 		expect(records[0].stats.voting?.winnerTotal).toBe(10);
 		expect(records.at(-1)?.stats.voting?.winnerTotal).toBe(509);
-	});
+		// 510 appends each re-serialize the capped array (O(n²) by design, exercising
+		// the cap) — generous timeout so a loaded CI box doesn't flake on the default 5s.
+	}, 20000);
 
 	it('clears the history', () => {
 		appendRunStat(makeRun());
