@@ -416,8 +416,10 @@
 	const cPrevVerb = $derived(
 		cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length]
 	);
+	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
+	// text instead of floating past blank space.
 	const consensusLoadingText = $derived(
-		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb)
+		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb).trimEnd()
 	);
 	$effect(() => {
 		if (!showConsensusLoader) return;

@@ -50,9 +50,12 @@
 	// The block overwrites the previous verb; the first verb writes onto blank.
 	const nPrev = $derived(nVerb === 0 ? '' : nodeVerbs[(nVerb - 1) % nodeVerbs.length]);
 	const cPrev = $derived(cVerb === 0 ? '' : consensusVerbs[(cVerb - 1) % consensusVerbs.length]);
-	const nodeLoadingText = $derived(sweepVerb(nodeVerbs[nVerb % nodeVerbs.length], nSweep, nPrev));
+	// Trim the to-be-filled padding so the trailing "…" hugs the live text.
+	const nodeLoadingText = $derived(
+		sweepVerb(nodeVerbs[nVerb % nodeVerbs.length], nSweep, nPrev).trimEnd()
+	);
 	const consensusLoadingText = $derived(
-		sweepVerb(consensusVerbs[cVerb % consensusVerbs.length], cSweep, cPrev)
+		sweepVerb(consensusVerbs[cVerb % consensusVerbs.length], cSweep, cPrev).trimEnd()
 	);
 	$effect(() => {
 		const id = setInterval(() => {

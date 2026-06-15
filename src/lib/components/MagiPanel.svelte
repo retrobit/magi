@@ -290,8 +290,10 @@
 	const prevVerb = $derived(
 		verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length]
 	);
+	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
+	// text instead of floating past blank space.
 	const loadingText = $derived(
-		sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb)
+		sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb).trimEnd()
 	);
 	$effect(() => {
 		if (status !== 'pending' || text) return;
