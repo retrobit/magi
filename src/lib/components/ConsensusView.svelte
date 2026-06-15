@@ -152,6 +152,16 @@
 	// `none` also has no consensus call, so the same gate applies.
 	const consensusNodeApplies = $derived(strategy !== 'voting' && strategy !== 'none');
 
+	// The consensus seat plays a different role per strategy, so the chooser is
+	// labelled to match: in Synthesis it *synthesizes* the three answers; in a
+	// debate it *consolidates* the finished rounds. (Inert for voting/none.)
+	const consensusSeatLabel = $derived(strategy === 'debate' ? 'Consolidator' : 'Synthesizer');
+	const consensusSeatTooltip = $derived(
+		strategy === 'debate'
+			? 'The MAGI that consolidates the debate — after the rounds finish, it reads the full back-and-forth and writes the final unified answer.'
+			: 'The MAGI that synthesizes the consensus — it reads all three answers and composes one unified result.'
+	);
+
 	// Convenience flag for the placeholder / loader logic below.
 	const consensusSkipped = $derived(strategy === 'none');
 
@@ -612,12 +622,13 @@
 					<div class="flex w-full items-center gap-x-2 sm:contents">
 						{#if onconsensuschange}
 							<div class="flex shrink-0 items-center gap-x-2">
-								<span class="text-xs text-gray-500">Node</span>
+								<span class="text-xs text-gray-500">{consensusSeatLabel}</span>
 								{#if consensusNodeApplies}
 									<select
 										class="magi-select rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
 										value={consensusNode}
 										onchange={handleNodeChange}
+										use:tooltip={consensusSeatTooltip}
 										{disabled}
 									>
 										{#each MAGI_NODE_NAMES as node (node)}
