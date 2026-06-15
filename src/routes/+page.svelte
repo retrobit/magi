@@ -624,14 +624,19 @@
 
 	// A node "thinks" while it actively generates: phase 1 (pending), and — in a
 	// Multi-Round Debate — through each round, until the final synthesis begins
-	// (that's the consensus node's work, not the debaters'). A debater is
-	// generating between round results, i.e. while the consensus has not yet
-	// streamed the `---` divider that separates the round ledger from the synthesis.
+	// (that's the consensus node's work, not the debaters'). The debate only starts
+	// once EVERY phase-1 answer is in, so gate on `allModelsResponded`: a node that
+	// finished phase 1 early shouldn't keep pulsing while it waits for a slower peer
+	// — it's idle until the rounds actually engage it. Erroring nodes never enter
+	// the debate, so they're excluded via `responseMap`. The debater is generating
+	// until the consensus streams the `---` divider that separates the round ledger
+	// from the synthesis.
 	const DEBATE_DIVIDER = '\n\n---\n\n';
 	function nodeDebating(node: MagiNodeName): boolean {
 		return (
 			effectiveLoading &&
 			strategy === 'debate' &&
+			allModelsResponded &&
 			!!responseMap.get(node) &&
 			!live.consensusStream.includes(DEBATE_DIVIDER)
 		);
