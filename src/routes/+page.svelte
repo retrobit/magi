@@ -714,7 +714,10 @@
 		bgVariant = s.bgVariant;
 		palette = s.palette ?? 'nebula';
 		scrollMode = s.scrollMode;
-		if (s.layoutFocus) layoutFocus = s.layoutFocus;
+		// Intentionally NOT restoring `s.layoutFocus`: every reload starts from the
+		// balanced/shared layout (the in-code default) regardless of how it was left,
+		// so a fresh session always opens neutral. Auto-layout then takes over once a
+		// run begins.
 		autoLayout = s.autoLayout ?? true;
 		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
 		// reduced, false → full (an explicit Full choice); a fresh payload with
