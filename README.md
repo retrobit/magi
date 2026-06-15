@@ -247,18 +247,22 @@ Streams results via Server-Sent Events.
 
 **SSE events:**
 
-| Event                | Payload                                                  | Description                       |
-| -------------------- | -------------------------------------------------------- | --------------------------------- |
-| `config`             | `NodeAssignment[]`                                       | Node-to-model assignment mapping  |
-| `model-chunk`        | `{ node, text }`                                         | Streaming text delta from a node  |
-| `model-response`     | `{ node, gateway, provider, text }`                      | A node's complete response        |
-| `model-error`        | `{ node, gateway, provider, error }`                     | A node failure                    |
-| `model-usage`        | `{ node, inputTokens, outputTokens, cachedInputTokens }` | Token usage for a completed node  |
-| `partial-consensus`  | `{ responded, total }`                                   | Warning: not all models responded |
-| `consensus-chunk`    | `{ text }`                                               | Streaming consensus text delta    |
-| `consensus-complete` | `{ text }`                                               | Full consensus text               |
-| `consensus-usage`    | `{ inputTokens, outputTokens, cachedInputTokens }`       | Token usage for the consensus     |
-| `error`              | `{ message }`                                            | Fatal error                       |
+| Event                | Payload                                                  | Description                         |
+| -------------------- | -------------------------------------------------------- | ----------------------------------- |
+| `config`             | `NodeAssignment[]`                                       | Node-to-model assignment mapping    |
+| `model-chunk`        | `{ node, text }`                                         | Streaming text delta from a node    |
+| `model-response`     | `{ node, gateway, provider, text }`                      | A node's complete response          |
+| `model-error`        | `{ node, gateway, provider, error }`                     | A node failure                      |
+| `model-usage`        | `{ node, inputTokens, outputTokens, cachedInputTokens }` | Token usage for a completed node    |
+| `partial-consensus`  | `{ responded, total }`                                   | Warning: not all models responded   |
+| `consensus-chunk`    | `{ text }`                                               | Streaming consensus text delta      |
+| `node-round`         | `{ node, entry }`                                        | A debater's revised answer (debate) |
+| `consensus-complete` | `{ text }`                                               | Full consensus text                 |
+| `consensus-usage`    | `{ inputTokens, outputTokens, cachedInputTokens }`       | Token usage for the consensus       |
+| `run-stats`          | `{ strategy, tier, ... }`                                | Per-run aggregate stats (one/run)   |
+| `error`              | `{ message }`                                            | Fatal error                         |
+
+> Payload shapes above are abbreviated — see [`openapi.yaml`](openapi.yaml) for the full event taxonomy and field-level schemas.
 
 **Rate limiting:** 10 req/min per IP (in-memory; configure a trusted proxy / `ADDRESS_HEADER` so the server sees real client IPs). **Errors:** `400` bad request · `401` bad/missing key · `415` wrong Content-Type · `429` rate limited. Frame the SSE stream by splitting on `\n\n` and reading the `event:` / `data:` lines.
 

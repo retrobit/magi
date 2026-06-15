@@ -559,12 +559,16 @@ components:
         Per-run aggregate stats — every consensus run emits exactly one. Voting runs
         fill `voting`; debate runs fill `debate`. Synthesis runs carry neither.
       type: object
-      required: [strategy, tier, temperaments, consensusTemperament, nodes]
+      required: [strategy, tier, synthesizerAwareness, consensusTemperament, nodes]
       additionalProperties: false
       properties:
         strategy: { $ref: '#/components/schemas/StrategyName' }
         tier: { type: string }
-        temperaments: { type: boolean }
+        synthesizerAwareness:
+          type: boolean
+          description: >-
+            Whether the synthesizer was told the nodes answered through
+            dispositional lenses (the Awareness toggle).
         consensusTemperament: { type: boolean }
         nodes:
           type: object
