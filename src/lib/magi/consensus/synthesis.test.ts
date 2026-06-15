@@ -194,6 +194,16 @@ describe('synthesisStrategy.execute', () => {
 		expect(lastUser).toContain('Skeptic');
 	});
 
+	it('appends the unified consensus-format contract (Verdict / Reasoning / Confidence) to the system prompt', async () => {
+		await collect(synthesisStrategy.execute(baseContext()));
+		const system = lastArgs().system as string;
+		expect(system).toContain('## Verdict');
+		expect(system).toContain('## Reasoning');
+		expect(system).toContain('## Confidence');
+		// Synthesis never declares a split, so it must use the unified skeleton.
+		expect(system).not.toContain('## Positions');
+	});
+
 	it('starts the system prompt with the consensus role text when no consensus temperament is set', async () => {
 		await collect(synthesisStrategy.execute(baseContext()));
 		expect((lastArgs().system as string).startsWith('You are the MAGI consensus system')).toBe(

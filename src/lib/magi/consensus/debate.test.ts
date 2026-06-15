@@ -316,6 +316,37 @@ describe('debateStrategy.execute', () => {
 		expect(completeText(events)).toContain('in agreement');
 	});
 
+	it('appends the unified consensus-format contract when the debate converges', async () => {
+		generateTextMock.mockResolvedValue(
+			debaterReply('no', 'A revised answer', 'we align', undefined, 'yes') as never
+		);
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).toBe('consensus');
+		const system = String(streamTextMock.mock.calls.at(-1)?.[0].system);
+		expect(system).toContain('## Verdict');
+		expect(system).toContain('## Reasoning');
+		expect(system).toContain('## Confidence');
+		// A converged debate is a unified answer, not a side-by-side of positions.
+		expect(system).not.toContain('## Positions');
+	});
+
+	it('appends the divided consensus-format contract when the debate splits', async () => {
+		// 2-vs-1 split (two agree, one dissents) → divided skeleton.
+		generateTextMock
+			.mockResolvedValueOnce(debaterReply('no', 'ans M', 'agree', undefined, 'yes') as never)
+			.mockResolvedValueOnce(debaterReply('no', 'ans B', 'agree', undefined, 'yes') as never)
+			.mockResolvedValue(debaterReply('no', 'ans C', 'I differ', undefined, 'no') as never);
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).toBe('split');
+		const system = String(streamTextMock.mock.calls.at(-1)?.[0].system);
+		expect(system).toContain('## Verdict');
+		expect(system).toContain('## Positions');
+		expect(system).toContain('## Confidence');
+		expect(system).toContain('Do not pick a winner');
+		// The divided skeleton replaces Reasoning with Positions.
+		expect(system).not.toContain('## Reasoning');
+	});
+
 	it('briefs the split synthesizer against self-bias and surfaces the coalition', async () => {
 		// Two converge & agree, one holds and dissents — a 2-vs-1 split where the
 		// consensus seat (index 0 → MAGI_1) is on the majority side. The synthesis
