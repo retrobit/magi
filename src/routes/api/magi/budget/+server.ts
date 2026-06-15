@@ -1,4 +1,6 @@
 import { json } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { getProviderBudgets } from '$lib/server/budget';
 import { checkApiKey } from '$lib/server/auth';
@@ -6,6 +8,21 @@ import { logEvent } from '$lib/server/logger';
 
 export const GET: RequestHandler = async ({ request, url, getClientAddress }) => {
 	const requestId = crypto.randomUUID().slice(0, 8);
+
+	// This endpoint returns the operator's real provider spend, credit limits, and
+	// tier — billing telemetry that must never be public. `checkApiKey` passes
+	// through when MAGI_API_KEY is unset (the dev-friendly default), so in a
+	// production build we additionally fail CLOSED unless a key is configured.
+	// Inference (POST /api/magi) is intentionally left open for the free-tier demo;
+	// only this billing route is locked. Dev stays pass-through for convenience.
+	if (!dev && !env.MAGI_API_KEY) {
+		logEvent('warn', 'budget.locked', { requestId, ip: getClientAddress() });
+		return json(
+			{ error: 'Budget endpoint disabled. Set MAGI_API_KEY to enable it.' },
+			{ status: 404, headers: { 'X-Request-Id': requestId } }
+		);
+	}
+
 	const authFail = checkApiKey(request);
 	if (authFail) {
 		logEvent('warn', 'budget.unauthorized', { requestId, ip: getClientAddress() });
