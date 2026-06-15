@@ -24,56 +24,33 @@ export const STRATEGY_VERBS: Record<Exclude<StrategyName, 'none'>, string[]> = {
 	debate: ['Debating', 'Arguing', 'Deliberating', 'Rebutting', 'Converging']
 };
 
-// A solid block is the writing head: it sweeps left-to-right and lays the verb
-// down behind it, one character at a time, à la Claude Code. The very first verb
-// is written onto blank ("█      " → "Th█    " → "Thinking"); every verb after
-// overwrites the *previous* word in place as the block passes — the outgoing
-// letters stay on screen ahead of the block until it reaches them ("█ondering" →
-// "Po█dering" → "Pondering"), and a shorter new word erases the tail with spaces.
-// After it reaches the end it holds the full word for a beat, then the next sweep
-// begins. Widths are padded with spaces so the line stays steady in the mono font.
+// A solid block is the writing head, à la Claude Code. Only one verb is ever on
+// screen, and it lives through three phases:
+//   WRITE   the block lays the verb (ellipsis included) down left-to-right onto
+//           a blank line ("█" → "Th█" → "Thinking█" → "Thinking…"),
+//   HOLD    the finished word rests for a beat,
+//   DELETE  the block forward-deletes the word left-to-right, eating one char per
+//           tick and leaving blanks behind ("█hinking…" → " █inking…" → "      █"),
+// then the next verb writes onto the now-clear line. No overwrite, no padding —
+// the line only ever holds the one live word.
 export const SWEEP_CHAR = '█';
 export const SWEEP_MS = 70;
-// Ticks the full word is held (block gone) before advancing to the next verb.
-// Generous so the eye rests on each completed word rather than the cycle
-// feeling frantic — the sweep is the motion, the hold is the breath.
+// Ticks the finished word is held (block gone) before it's deleted. Generous so
+// the eye rests on each completed word — the sweep is motion, the hold is breath.
 export const PAUSE_TICKS = 18;
-
-/**
- * The line mid-sweep: the incoming `word` laid down up to the block at `sweep`,
- * the block itself, then whatever's left of the outgoing `prevWord` ahead of it
- * (blank on the first verb). Once `sweep` clears the swept span it's the plain
- * word — the trailing pause. Both words are padded to the wider of the two so a
- * shorter incoming word erases the outgoing tail with spaces and the width holds.
- */
-export function sweepVerb(word: string, sweep: number, prevWord = ''): string {
-	const width = Math.max(word.length, prevWord.length);
-	if (sweep >= width) return word;
-	const incoming = word.padEnd(width, ' ');
-	const outgoing = prevWord.padEnd(width, ' ');
-	return incoming.slice(0, sweep) + SWEEP_CHAR + outgoing.slice(sweep + 1);
-}
-
-/**
- * Total ticks for one verb: one per swept column (the wider of the incoming and
- * outgoing words, so a longer previous word is fully overwritten), then the pause.
- */
-export function sweepCycleLength(word: string, prevWord = ''): number {
-	return Math.max(word.length, prevWord.length) + PAUSE_TICKS;
-}
-
-// The trailing ellipsis is part of the written token, so the block lays it down
-// too ("Think█" → "Thinking█" → "Thinking…") rather than sitting there statically.
+// The trailing ellipsis is written and deleted as part of the verb, not tacked on.
 export const LOADER_ELLIPSIS = '…';
+// A non-breaking space for the deleted columns: a normal leading space would be
+// collapsed by HTML whitespace handling and let the block slide back to the left.
+const BLANK = ' ';
 
-const withEllipsis = (verbs: readonly string[], index: number): string =>
+const token = (verbs: readonly string[], index: number): string =>
 	verbs[index % verbs.length] + LOADER_ELLIPSIS;
 
 /**
- * The loader line for the current frame: the active verb — ellipsis included —
- * being written, then overwritten by the next verb, by the block. When `reduced`
- * is true (prefers-reduced-motion) it's the plain verb + ellipsis, no sweep.
- * Trailing to-be-filled padding is trimmed so the line ends at the live content.
+ * The loader line for the current frame. `sweep` runs 0 → loaderCycleLength()-1
+ * across the active verb's WRITE → HOLD → DELETE phases. When `reduced` is true
+ * (prefers-reduced-motion) it's just the plain verb + ellipsis, no animation.
  */
 export function loaderFrame(
 	verbs: readonly string[],
@@ -81,15 +58,19 @@ export function loaderFrame(
 	sweep: number,
 	reduced = false
 ): string {
-	const word = withEllipsis(verbs, index);
+	const word = token(verbs, index);
 	if (reduced) return word;
-	const prev = index === 0 ? '' : withEllipsis(verbs, index - 1);
-	return sweepVerb(word, sweep, prev).trimEnd();
+	const len = word.length;
+	// WRITE: the word laid down up to the block; the rest isn't written yet.
+	if (sweep < len) return word.slice(0, sweep) + SWEEP_CHAR;
+	// HOLD: the finished word, ellipsis and all.
+	if (sweep < len + PAUSE_TICKS) return word;
+	// DELETE: the block eats the word left-to-right, blanks trailing behind it.
+	const erased = sweep - len - PAUSE_TICKS;
+	return BLANK.repeat(erased) + SWEEP_CHAR + word.slice(erased + 1);
 }
 
-/** Ticks in the current verb's cycle, ellipsis included (the block writes it too). */
+/** Ticks in one verb's cycle: write (len) + hold (pause) + delete (len). */
 export function loaderCycleLength(verbs: readonly string[], index: number): number {
-	const word = withEllipsis(verbs, index);
-	const prev = index === 0 ? '' : withEllipsis(verbs, index - 1);
-	return sweepCycleLength(word, prev);
+	return 2 * token(verbs, index).length + PAUSE_TICKS;
 }
