@@ -5,8 +5,8 @@
 	// restores both. The caller owns visibility (mount behind an `{#if}`) and
 	// persists whatever `onsave` hands back — a sparse map holding only the seats
 	// that actually differ from their defaults.
-	import { onMount, onDestroy } from 'svelte';
 	import { RotateCcw, X } from 'lucide-svelte';
+	import { focusTrap } from '$lib/actions/focusTrap';
 	import { MAGI_NODE_NAMES, NODE_COLOR_VARS, type MagiNodeName } from '$lib/magi/types';
 	import {
 		defaultNodeTemperament,
@@ -61,24 +61,7 @@
 		onsave(next);
 		onclose();
 	}
-
-	let bodyEl = $state<HTMLElement | null>(null);
-	let previousFocus: Element | null = null;
-	onMount(() => {
-		previousFocus = document.activeElement;
-		// Land focus on the first name field so keyboard users start editing at the top.
-		bodyEl?.querySelector('input')?.focus();
-	});
-	onDestroy(() => {
-		if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
-	});
-
-	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onclose();
-	}
 </script>
-
-<svelte:window onkeydown={onKeydown} />
 
 <button
 	class="fixed inset-0 z-50 cursor-default bg-black/60 backdrop-blur-sm"
@@ -87,11 +70,14 @@
 	tabindex="-1"
 ></button>
 <div class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+	<!-- Focus trap: lands on the first name field, keeps Tab cycling inside the
+	     dialog (honoring aria-modal), closes on Escape, restores focus on unmount. -->
 	<div
 		class="pointer-events-auto flex max-h-[85vh] w-full max-w-2xl flex-col magi-popover"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="temperament-editor-title"
+		use:focusTrap={{ onescape: onclose, initial: 'input' }}
 	>
 		<div class="flex items-start justify-between gap-4 border-b border-(--magi-border) p-5 pb-4">
 			<div>
@@ -113,7 +99,7 @@
 			</button>
 		</div>
 
-		<div class="flex flex-col gap-5 overflow-y-auto p-5" bind:this={bodyEl}>
+		<div class="flex flex-col gap-5 overflow-y-auto p-5">
 			{#each MAGI_NODE_NAMES as node (node)}
 				{@const def = defaultNodeTemperament(node)}
 				<section class="flex flex-col gap-2" style:--node-color={`var(${NODE_COLOR_VARS[node]})`}>
