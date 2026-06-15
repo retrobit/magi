@@ -64,6 +64,15 @@
 	let openPanel = $state<HeaderPanel | null>(null);
 	const togglePanel = (panel: HeaderPanel) => (openPanel = openPanel === panel ? null : panel);
 
+	// Escape closes an open header popover, matching StrategyPicker and the modals.
+	// If a modal dialog is open on top (reset confirm, temperament editor), defer to
+	// it and leave the panel underneath alone — its own Escape handler runs first.
+	function onWindowKeydown(e: KeyboardEvent) {
+		if (e.key !== 'Escape' || openPanel === null) return;
+		if (document.querySelector('[role="dialog"]')) return;
+		openPanel = null;
+	}
+
 	let showResetConfirm = $state(false);
 
 	// Wipe every persisted slice — global settings + per-tier model snapshots
@@ -76,6 +85,8 @@
 		location.reload();
 	}
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
 	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
