@@ -54,6 +54,10 @@ export function _isAvailabilityError(message: string): boolean {
 	if (
 		lower.includes('context') ||
 		lower.includes('token') ||
+		// An empty response is a per-request fluke, not a down endpoint — a model
+		// that returns nothing once usually answers fine on the next turn, so never
+		// poison its health for it.
+		lower.includes('empty response') ||
 		/\b(401|403|429)\b/.test(message) ||
 		lower.includes('unauthorized') ||
 		lower.includes('forbidden') ||
@@ -498,6 +502,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							const fullText = chunks.join('');
 							const usage = await result.usage;
 							const cached = usage.cachedInputTokens ?? 0;
+							// A node that streamed nothing usable can't take part in consensus.
+							// Count its token usage, then treat the empty answer as a failure so
+							// it's excluded from the debate/vote rather than seeding a phantom
+							// position — an empty stance agrees with no one, which on its own can
+							// manufacture a stalemate. It surfaces as a model-error via the catch.
+							if (fullText.trim() === '') {
+								send('model-usage', {
+									node,
+									inputTokens: usage.inputTokens ?? 0,
+									outputTokens: usage.outputTokens ?? 0,
+									cachedInputTokens: cached
+								});
+								throw new Error('The model returned an empty response.');
+							}
 							logEvent('info', 'node.complete', {
 								requestId,
 								node,

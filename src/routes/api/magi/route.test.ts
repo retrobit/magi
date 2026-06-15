@@ -197,6 +197,20 @@ describe('POST /api/magi — streaming', () => {
 		expect(got).toContain('consensus-complete');
 	});
 
+	it('treats an empty (whitespace-only) model response as a failure', async () => {
+		// A node that streams nothing usable must not enter consensus as a phantom
+		// participant — it surfaces as a model-error and triggers partial-consensus.
+		streamTextMock.mockImplementationOnce(() => fakeStream('   \n  ') as never);
+		const events = await readEvents(await callPost(validBody));
+		const got = names(events);
+		expect(got.filter((n) => n === 'model-response')).toHaveLength(2);
+		const err = events.find((e) => e.event === 'model-error');
+		expect((err?.data as { error?: string })?.error).toMatch(/empty response/i);
+		const partial = events.find((e) => e.event === 'partial-consensus');
+		expect(partial?.data).toEqual({ responded: 2, total: 3 });
+		expect(got).toContain('consensus-complete');
+	});
+
 	it('streams model responses but no consensus events when strategy is none', async () => {
 		const events = await readEvents(await callPost({ ...validBody, strategy: 'none' }));
 		const got = names(events);
