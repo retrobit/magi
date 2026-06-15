@@ -73,7 +73,7 @@ paths:
               $ref: '#/components/schemas/MagiRequest'
             examples:
               minimal:
-                summary: Minimal request (tier preset, default synthesis)
+                summary: Minimal request (free tier preset, synthesis)
                 value:
                   query: What is consciousness?
                   tier: free
@@ -254,9 +254,9 @@ components:
       enum: [none, synthesis, voting, debate]
       description: |
         - `none` — skip consensus, just stream the three node responses.
-        - `synthesis` (default) — a consensus model writes one unified answer.
+        - `synthesis` — a consensus model writes one unified answer.
         - `voting` — peers score each other 0–10; highest wins, shown verbatim.
-        - `debate` (flagship) — multi-round revision until convergence, then synthesis.
+        - `debate` (default, flagship) — multi-round revision until convergence, then synthesis.
 
     GatewayName:
       type: string
