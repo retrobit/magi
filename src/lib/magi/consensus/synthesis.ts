@@ -9,7 +9,7 @@ import {
 import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '../types';
 import { resolveNodeTemperament } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
-import { OPINIONATED_DIRECTIVE } from './deliberation';
+import { OPINIONATED_DIRECTIVE, missingClause } from './deliberation';
 import { consensusFormat } from './format';
 
 export const synthesisStrategy: ConsensusStrategy = {
@@ -55,14 +55,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 		const missingLabels = nodeAssignments
 			.filter((a) => !responses.some((r) => r.node === a.node))
 			.map((a) => nodeLabels[a.node]);
-		const missingClause =
-			missingLabels.length > 0
-				? `\n\nUnavailable for this query: ${missingLabels.join(', ')}. Acknowledge ${
-						missingLabels.length === 1 ? 'this absence' : 'these absences'
-					} briefly so the reader knows the consensus is missing ${
-						missingLabels.length === 1 ? 'a perspective' : 'perspectives'
-					} — do not let absent MAGI vanish silently.`
-				: '';
+		const missing = missingClause(missingLabels, 'query');
 
 		const assignment = nodeAssignments[consensusNodeIndex];
 		const model = getModel(assignment.gateway, assignment.modelId);
@@ -96,7 +89,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 
 The ${n === 3 ? 'three' : n} MAGI responses:
 
-${formattedResponses}${missingClause}
+${formattedResponses}${missing}
 
 Provide the synthesized consensus response.`;
 

@@ -18,7 +18,7 @@ import {
 	type DebateVerdict
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
-import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE } from './deliberation';
+import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE, missingClause } from './deliberation';
 import { consensusFormat } from './format';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { makePeerOrderer } from './peer-order';
@@ -583,20 +583,13 @@ export const debateStrategy: ConsensusStrategy = {
 		const missingLabels = nodeAssignments
 			.filter((a) => !responses.some((r) => r.node === a.node))
 			.map((a) => labels[a.node]);
-		const missingClause =
-			missingLabels.length > 0
-				? `\n\nUnavailable for this debate: ${missingLabels.join(', ')}. Acknowledge ${
-						missingLabels.length === 1 ? 'this absence' : 'these absences'
-					} briefly so the reader knows the consensus is missing ${
-						missingLabels.length === 1 ? 'a perspective' : 'perspectives'
-					} — do not let absent MAGI vanish silently.`
-				: '';
+		const missing = missingClause(missingLabels, 'debate');
 
 		const synthesisPrompt = `Original query: ${query}
 
 After a multi-round debate, the ${n === 3 ? 'three' : n} MAGI hold these ${n === 1 ? 'answer' : 'answers'}:
 
-${formatted}${missingClause}
+${formatted}${missing}
 
 ${
 	verdict === 'split'
