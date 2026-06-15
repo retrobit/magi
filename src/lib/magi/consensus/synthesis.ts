@@ -10,6 +10,7 @@ import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '../types';
 import { resolveNodeTemperament } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { OPINIONATED_DIRECTIVE } from './deliberation';
+import { consensusFormat } from './format';
 
 export const synthesisStrategy: ConsensusStrategy = {
 	name: 'synthesis',
@@ -126,7 +127,7 @@ Provide the synthesized consensus response.`;
 
 Do NOT simply concatenate or summarize the responses. Produce a unified answer that is better than any individual response.${awarenessContext}${
 				opinionated ? `\n\n${OPINIONATED_DIRECTIVE}` : ''
-			}`,
+			}\n\n${consensusFormat(false)}`,
 			messages,
 			abortSignal: signal
 		});

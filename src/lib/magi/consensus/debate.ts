@@ -19,6 +19,7 @@ import {
 } from '../types';
 import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
 import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE } from './deliberation';
+import { consensusFormat } from './format';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { makePeerOrderer } from './peer-order';
 
@@ -644,7 +645,7 @@ Be clear and faithful to the divide; do NOT smooth it over into one verdict, and
 4. Flagging any remaining uncertainty honestly.
 
 Do NOT simply concatenate or summarize. Produce a unified answer that is better than any individual response.`
-			}`,
+			}\n\n${consensusFormat(verdict === 'split')}`,
 			messages,
 			abortSignal: signal
 		});
