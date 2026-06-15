@@ -1,7 +1,7 @@
 // Per-turn peer-order randomization.
 //
 // Voting jurors and debate peers see their rivals anonymized as Candidate/Peer
-// A, B, … Presenting them in fixed node order makes MELCHIOR perpetually "slot
+// A, B, … Presenting them in fixed node order makes MAGI_1 perpetually "slot
 // A", and the stats panel's position-bias readout shows jurors reward whoever
 // sits there. A seeded shuffle rotates the seating each turn so that bias washes
 // out across runs — while staying fully deterministic given a seed, so a single

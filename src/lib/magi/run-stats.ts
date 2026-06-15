@@ -163,12 +163,12 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 		voting: 0,
 		debate: 0
 	};
-	const usageByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+	const usageByNode = { MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 } as Record<MagiNodeName, number>;
 	const usageGateway = new Map<string, CountEntry>();
 	const usageProvider = new Map<string, CountEntry>();
 	const usageModel = new Map<string, CountEntry>();
 
-	const winsByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+	const winsByNode = { MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 } as Record<MagiNodeName, number>;
 	const winsGateway = new Map<string, CountEntry>();
 	const winsProvider = new Map<string, CountEntry>();
 	const winsModelKey = new Map<string, { model: string; node: MagiNodeName; wins: number }>();
@@ -192,9 +192,9 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 	let hitLimitCount = 0;
 	let consensusRoundSum = 0;
 	let consensusRoundCount = 0;
-	const revisionsByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
-	const roundsByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
-	const dissenterByNode = { MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 } as Record<MagiNodeName, number>;
+	const revisionsByNode = { MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 } as Record<MagiNodeName, number>;
+	const roundsByNode = { MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 } as Record<MagiNodeName, number>;
+	const dissenterByNode = { MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 } as Record<MagiNodeName, number>;
 
 	for (const { stats } of records) {
 		byStrategy[stats.strategy] = (byStrategy[stats.strategy] ?? 0) + 1;
@@ -297,9 +297,9 @@ export function aggregate(records: RunStatRecord[]): AggregatedStats {
 			hitLimitCount,
 			avgRoundsToConverge: consensusRoundCount > 0 ? consensusRoundSum / consensusRoundCount : 0,
 			revisionRateByNode: {
-				MELCHIOR: revisionRate(revisionsByNode.MELCHIOR, roundsByNode.MELCHIOR),
-				BALTHASAR: revisionRate(revisionsByNode.BALTHASAR, roundsByNode.BALTHASAR),
-				CASPAR: revisionRate(revisionsByNode.CASPAR, roundsByNode.CASPAR)
+				MAGI_1: revisionRate(revisionsByNode.MAGI_1, roundsByNode.MAGI_1),
+				MAGI_2: revisionRate(revisionsByNode.MAGI_2, roundsByNode.MAGI_2),
+				MAGI_3: revisionRate(revisionsByNode.MAGI_3, roundsByNode.MAGI_3)
 			},
 			dissenterByNode
 		}

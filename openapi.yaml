@@ -51,7 +51,7 @@ paths:
       tags: [consensus]
       summary: Run a MAGI query and stream the result.
       description: |
-        Dispatches the query to three nodes (MELCHIOR, BALTHASAR, CASPAR) in parallel,
+        Dispatches the query to three nodes (MAGI_1, MAGI_2, MAGI_3) in parallel,
         then runs the requested consensus strategy. Responses are streamed live as SSE
         events — see every `SseEvent_*` schema for the per-event payload shape.
 
@@ -84,21 +84,21 @@ paths:
                   query: Defend the strongest argument against open-source AI.
                   tier: balanced
                   strategy: debate
-                  consensusNode: MELCHIOR
+                  consensusNode: MAGI_1
                   temperaments: true
                   consensusTemperament: false
                   temperamentAwareness: true
                   genericLabels: false
                   assignments:
-                    - node: MELCHIOR
+                    - node: MAGI_1
                       gateway: anthropic
                       provider: anthropic
                       modelId: claude-sonnet-4-6
-                    - node: BALTHASAR
+                    - node: MAGI_2
                       gateway: openai
                       provider: openai
                       modelId: gpt-5.4
-                    - node: CASPAR
+                    - node: MAGI_3
                       gateway: google
                       provider: google
                       modelId: gemini-3.5-flash
@@ -264,7 +264,7 @@ components:
 
     MagiNodeName:
       type: string
-      enum: [MELCHIOR, BALTHASAR, CASPAR]
+      enum: [MAGI_1, MAGI_2, MAGI_3]
 
     DebateVerdict:
       type: string
@@ -353,7 +353,7 @@ components:
         genericLabels:
           type: boolean
           default: true
-          description: Use `MAGI 1/2/3` rather than `MELCHIOR/BALTHASAR/CASPAR` in consensus prompts.
+          description: Use `MAGI 1/2/3` rather than the optional code names in consensus prompts.
         history:
           type: array
           maxItems: 50
@@ -542,7 +542,7 @@ components:
         debateVerdict: { $ref: '#/components/schemas/DebateVerdict' }
         debateSummary:
           type: string
-          description: Coalition shape on a 2-vs-1 split (e.g. `MELCHIOR & BALTHASAR aligned; CASPAR dissents`).
+          description: Coalition shape on a 2-vs-1 split (e.g. `MAGI 1 & MAGI 2 aligned; MAGI 3 dissents`).
 
     SseEvent_consensus-usage:
       description: Token usage for the consensus call.

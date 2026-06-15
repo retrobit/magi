@@ -21,7 +21,7 @@
 	interface Props {
 		/** Bumped by the parent every time a new run-stats event arrives. */
 		nonce?: number;
-		/** Mirror the rest of the UI: MAGI 1/2/3 vs MELCHIOR/BALTHASAR/CASPAR. */
+		/** Mirror the rest of the UI: generic MAGI 1/2/3 vs. the revealed code names. */
 		genericLabels?: boolean;
 		onclose: () => void;
 	}
@@ -74,7 +74,7 @@
 	});
 
 	const agg = $derived(aggregate(filteredRecords));
-	const nodeOrder: MagiNodeName[] = ['MELCHIOR', 'BALTHASAR', 'CASPAR'];
+	const nodeOrder: MagiNodeName[] = ['MAGI_1', 'MAGI_2', 'MAGI_3'];
 	const strategyOrder: StrategyName[] = FILTERABLE_STRATEGIES;
 	const verdictOrder: DebateVerdict[] = ['consensus', 'split', 'walkover'];
 	const VERDICT_LABELS: Record<DebateVerdict, string> = {

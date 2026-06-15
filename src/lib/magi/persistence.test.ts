@@ -42,12 +42,12 @@ const validPrefs: MagiPrefs = {
 	snapshots: {
 		balanced: {
 			assignments: [
-				{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'opus' },
-				{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt' },
-				{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini' }
+				{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'opus' },
+				{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt' },
+				{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini' }
 			],
 			configuredNodes: [0, 1, 2],
-			consensusNode: 'MELCHIOR'
+			consensusNode: 'MAGI_1'
 		}
 	}
 };
@@ -65,11 +65,11 @@ const validSettings: PersistedSettings = {
 
 const validTurn: ConversationTurn = {
 	query: 'prior question',
-	nodeResponses: { MELCHIOR: 'an answer' },
+	nodeResponses: { MAGI_1: 'an answer' },
 	nodeErrors: {},
 	consensus: 'prior consensus',
-	consensusNode: 'MELCHIOR',
-	nodeUsage: { MELCHIOR: { inputTokens: 10, outputTokens: 20 } }
+	consensusNode: 'MAGI_1',
+	nodeUsage: { MAGI_1: { inputTokens: 10, outputTokens: 20 } }
 };
 
 beforeEach(() => {
@@ -126,7 +126,7 @@ describe('loadPrefs / savePrefs', () => {
 				balanced: {
 					assignments: [validPrefs.snapshots.balanced!.assignments[0]],
 					configuredNodes: [0],
-					consensusNode: 'MELCHIOR'
+					consensusNode: 'MAGI_1'
 				}
 			}
 		};
@@ -202,6 +202,28 @@ describe('loadConversations / saveConversations', () => {
 
 	it('returns an empty object when nothing is stored', () => {
 		expect(loadConversations()).toEqual({});
+	});
+
+	it('migrates legacy node ids in a saved conversation turn', () => {
+		localStorage.setItem(
+			CONVERSATION_KEY,
+			JSON.stringify({
+				balanced: [
+					{
+						query: 'q',
+						nodeResponses: { MELCHIOR: 'a', CASPAR: 'c' },
+						nodeErrors: {},
+						consensus: 'done',
+						consensusNode: 'MELCHIOR',
+						nodeUsage: { MELCHIOR: { inputTokens: 1, outputTokens: 2 } }
+					}
+				]
+			})
+		);
+		const turn = loadConversations().balanced?.[0];
+		expect(turn?.consensusNode).toBe('MAGI_1');
+		expect(Object.keys(turn!.nodeResponses)).toEqual(['MAGI_1', 'MAGI_3']);
+		expect(Object.keys(turn!.nodeUsage)).toEqual(['MAGI_1']);
 	});
 
 	it('returns an empty object when stored JSON is unparseable', () => {
@@ -282,7 +304,7 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 
 	it('round-trips a sparse customTemperaments override', () => {
 		const customTemperaments = {
-			MELCHIOR: { label: 'Skeptic', prompt: 'You doubt every claim.' }
+			MAGI_1: { label: 'Skeptic', prompt: 'You doubt every claim.' }
 		};
 		savePrefs({ ...validPrefs, settings: { ...validSettings, customTemperaments } });
 		expect(loadPrefs()?.settings?.customTemperaments).toEqual(customTemperaments);
@@ -295,7 +317,7 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 				...validPrefs,
 				settings: {
 					...validSettings,
-					customTemperaments: { CASPAR: { label: 'X', prompt: 'y'.repeat(5000) } }
+					customTemperaments: { MAGI_3: { label: 'X', prompt: 'y'.repeat(5000) } }
 				}
 			})
 		);
@@ -314,6 +336,45 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 		);
 		const result = loadPrefs();
 		expect(result?.settings?.palette).toBe('nebula');
+	});
+
+	it('migrates legacy node ids (MELCHIOR/BALTHASAR/CASPAR) in a saved snapshot', () => {
+		localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({
+				tier: 'balanced',
+				snapshots: {
+					balanced: {
+						assignments: [
+							{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'opus' },
+							{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt' },
+							{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini' }
+						],
+						configuredNodes: [0, 1, 2],
+						consensusNode: 'CASPAR'
+					}
+				}
+			})
+		);
+		const snap = loadPrefs()?.snapshots.balanced;
+		expect(snap?.consensusNode).toBe('MAGI_3');
+		expect(snap?.assignments.map((a) => a.node)).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
+	});
+
+	it('migrates legacy node-keyed customTemperaments', () => {
+		localStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({
+				...validPrefs,
+				settings: {
+					...validSettings,
+					customTemperaments: { BALTHASAR: { label: 'Guardian', prompt: 'Protect.' } }
+				}
+			})
+		);
+		expect(loadPrefs()?.settings?.customTemperaments).toEqual({
+			MAGI_2: { label: 'Guardian', prompt: 'Protect.' }
+		});
 	});
 
 	it('round-trips the motionMode field', () => {

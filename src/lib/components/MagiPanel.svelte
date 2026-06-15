@@ -124,7 +124,7 @@
 	}: Props = $props();
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
-	// Labels are "<name> • <unit>" (e.g. MELCHIOR • 1). Only the name gets the
+	// Labels are "<name> • <unit>" (e.g. MAGI • 1). Only the name gets the
 	// airy display tracking; the "• N" suffix stays tight so the bullet isn't
 	// marooned in whitespace.
 	const labelName = $derived(displayLabel.split('•')[0].trim());

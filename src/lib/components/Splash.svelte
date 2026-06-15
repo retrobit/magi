@@ -147,13 +147,13 @@
 			<div class="sub" class:show={bootStep >= 1}>booting deliberation core…</div>
 			<div class="box" class:show={bootStep >= 2}>
 				<div class="row" class:show={bootStep >= 3}>
-					<span class="dot r"></span><span class="nm">MELCHIOR</span><span class="st">online</span>
+					<span class="dot r"></span><span class="nm">MAGI 1</span><span class="st">online</span>
 				</div>
 				<div class="row" class:show={bootStep >= 4}>
-					<span class="dot g"></span><span class="nm">BALTHASAR</span><span class="st">online</span>
+					<span class="dot g"></span><span class="nm">MAGI 2</span><span class="st">online</span>
 				</div>
 				<div class="row" class:show={bootStep >= 5}>
-					<span class="dot b"></span><span class="nm">CASPAR</span><span class="st">online</span>
+					<span class="dot b"></span><span class="nm">MAGI 3</span><span class="st">online</span>
 				</div>
 			</div>
 			<div class="tagline" class:show={bootStep >= 6}>three minds · one consensus</div>
@@ -177,9 +177,9 @@
 				<line class="beam b" x1="328" y1="56" x2="200" y2="140" />
 				<line class="beam g" x1="200" y1="206" x2="200" y2="140" />
 			</svg>
-			<span class="lbl melchior r">MELCHIOR</span>
-			<span class="lbl caspar b">CASPAR</span>
-			<span class="lbl balthasar g">BALTHASAR</span>
+			<span class="lbl n1 r">MAGI 1</span>
+			<span class="lbl n3 b">MAGI 3</span>
+			<span class="lbl n2 g">MAGI 2</span>
 			<div class="mark">
 				<span class="tri r">▲</span><span class="tri g">▼</span><span class="tri b">▲</span>
 			</div>
@@ -434,17 +434,17 @@
 			opacity 400ms ease,
 			transform 400ms ease;
 	}
-	.conv .melchior {
+	.conv .n1 {
 		top: 6%;
 		left: 2%;
 		transform: translate(-12px, -8px);
 	}
-	.conv .caspar {
+	.conv .n3 {
 		top: 6%;
 		right: 2%;
 		transform: translate(12px, -8px);
 	}
-	.conv .balthasar {
+	.conv .n2 {
 		bottom: 0%;
 		left: 50%;
 		transform: translate(-50%, 10px);
@@ -455,22 +455,22 @@
 	.conv[data-step='4'] .lbl {
 		opacity: 1;
 	}
-	.conv[data-step='1'] .melchior,
-	.conv[data-step='2'] .melchior,
-	.conv[data-step='3'] .melchior,
-	.conv[data-step='4'] .melchior {
+	.conv[data-step='1'] .n1,
+	.conv[data-step='2'] .n1,
+	.conv[data-step='3'] .n1,
+	.conv[data-step='4'] .n1 {
 		transform: none;
 	}
-	.conv[data-step='1'] .caspar,
-	.conv[data-step='2'] .caspar,
-	.conv[data-step='3'] .caspar,
-	.conv[data-step='4'] .caspar {
+	.conv[data-step='1'] .n3,
+	.conv[data-step='2'] .n3,
+	.conv[data-step='3'] .n3,
+	.conv[data-step='4'] .n3 {
 		transform: none;
 	}
-	.conv[data-step='1'] .balthasar,
-	.conv[data-step='2'] .balthasar,
-	.conv[data-step='3'] .balthasar,
-	.conv[data-step='4'] .balthasar {
+	.conv[data-step='1'] .n2,
+	.conv[data-step='2'] .n2,
+	.conv[data-step='3'] .n2,
+	.conv[data-step='4'] .n2 {
 		transform: translate(-50%, 0);
 	}
 	.conv .mark {

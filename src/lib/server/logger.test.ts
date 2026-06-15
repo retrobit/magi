@@ -10,12 +10,12 @@ describe('logEvent', () => {
 
 	it('emits a line carrying the event name and every field', () => {
 		const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-		logEvent('info', 'node.complete', { node: 'MELCHIOR', totalMs: 1234 });
+		logEvent('info', 'node.complete', { node: 'MAGI_1', totalMs: 1234 });
 		expect(spy).toHaveBeenCalledOnce();
 		// Format-agnostic — holds for both the dev (key=value) and prod (JSON) sink.
 		const line = spy.mock.calls[0].join(' ');
 		expect(line).toContain('node.complete');
-		expect(line).toContain('MELCHIOR');
+		expect(line).toContain('MAGI_1');
 		expect(line).toContain('1234');
 	});
 
@@ -38,7 +38,7 @@ describe('logEvent', () => {
 
 	it('routes debug to console.debug', () => {
 		const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		logEvent('debug', 'phase1.dispatch.detail', { node: 'CASPAR' });
+		logEvent('debug', 'phase1.dispatch.detail', { node: 'MAGI_3' });
 		expect(debugSpy).toHaveBeenCalledOnce();
 	});
 

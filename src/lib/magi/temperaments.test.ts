@@ -51,9 +51,9 @@ describe('NODE_TEMPERAMENTS', () => {
 	});
 
 	it('maps the canonical assignments', () => {
-		expect(NODE_TEMPERAMENTS.MELCHIOR).toBe('rationalist');
-		expect(NODE_TEMPERAMENTS.BALTHASAR).toBe('caretaker');
-		expect(NODE_TEMPERAMENTS.CASPAR).toBe('individualist');
+		expect(NODE_TEMPERAMENTS.MAGI_1).toBe('rationalist');
+		expect(NODE_TEMPERAMENTS.MAGI_2).toBe('caretaker');
+		expect(NODE_TEMPERAMENTS.MAGI_3).toBe('individualist');
 	});
 });
 
@@ -110,7 +110,7 @@ describe('TEMPERAMENT_SYSTEM_PROMPTS', () => {
 
 describe('defaultNodeTemperament', () => {
 	it('returns the built-in label, persona, and gloss for a node', () => {
-		const def = defaultNodeTemperament('MELCHIOR');
+		const def = defaultNodeTemperament('MAGI_1');
 		expect(def.base).toBe('rationalist');
 		expect(def.label).toBe(TEMPERAMENT_LABELS.rationalist);
 		expect(def.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.rationalist);
@@ -120,7 +120,7 @@ describe('defaultNodeTemperament', () => {
 
 describe('resolveNodeTemperament', () => {
 	it('falls back to the built-in when there is no override', () => {
-		const r = resolveNodeTemperament('CASPAR');
+		const r = resolveNodeTemperament('MAGI_3');
 		expect(r.custom).toBe(false);
 		expect(r.label).toBe(TEMPERAMENT_LABELS.individualist);
 		expect(r.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.individualist);
@@ -129,8 +129,8 @@ describe('resolveNodeTemperament', () => {
 	});
 
 	it('applies an override and marks it custom', () => {
-		const r = resolveNodeTemperament('MELCHIOR', {
-			MELCHIOR: { label: 'Skeptic', prompt: 'You doubt everything.' }
+		const r = resolveNodeTemperament('MAGI_1', {
+			MAGI_1: { label: 'Skeptic', prompt: 'You doubt everything.' }
 		});
 		expect(r.custom).toBe(true);
 		expect(r.label).toBe('Skeptic');
@@ -140,8 +140,8 @@ describe('resolveNodeTemperament', () => {
 	});
 
 	it('fills a blank field from the built-in (half-filled override stays usable)', () => {
-		const r = resolveNodeTemperament('BALTHASAR', {
-			BALTHASAR: { label: 'Guardian', prompt: '   ' }
+		const r = resolveNodeTemperament('MAGI_2', {
+			MAGI_2: { label: 'Guardian', prompt: '   ' }
 		});
 		expect(r.label).toBe('Guardian');
 		expect(r.prompt).toBe(TEMPERAMENT_SYSTEM_PROMPTS.caretaker);
@@ -149,9 +149,9 @@ describe('resolveNodeTemperament', () => {
 	});
 
 	it('treats an override equal to the default as not custom', () => {
-		const def = defaultNodeTemperament('CASPAR');
-		const r = resolveNodeTemperament('CASPAR', {
-			CASPAR: { label: def.label, prompt: def.prompt }
+		const def = defaultNodeTemperament('MAGI_3');
+		const r = resolveNodeTemperament('MAGI_3', {
+			MAGI_3: { label: def.label, prompt: def.prompt }
 		});
 		expect(r.custom).toBe(false);
 	});

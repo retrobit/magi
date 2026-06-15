@@ -32,7 +32,9 @@ export const synthesisStrategy: ConsensusStrategy = {
 			tier
 		} = ctx;
 
-		const nodeLabels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
+		// Default to numbered labels; proper names only on an explicit opt-in (the
+		// reveal path), so node names stay de-lored everywhere by default.
+		const nodeLabels = genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
 
 		const formattedResponses = responses
 			.map((r) => {

@@ -6,7 +6,7 @@ import { findModelEntry } from './registry';
 describe('DEFAULT_MAGI_CONFIG', () => {
 	it('assigns all three canonical nodes', () => {
 		const nodes = DEFAULT_MAGI_CONFIG.map((a) => a.node);
-		expect(nodes).toEqual(['MELCHIOR', 'BALTHASAR', 'CASPAR']);
+		expect(nodes).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
 	});
 
 	it('uses unique providers', () => {
@@ -33,7 +33,7 @@ describe('DEFAULT_MAGI_CONFIG', () => {
 describe('FREE_MAGI_CONFIG', () => {
 	it('assigns all three canonical nodes', () => {
 		const nodes = FREE_MAGI_CONFIG.map((a) => a.node);
-		expect(nodes).toEqual(['MELCHIOR', 'BALTHASAR', 'CASPAR']);
+		expect(nodes).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
 	});
 
 	it('uses openrouter for all nodes', () => {
@@ -105,27 +105,27 @@ describe('TIER_CONFIGS', () => {
 describe('validateConfig', () => {
 	it('throws on duplicate providers', () => {
 		const config: MagiConfig = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
-			{ node: 'BALTHASAR', gateway: 'openai', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
-			{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+			{ node: 'MAGI_2', gateway: 'openai', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
+			{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		];
 		expect(() => validateConfig(config)).toThrow('Duplicate providers');
 	});
 
 	it('throws on duplicate models', () => {
 		const config: MagiConfig = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'same-model' },
-			{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'same-model' },
-			{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'same-model' },
+			{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'same-model' },
+			{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		];
 		expect(() => validateConfig(config)).toThrow('Duplicate models');
 	});
 
 	it('throws when a direct gateway is used by multiple nodes', () => {
 		const config: MagiConfig = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
-			{ node: 'BALTHASAR', gateway: 'anthropic', provider: 'openai', modelId: 'gpt-4o' },
-			{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+			{ node: 'MAGI_2', gateway: 'anthropic', provider: 'openai', modelId: 'gpt-4o' },
+			{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		];
 		expect(() => validateConfig(config)).toThrow('Direct gateway');
 	});
@@ -133,19 +133,19 @@ describe('validateConfig', () => {
 	it('allows router gateway shared across nodes with different providers', () => {
 		const config: MagiConfig = [
 			{
-				node: 'MELCHIOR',
+				node: 'MAGI_1',
 				gateway: 'openrouter',
 				provider: 'qwen',
 				modelId: 'qwen/qwen3-coder:free'
 			},
 			{
-				node: 'BALTHASAR',
+				node: 'MAGI_2',
 				gateway: 'openrouter',
 				provider: 'nvidia',
 				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
 			},
 			{
-				node: 'CASPAR',
+				node: 'MAGI_3',
 				gateway: 'openrouter',
 				provider: 'meta-llama',
 				modelId: 'meta-llama/llama-3.3-70b-instruct:free'
@@ -156,17 +156,17 @@ describe('validateConfig', () => {
 
 	it('throws on duplicate nodes', () => {
 		const config = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
-			{ node: 'MELCHIOR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
-			{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+			{ node: 'MAGI_1', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
+			{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		] as unknown as MagiConfig;
 		expect(() => validateConfig(config)).toThrow('Duplicate nodes');
 	});
 
 	it('throws when a canonical node is missing', () => {
 		const config = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
-			{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+			{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-4o' },
 			{ node: 'UNKNOWN', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		] as unknown as MagiConfig;
 		expect(() => validateConfig(config)).toThrow('Missing node assignment');
@@ -174,15 +174,15 @@ describe('validateConfig', () => {
 
 	it('allows mixed config with router and direct gateways', () => {
 		const config: MagiConfig = [
-			{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
+			{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-6' },
 			{
-				node: 'BALTHASAR',
+				node: 'MAGI_2',
 				gateway: 'openrouter',
 				provider: 'qwen',
 				modelId: 'qwen/qwen3-coder:free'
 			},
 			{
-				node: 'CASPAR',
+				node: 'MAGI_3',
 				gateway: 'openrouter',
 				provider: 'nvidia',
 				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'

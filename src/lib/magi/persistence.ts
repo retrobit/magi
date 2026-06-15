@@ -155,6 +155,59 @@ const conversationTurnSchema = z.object({
 	aborted: z.boolean().optional()
 });
 
+// One-time node-identifier migration. The three MAGI seats were renamed from
+// their former code names to numbered ids; old saved payloads carry the former
+// ids both as enum values (consensusNode, assignment.node) and as object keys
+// (nodeResponses, customTemperaments, …), so remap them before schema validation
+// — which now only accepts the new ids — or saved configs/conversations would be
+// silently dropped on first load after the rename.
+const LEGACY_NODE_IDS: Record<string, MagiNodeName> = {
+	MELCHIOR: 'MAGI_1',
+	BALTHASAR: 'MAGI_2',
+	CASPAR: 'MAGI_3'
+};
+
+function migrateNodeId(value: unknown): unknown {
+	return typeof value === 'string' && value in LEGACY_NODE_IDS ? LEGACY_NODE_IDS[value] : value;
+}
+
+/** Remap the keys of a node-keyed record (nodeResponses, customTemperaments, …). */
+function migrateNodeKeys(value: unknown): unknown {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+		out[migrateNodeId(k) as string] = v;
+	}
+	return out;
+}
+
+function migrateSnapshot(raw: unknown): unknown {
+	if (!raw || typeof raw !== 'object') return raw;
+	const next = { ...(raw as Record<string, unknown>) };
+	if ('consensusNode' in next) next.consensusNode = migrateNodeId(next.consensusNode);
+	if (Array.isArray(next.assignments)) {
+		next.assignments = next.assignments.map((a) =>
+			a && typeof a === 'object'
+				? {
+						...(a as Record<string, unknown>),
+						node: migrateNodeId((a as Record<string, unknown>).node)
+					}
+				: a
+		);
+	}
+	return next;
+}
+
+function migrateTurn(raw: unknown): unknown {
+	if (!raw || typeof raw !== 'object') return raw;
+	const next = { ...(raw as Record<string, unknown>) };
+	if ('consensusNode' in next) next.consensusNode = migrateNodeId(next.consensusNode);
+	for (const key of ['nodeResponses', 'nodeErrors', 'nodeUsage', 'debateRounds'] as const) {
+		if (key in next) next[key] = migrateNodeKeys(next[key]);
+	}
+	return next;
+}
+
 function storageAvailable(): boolean {
 	try {
 		return typeof localStorage !== 'undefined';
@@ -179,7 +232,7 @@ export function loadPrefs(): MagiPrefs | null {
 		const rawSnapshots = parsed.snapshots as Record<string, unknown>;
 		const snapshots: Partial<Record<TierName, PersistedSnapshot>> = {};
 		for (const t of TIER_NAMES) {
-			const result = persistedSnapshotSchema.safeParse(rawSnapshots[t]);
+			const result = persistedSnapshotSchema.safeParse(migrateSnapshot(rawSnapshots[t]));
 			if (result.success) snapshots[t] = result.data;
 		}
 
@@ -190,12 +243,17 @@ export function loadPrefs(): MagiPrefs | null {
 		// One-time rename migration: `palette: 'eva'` was renamed to 'nebula'.
 		// Rewrite before validation so the enum check doesn't drop the whole slice.
 		let rawSettings = parsed.settings;
-		if (
-			rawSettings &&
-			typeof rawSettings === 'object' &&
-			(rawSettings as Record<string, unknown>).palette === 'eva'
-		) {
-			rawSettings = { ...(rawSettings as Record<string, unknown>), palette: 'nebula' };
+		if (rawSettings && typeof rawSettings === 'object') {
+			const rs = rawSettings as Record<string, unknown>;
+			rawSettings = {
+				...rs,
+				// `palette: 'eva'` was renamed to 'nebula'.
+				...(rs.palette === 'eva' ? { palette: 'nebula' } : {}),
+				// Custom-temperament overrides are keyed by node id — migrate the keys.
+				...(rs.customTemperaments
+					? { customTemperaments: migrateNodeKeys(rs.customTemperaments) }
+					: {})
+			};
 		}
 
 		const settings = persistedSettingsSchema.safeParse(rawSettings);
@@ -237,11 +295,10 @@ export function loadConversations(): Partial<Record<TierName, ConversationTurn[]
 		const out: Partial<Record<TierName, ConversationTurn[]>> = {};
 		for (const t of TIER_NAMES) {
 			const turns = parsed[t];
-			if (
-				Array.isArray(turns) &&
-				turns.every((turn) => conversationTurnSchema.safeParse(turn).success)
-			) {
-				out[t] = turns as ConversationTurn[];
+			if (!Array.isArray(turns)) continue;
+			const migrated = turns.map(migrateTurn);
+			if (migrated.every((turn) => conversationTurnSchema.safeParse(turn).success)) {
+				out[t] = migrated as ConversationTurn[];
 			}
 		}
 		return out;

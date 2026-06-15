@@ -15,23 +15,24 @@ export function isRouter(gateway: GatewayName): boolean {
 export const PROVIDER_NAMES = ['anthropic', 'openai', 'google'] as const;
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
-// Named after the three MAGI supercomputers from Neon Genesis Evangelion
-export const MAGI_NODE_NAMES = ['MELCHIOR', 'BALTHASAR', 'CASPAR'] as const;
+// The three MAGI seats. Numbered identifiers are the canonical names; the
+// optional code names (see NODE_LABELS / REVEAL_NODE_NAMES) are display-only.
+export const MAGI_NODE_NAMES = ['MAGI_1', 'MAGI_2', 'MAGI_3'] as const;
 export type MagiNodeName = (typeof MAGI_NODE_NAMES)[number];
 
 export const TEMPERAMENT_NAMES = ['rationalist', 'caretaker', 'individualist'] as const;
 export type TemperamentName = (typeof TEMPERAMENT_NAMES)[number];
 
 export const NODE_LABELS: Record<MagiNodeName, string> = {
-	MELCHIOR: 'MELCHIOR \u2022 1',
-	BALTHASAR: 'BALTHASAR \u2022 2',
-	CASPAR: 'CASPAR \u2022 3'
+	MAGI_1: 'MELCHIOR \u2022 1',
+	MAGI_2: 'BALTHASAR \u2022 2',
+	MAGI_3: 'CASPAR \u2022 3'
 };
 
 export const NODE_LABELS_GENERIC: Record<MagiNodeName, string> = {
-	MELCHIOR: 'MAGI \u2022 1',
-	BALTHASAR: 'MAGI \u2022 2',
-	CASPAR: 'MAGI \u2022 3'
+	MAGI_1: 'MAGI \u2022 1',
+	MAGI_2: 'MAGI \u2022 2',
+	MAGI_3: 'MAGI \u2022 3'
 };
 
 export const TEMPERAMENT_LABELS: Record<TemperamentName, string> = {
@@ -52,9 +53,9 @@ export const TEMPERAMENT_TOOLTIPS: Record<TemperamentName, string> = {
 };
 
 export const NODE_TEMPERAMENTS: Record<MagiNodeName, TemperamentName> = {
-	MELCHIOR: 'rationalist',
-	BALTHASAR: 'caretaker',
-	CASPAR: 'individualist'
+	MAGI_1: 'rationalist',
+	MAGI_2: 'caretaker',
+	MAGI_3: 'individualist'
 };
 
 export interface MagiNode {
@@ -259,18 +260,18 @@ export interface ConsensusTranscriptEntry {
  *  layout.css instead — keep the two in lockstep when retuning. This map stays
  *  for JS call sites that need a literal (debug swatches). */
 export const NODE_HEX_COLORS: Record<MagiNodeName, string> = {
-	MELCHIOR: '#ef4444',
-	BALTHASAR: '#34d399',
-	CASPAR: '#3b82f6'
+	MAGI_1: '#ef4444',
+	MAGI_2: '#34d399',
+	MAGI_3: '#3b82f6'
 };
 
 /** The theme-aware CSS variable behind each node's identity color — light mode
  *  overrides these vars with darker AA-safe shades, so prefer this over
  *  NODE_HEX_COLORS wherever the color lands on a themed surface. */
 export const NODE_COLOR_VARS: Record<MagiNodeName, string> = {
-	MELCHIOR: '--magi-node-red',
-	BALTHASAR: '--magi-node-green',
-	CASPAR: '--magi-node-blue'
+	MAGI_1: '--magi-node-red',
+	MAGI_2: '--magi-node-green',
+	MAGI_3: '--magi-node-blue'
 };
 
 export const GATEWAY_LABELS: Record<GatewayName, string> = {
@@ -314,7 +315,7 @@ export function pickDiverseModels(models: AvailableModel[], count: number): Avai
 }
 
 export const MAGI_NODES: readonly MagiNode[] = [
-	{ name: 'MELCHIOR', temperament: 'rationalist' },
-	{ name: 'BALTHASAR', temperament: 'caretaker' },
-	{ name: 'CASPAR', temperament: 'individualist' }
+	{ name: 'MAGI_1', temperament: 'rationalist' },
+	{ name: 'MAGI_2', temperament: 'caretaker' },
+	{ name: 'MAGI_3', temperament: 'individualist' }
 ];

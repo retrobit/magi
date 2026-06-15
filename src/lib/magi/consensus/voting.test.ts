@@ -11,15 +11,15 @@ vi.mock('ai', () => ({ generateText: vi.fn() }));
 const generateTextMock = vi.mocked(generateText);
 
 const assignments: NodeAssignment[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
 ];
 
 const threeResponses: MagiResponse[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MELCHIOR' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', text: 'Answer from BALTHASAR' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', text: 'Answer from CASPAR' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MAGI_1' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', text: 'Answer from MAGI_2' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', text: 'Answer from MAGI_3' }
 ];
 
 function context(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
@@ -73,23 +73,23 @@ describe('votingStrategy.execute', () => {
 	});
 
 	it('runs a juror per response and crowns the highest aggregate score', async () => {
-		// Jurors run in node order: MELCHIOR, BALTHASAR, CASPAR.
+		// Jurors run in node order: MAGI_1, MAGI_2, MAGI_3.
 		generateTextMock
-			// MELCHIOR juror — A=BALTHASAR, B=CASPAR
+			// MAGI_1 juror — A=MAGI_2, B=MAGI_3
 			.mockResolvedValueOnce(
 				jurorReply([
 					{ candidate: 'A', score: 9 },
 					{ candidate: 'B', score: 5 }
 				]) as never
 			)
-			// BALTHASAR juror — A=MELCHIOR, B=CASPAR
+			// MAGI_2 juror — A=MAGI_1, B=MAGI_3
 			.mockResolvedValueOnce(
 				jurorReply([
 					{ candidate: 'A', score: 4 },
 					{ candidate: 'B', score: 6 }
 				]) as never
 			)
-			// CASPAR juror — A=MELCHIOR, B=BALTHASAR
+			// MAGI_3 juror — A=MAGI_1, B=MAGI_2
 			.mockResolvedValueOnce(
 				jurorReply([
 					{ candidate: 'A', score: 3 },
@@ -97,13 +97,13 @@ describe('votingStrategy.execute', () => {
 				]) as never
 			);
 		const text = completeText(await collect(votingStrategy.execute(context())));
-		// BALTHASAR: 9 + 8 = 17 (winner). CASPAR: 5 + 6 = 11. MELCHIOR: 4 + 3 = 7.
+		// MAGI_2: 9 + 8 = 17 (winner). MAGI_3: 5 + 6 = 11. MAGI_1: 4 + 3 = 7.
 		expect(generateTextMock).toHaveBeenCalledTimes(3);
-		expect(text).toContain('BALTHASAR');
+		expect(text).toContain('MAGI • 2');
 		expect(text).toContain('wins (17 / 20)');
-		expect(text).toContain('Answer from BALTHASAR');
+		expect(text).toContain('Answer from MAGI_2');
 		// Juror scores are bracketed so the score reads clearly after the label.
-		expect(text).toContain('MELCHIOR • 1 (9)');
+		expect(text).toContain('MAGI • 1 (9)');
 	});
 
 	it('parses scores from replies with bullets and bold markers', async () => {
@@ -145,8 +145,8 @@ describe('votingStrategy.execute', () => {
 			await collect(votingStrategy.execute(context({ responses: threeResponses.slice(0, 2) })))
 		);
 		expect(generateTextMock).toHaveBeenCalledTimes(2);
-		// MELCHIOR scores BALTHASAR 8; BALTHASAR scores MELCHIOR 6 → BALTHASAR wins.
-		expect(text).toContain('BALTHASAR');
+		// MAGI_1 scores MAGI_2 8; MAGI_2 scores MAGI_1 6 → MAGI_2 wins.
+		expect(text).toContain('MAGI • 2');
 		expect(text).toContain('wins (8 / 10)');
 	});
 
@@ -155,7 +155,7 @@ describe('votingStrategy.execute', () => {
 			votingStrategy.execute(context({ responses: threeResponses.slice(0, 1) }))
 		);
 		expect(generateTextMock).not.toHaveBeenCalled();
-		expect(completeText(events)).toContain('Answer from MELCHIOR');
+		expect(completeText(events)).toContain('Answer from MAGI_1');
 	});
 
 	it('drops a juror whose call fails and tallies the remaining scores', async () => {
@@ -173,10 +173,10 @@ describe('votingStrategy.execute', () => {
 					{ candidate: 'B', score: 9 }
 				]) as never
 			);
-		// MELCHIOR juror failed. BALTHASAR: A=MELCHIOR 2, B=CASPAR 7. CASPAR: A=MELCHIOR 2, B=BALTHASAR 9.
-		// Totals — BALTHASAR 9, CASPAR 7, MELCHIOR 4 → BALTHASAR wins on one juror score.
+		// MAGI_1 juror failed. MAGI_2: A=MAGI_1 2, B=MAGI_3 7. MAGI_3: A=MAGI_1 2, B=MAGI_2 9.
+		// Totals — MAGI_2 9, MAGI_3 7, MAGI_1 4 → MAGI_2 wins on one juror score.
 		const text = completeText(await collect(votingStrategy.execute(context())));
-		expect(text).toContain('BALTHASAR');
+		expect(text).toContain('MAGI • 2');
 		expect(text).toContain('wins (9 / 10)');
 	});
 
@@ -198,7 +198,7 @@ describe('votingStrategy.execute', () => {
 					{ candidate: 'B', score: 9 }
 				]) as never
 			);
-		// MELCHIOR's reply is unreadable; the other two still produce a winner.
+		// MAGI_1's reply is unreadable; the other two still produce a winner.
 		const text = completeText(await collect(votingStrategy.execute(context())));
 		expect(text).toContain('wins');
 		expect(text).not.toContain('No scores were returned');
@@ -209,7 +209,7 @@ describe('votingStrategy.execute', () => {
 		const text = completeText(await collect(votingStrategy.execute(context())));
 		expect(text).toContain('No scores were returned');
 		expect(text).toContain('all jurors down');
-		expect(text).toContain('Answer from MELCHIOR');
+		expect(text).toContain('Answer from MAGI_1');
 	});
 
 	it('forwards the abort signal to every juror call', async () => {
@@ -268,7 +268,7 @@ describe('votingStrategy.execute', () => {
 		// may itself mention a node name.
 		const heading = text.split('\n')[0];
 		expect(heading).toContain('MAGI');
-		expect(heading).not.toContain('MELCHIOR');
+		expect(heading).not.toContain('MAGI_1');
 	});
 });
 
@@ -311,20 +311,20 @@ describe('votingStrategy stats event', () => {
 		const v = voting(events);
 
 		expect(stats.strategy).toBe('voting');
-		// BALTHASAR total = 9 (from MELCHIOR's A) + 8 (from CASPAR's B) = 17 → winner.
-		expect(v.winner).toBe('BALTHASAR');
+		// MAGI_2 total = 9 (from MAGI_1's A) + 8 (from MAGI_3's B) = 17 → winner.
+		expect(v.winner).toBe('MAGI_2');
 		expect(v.winnerTotal).toBe(17);
 		expect(v.winnerModel).toBe('gpt-x');
 		expect(v.tiebreak).toBe('none');
-		expect(v.totals).toEqual({ MELCHIOR: 7, BALTHASAR: 17, CASPAR: 11 });
+		expect(v.totals).toEqual({ MAGI_1: 7, MAGI_2: 17, MAGI_3: 11 });
 		expect(v.models).toEqual({
-			MELCHIOR: 'claude-x',
-			BALTHASAR: 'gpt-x',
-			CASPAR: 'gemini-x'
+			MAGI_1: 'claude-x',
+			MAGI_2: 'gpt-x',
+			MAGI_3: 'gemini-x'
 		});
 		expect(stats.tier).toBe('balanced');
 		// Node identities ride along on the run record for the usage breakdowns.
-		expect(stats.nodes.BALTHASAR).toEqual({
+		expect(stats.nodes.MAGI_2).toEqual({
 			gateway: 'openai',
 			provider: 'openai',
 			model: 'gpt-x'
@@ -335,13 +335,13 @@ describe('votingStrategy stats event', () => {
 		expect(v.positionBias.avgB).toBeCloseTo((5 + 6 + 8) / 3, 5);
 		// Per-juror grid preserves which anonymized slot each peer sat in.
 		expect(v.jurors).toHaveLength(3);
-		const melchiorRow = v.jurors.find((j) => j.juror === 'MELCHIOR');
-		expect(melchiorRow?.candidateA).toEqual({ node: 'BALTHASAR', score: 9 });
-		expect(melchiorRow?.candidateB).toEqual({ node: 'CASPAR', score: 5 });
+		const magi1Row = v.jurors.find((j) => j.juror === 'MAGI_1');
+		expect(magi1Row?.candidateA).toEqual({ node: 'MAGI_2', score: 9 });
+		expect(magi1Row?.candidateB).toEqual({ node: 'MAGI_3', score: 5 });
 	});
 
 	it('flags a node-order tiebreak when totals and best scores tie', async () => {
-		// Every juror gives 5/5 — every response totals 10, best is 5 → MELCHIOR
+		// Every juror gives 5/5 — every response totals 10, best is 5 → MAGI_1
 		// wins by stable-sort node order, not by merit.
 		generateTextMock.mockResolvedValue(
 			jurorReply([
@@ -351,15 +351,15 @@ describe('votingStrategy stats event', () => {
 		);
 		const v = voting(await collect(votingStrategy.execute(context())));
 		expect(v.tiebreak).toBe('node-order');
-		expect(v.winner).toBe('MELCHIOR');
+		expect(v.winner).toBe('MAGI_1');
 	});
 
 	it('flags a best-score tiebreak when totals tie but one has a higher peak', async () => {
-		// MELCHIOR juror gives BALTHASAR=10, CASPAR=0 (totals MELCHIOR≠ aside).
-		// BALTHASAR juror gives MELCHIOR=5, CASPAR=5.
-		// CASPAR juror gives MELCHIOR=5, BALTHASAR=0.
-		// Totals: MELCHIOR=10, BALTHASAR=10, CASPAR=5. MELCHIOR & BALTHASAR tied,
-		// but BALTHASAR has a 10 (vs MELCHIOR's best 5) → BALTHASAR wins by best score.
+		// MAGI_1 juror gives MAGI_2=10, MAGI_3=0 (totals MAGI_1≠ aside).
+		// MAGI_2 juror gives MAGI_1=5, MAGI_3=5.
+		// MAGI_3 juror gives MAGI_1=5, MAGI_2=0.
+		// Totals: MAGI_1=10, MAGI_2=10, MAGI_3=5. MAGI_1 & MAGI_2 tied,
+		// but MAGI_2 has a 10 (vs MAGI_1's best 5) → MAGI_2 wins by best score.
 		generateTextMock
 			.mockResolvedValueOnce(
 				jurorReply([
@@ -380,7 +380,7 @@ describe('votingStrategy stats event', () => {
 				]) as never
 			);
 		const v = voting(await collect(votingStrategy.execute(context())));
-		expect(v.winner).toBe('BALTHASAR');
+		expect(v.winner).toBe('MAGI_2');
 		expect(v.tiebreak).toBe('best-score');
 	});
 
@@ -389,18 +389,18 @@ describe('votingStrategy stats event', () => {
 			await collect(votingStrategy.execute(context({ responses: threeResponses.slice(0, 1) })))
 		);
 		expect(v.tiebreak).toBe('walkover');
-		expect(v.winner).toBe('MELCHIOR');
+		expect(v.winner).toBe('MAGI_1');
 		expect(v.positionBias.n).toBe(0);
 		expect(v.jurors).toEqual([]);
 	});
 
 	it('randomizes peer seating from peerOrderSeed without changing who wins', async () => {
-		// Find a seed whose seat order puts CASPAR ahead of BALTHASAR, so MELCHIOR's
-		// juror sees CASPAR in slot A — the opposite of the node-order default.
+		// Find a seed whose seat order puts MAGI_3 ahead of MAGI_2, so MAGI_1's
+		// juror sees MAGI_3 in slot A — the opposite of the node-order default.
 		let seed = 0;
 		for (; seed < 200; seed += 1) {
 			const rank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
-			if ((rank.get('CASPAR') ?? 0) < (rank.get('BALTHASAR') ?? 0)) break;
+			if ((rank.get('MAGI_3') ?? 0) < (rank.get('MAGI_2') ?? 0)) break;
 		}
 		// Every juror gives slot A=8, slot B=2. Because scores are keyed to slots,
 		// the winner depends purely on who the shuffle seats in slot A.
@@ -411,11 +411,11 @@ describe('votingStrategy stats event', () => {
 			]) as never
 		);
 		const v = voting(await collect(votingStrategy.execute(context({ peerOrderSeed: seed }))));
-		const melchiorRow = v.jurors.find((j) => j.juror === 'MELCHIOR');
-		// Seat A flipped to CASPAR for this seed (vs BALTHASAR in node order).
-		expect(melchiorRow?.candidateA.node).toBe('CASPAR');
-		expect(melchiorRow?.candidateA.score).toBe(8);
-		expect(melchiorRow?.candidateB?.node).toBe('BALTHASAR');
+		const magi1Row = v.jurors.find((j) => j.juror === 'MAGI_1');
+		// Seat A flipped to MAGI_3 for this seed (vs MAGI_2 in node order).
+		expect(magi1Row?.candidateA.node).toBe('MAGI_3');
+		expect(magi1Row?.candidateA.score).toBe(8);
+		expect(magi1Row?.candidateB?.node).toBe('MAGI_2');
 		// The breakdown's seat order matches the shared seeded shuffle exactly.
 		const seatRank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
 		for (const row of v.jurors) {
@@ -443,10 +443,10 @@ describe('votingStrategy stats event', () => {
 				]) as never
 			);
 		const v = voting(await collect(votingStrategy.execute(context())));
-		const melchiorRow = v.jurors.find((j) => j.juror === 'MELCHIOR');
-		expect(melchiorRow?.candidateA.score).toBeNull();
-		expect(melchiorRow?.candidateB?.score).toBeNull();
-		// MELCHIOR's unreadable reply doesn't pollute the position-bias pool —
+		const magi1Row = v.jurors.find((j) => j.juror === 'MAGI_1');
+		expect(magi1Row?.candidateA.score).toBeNull();
+		expect(magi1Row?.candidateB?.score).toBeNull();
+		// MAGI_1's unreadable reply doesn't pollute the position-bias pool —
 		// only the other two jurors' four readable scores count.
 		expect(v.positionBias.n).toBe(4);
 	});

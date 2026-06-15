@@ -23,21 +23,21 @@ export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
 }
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
 ];
 
 export const FREE_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MELCHIOR', gateway: 'openrouter', provider: 'qwen', modelId: 'qwen/qwen3-coder:free' },
+	{ node: 'MAGI_1', gateway: 'openrouter', provider: 'qwen', modelId: 'qwen/qwen3-coder:free' },
 	{
-		node: 'BALTHASAR',
+		node: 'MAGI_2',
 		gateway: 'openrouter',
 		provider: 'nvidia',
 		modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
 	},
 	{
-		node: 'CASPAR',
+		node: 'MAGI_3',
 		gateway: 'openrouter',
 		provider: 'meta-llama',
 		modelId: 'meta-llama/llama-3.3-70b-instruct:free'
@@ -47,15 +47,15 @@ export const FREE_MAGI_CONFIG: MagiConfig = [
 /** Maps each tier to its node configuration. */
 export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
 	frontier: [
-		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
-		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
-		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
+		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
+		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
+		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
 	],
 	balanced: DEFAULT_MAGI_CONFIG,
 	budget: [
-		{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
-		{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4-mini' },
-		{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-3.1-flash-lite' }
+		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
+		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4-mini' },
+		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.1-flash-lite' }
 	],
 	free: FREE_MAGI_CONFIG
 };

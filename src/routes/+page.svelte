@@ -115,7 +115,7 @@
 	let query = $state('');
 	let loading = $state(false);
 	let configuredNodes = new SvelteSet([0, 1, 2]);
-	let consensusNode: MagiNodeName = $state('MELCHIOR');
+	let consensusNode: MagiNodeName = $state('MAGI_1');
 	let availableModels = $state<AvailableModel[]>([]);
 	let modelsLoading = $state(true);
 	let copiedQuery = $state(false);
@@ -393,9 +393,9 @@
 	function freshLiveState(): LiveState {
 		return {
 			responses: [],
-			modelStreams: { MELCHIOR: '', BALTHASAR: '', CASPAR: '' },
+			modelStreams: { MAGI_1: '', MAGI_2: '', MAGI_3: '' },
 			modelErrors: [],
-			debateRounds: { MELCHIOR: [], BALTHASAR: [], CASPAR: [] },
+			debateRounds: { MAGI_1: [], MAGI_2: [], MAGI_3: [] },
 			consensusStream: '',
 			consensusFinal: '',
 			consensusWarning: '',
@@ -680,7 +680,7 @@
 		configuredNodes.add(0);
 		configuredNodes.add(1);
 		configuredNodes.add(2);
-		consensusNode = 'MELCHIOR';
+		consensusNode = 'MAGI_1';
 	}
 
 	function applyPersistedSnapshot(snap: PersistedSnapshot) {
@@ -903,7 +903,7 @@
 			configuredNodes.add(0);
 			configuredNodes.add(1);
 			configuredNodes.add(2);
-			consensusNode = 'MELCHIOR';
+			consensusNode = 'MAGI_1';
 			conversation = conversationsByTier[t] ?? [];
 		}
 		activeTurnQuery = '';
@@ -1419,8 +1419,8 @@
 							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
 						use:tooltip={temperaments
-							? `Temperaments active — each MAGI answers through its own persona (${resolvedTemperaments.MELCHIOR.label}, ${resolvedTemperaments.BALTHASAR.label}, ${resolvedTemperaments.CASPAR.label}). Click to turn off.`
-							: `Enable temperaments — give each MAGI a distinct persona: ${activeNodeLabels.MELCHIOR} ${resolvedTemperaments.MELCHIOR.label}, ${activeNodeLabels.BALTHASAR} ${resolvedTemperaments.BALTHASAR.label}, ${activeNodeLabels.CASPAR} ${resolvedTemperaments.CASPAR.label}. Click to turn on.`}
+							? `Temperaments active — each MAGI answers through its own persona (${resolvedTemperaments.MAGI_1.label}, ${resolvedTemperaments.MAGI_2.label}, ${resolvedTemperaments.MAGI_3.label}). Click to turn off.`
+							: `Enable temperaments — give each MAGI a distinct persona: ${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}. Click to turn on.`}
 					>
 						<Brain size={12} />
 						<span class="inline-block w-7 text-left">{temperaments ? 'ON' : 'OFF'}</span>

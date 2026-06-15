@@ -71,13 +71,13 @@ describe('magiRequestSchema', () => {
 			query: 'hello',
 			tier: 'balanced',
 			strategy: 'synthesis',
-			consensusNode: 'MELCHIOR'
+			consensusNode: 'MAGI_1'
 		});
 		expect(result.success).toBe(true);
 	});
 
 	it('accepts all valid consensusNode values', () => {
-		for (const node of ['MELCHIOR', 'BALTHASAR', 'CASPAR']) {
+		for (const node of ['MAGI_1', 'MAGI_2', 'MAGI_3']) {
 			const result = magiRequestSchema.safeParse({
 				query: 'test',
 				tier: 'balanced',
@@ -124,7 +124,7 @@ describe('magiRequestSchema', () => {
 			tier: 'balanced',
 			strategy: 'synthesis',
 			temperaments: true,
-			customTemperaments: { MELCHIOR: { label: 'Skeptic', prompt: 'You doubt everything.' } }
+			customTemperaments: { MAGI_1: { label: 'Skeptic', prompt: 'You doubt everything.' } }
 		});
 		expect(result.success).toBe(true);
 	});
@@ -134,7 +134,7 @@ describe('magiRequestSchema', () => {
 			query: 'hello',
 			tier: 'balanced',
 			strategy: 'synthesis',
-			customTemperaments: { CASPAR: { label: 'X', prompt: 'y'.repeat(5000) } }
+			customTemperaments: { MAGI_3: { label: 'X', prompt: 'y'.repeat(5000) } }
 		});
 		expect(result.success).toBe(false);
 	});
@@ -185,8 +185,8 @@ describe('magiRequestSchema — retry surface', () => {
 	it('accepts a valid payload with forceRetry, retryNodes, and priorResponses', () => {
 		const result = base({
 			forceRetry: true,
-			retryNodes: ['MELCHIOR'],
-			priorResponses: [{ node: 'BALTHASAR', text: 'x' }]
+			retryNodes: ['MAGI_1'],
+			priorResponses: [{ node: 'MAGI_2', text: 'x' }]
 		});
 		expect(result.success).toBe(true);
 	});
@@ -197,17 +197,17 @@ describe('magiRequestSchema — retry surface', () => {
 
 	it('rejects 4-element priorResponses (max is 3)', () => {
 		const four = [
-			{ node: 'MELCHIOR', text: 'a' },
-			{ node: 'BALTHASAR', text: 'b' },
-			{ node: 'CASPAR', text: 'c' },
-			{ node: 'MELCHIOR', text: 'd' }
+			{ node: 'MAGI_1', text: 'a' },
+			{ node: 'MAGI_2', text: 'b' },
+			{ node: 'MAGI_3', text: 'c' },
+			{ node: 'MAGI_1', text: 'd' }
 		];
 		expect(base({ priorResponses: four }).success).toBe(false);
 	});
 
 	it('rejects a priorResponses text of 50_001 chars', () => {
 		const result = base({
-			priorResponses: [{ node: 'MELCHIOR', text: 'x'.repeat(50_001) }]
+			priorResponses: [{ node: 'MAGI_1', text: 'x'.repeat(50_001) }]
 		});
 		expect(result.success).toBe(false);
 	});
@@ -221,8 +221,8 @@ describe('magiRequestSchema — history', () => {
 	const validTurn = {
 		query: 'prior question',
 		nodeResponses: [
-			{ node: 'MELCHIOR', text: 'first answer' },
-			{ node: 'BALTHASAR', text: 'second answer' }
+			{ node: 'MAGI_1', text: 'first answer' },
+			{ node: 'MAGI_2', text: 'second answer' }
 		],
 		consensus: 'prior consensus'
 	};
@@ -299,7 +299,7 @@ describe('magiRequestSchema — history', () => {
 
 	it('rejects a nodeResponse text exceeding 50k chars', () => {
 		const result = withHistory([
-			{ ...validTurn, nodeResponses: [{ node: 'MELCHIOR', text: 'x'.repeat(50_001) }] }
+			{ ...validTurn, nodeResponses: [{ node: 'MAGI_1', text: 'x'.repeat(50_001) }] }
 		]);
 		expect(result.success).toBe(false);
 	});
@@ -310,10 +310,10 @@ describe('magiRequestSchema — history', () => {
 
 	it('rejects a turn whose nodeResponses has 4 entries (max is 3)', () => {
 		const four = [
-			{ node: 'MELCHIOR', text: 'a' },
-			{ node: 'BALTHASAR', text: 'b' },
-			{ node: 'CASPAR', text: 'c' },
-			{ node: 'MELCHIOR', text: 'd' }
+			{ node: 'MAGI_1', text: 'a' },
+			{ node: 'MAGI_2', text: 'b' },
+			{ node: 'MAGI_3', text: 'c' },
+			{ node: 'MAGI_1', text: 'd' }
 		];
 		expect(withHistory([{ ...validTurn, nodeResponses: four }]).success).toBe(false);
 	});

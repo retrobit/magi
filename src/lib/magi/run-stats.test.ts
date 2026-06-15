@@ -35,13 +35,13 @@ class MemoryStorage implements Storage {
 
 function makeVoting(overrides: Partial<VotingStats> = {}): VotingStats {
 	return {
-		winner: 'MELCHIOR',
+		winner: 'MAGI_1',
 		winnerModel: 'claude-x',
 		winnerTotal: 15,
 		tiebreak: 'none',
-		totals: { MELCHIOR: 15, BALTHASAR: 10, CASPAR: 5 },
-		lengths: { MELCHIOR: 1000, BALTHASAR: 800, CASPAR: 1200 },
-		models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'gemini-x' },
+		totals: { MAGI_1: 15, MAGI_2: 10, MAGI_3: 5 },
+		lengths: { MAGI_1: 1000, MAGI_2: 800, MAGI_3: 1200 },
+		models: { MAGI_1: 'claude-x', MAGI_2: 'gpt-x', MAGI_3: 'gemini-x' },
 		jurors: [],
 		positionBias: { avgA: 7, avgB: 5, n: 4 },
 		...overrides
@@ -53,17 +53,17 @@ function makeDebate(overrides: Partial<DebateStats> = {}): DebateStats {
 		verdict: 'consensus',
 		hitLimit: false,
 		rounds: 2,
-		revisions: { MELCHIOR: 1, BALTHASAR: 1, CASPAR: 0 },
-		models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' },
+		revisions: { MAGI_1: 1, MAGI_2: 1, MAGI_3: 0 },
+		models: { MAGI_1: 'claude-x', MAGI_2: 'gpt-x', MAGI_3: 'deepseek-x' },
 		dissenter: null,
 		...overrides
 	};
 }
 
 const NODES: RunStats['nodes'] = {
-	MELCHIOR: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
-	BALTHASAR: { gateway: 'openai', provider: 'openai', model: 'gpt-x' },
-	CASPAR: { gateway: 'openrouter', provider: 'deepseek', model: 'deepseek-x' }
+	MAGI_1: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
+	MAGI_2: { gateway: 'openai', provider: 'openai', model: 'gpt-x' },
+	MAGI_3: { gateway: 'openrouter', provider: 'deepseek', model: 'deepseek-x' }
 };
 
 function makeRun(overrides: Partial<RunStats> = {}): RunStats {
@@ -94,7 +94,7 @@ describe('run-stats persistence', () => {
 		appendRunStat(makeRun());
 		const records = loadRunStats();
 		expect(records).toHaveLength(1);
-		expect(records[0].stats.voting?.winner).toBe('MELCHIOR');
+		expect(records[0].stats.voting?.winner).toBe('MAGI_1');
 		expect(typeof records[0].ts).toBe('number');
 	});
 
@@ -161,7 +161,7 @@ describe('run-stats aggregate', () => {
 		expect(agg.total).toBe(0);
 		expect(agg.byStrategy).toEqual({ none: 0, synthesis: 0, voting: 0, debate: 0 });
 		expect(agg.usageByGateway).toEqual([]);
-		expect(agg.usageByNode).toEqual({ MELCHIOR: 0, BALTHASAR: 0, CASPAR: 0 });
+		expect(agg.usageByNode).toEqual({ MAGI_1: 0, MAGI_2: 0, MAGI_3: 0 });
 		expect(agg.voting.total).toBe(0);
 		expect(agg.voting.winsByModel).toEqual([]);
 		expect(agg.voting.avgPositionBias).toEqual({ avgA: 0, avgB: 0, samples: 0 });
@@ -188,7 +188,7 @@ describe('run-stats aggregate', () => {
 	it('tallies usage axes from every responding node, both strategies', () => {
 		const agg = aggregate([record({ strategy: 'synthesis', voting: undefined }), record({})]);
 		// Two runs × three nodes each → each node participated twice.
-		expect(agg.usageByNode).toEqual({ MELCHIOR: 2, BALTHASAR: 2, CASPAR: 2 });
+		expect(agg.usageByNode).toEqual({ MAGI_1: 2, MAGI_2: 2, MAGI_3: 2 });
 		const gw = Object.fromEntries(agg.usageByGateway.map((e) => [e.key, e.count]));
 		expect(gw).toEqual({ anthropic: 2, openai: 2, openrouter: 2 });
 		const prov = Object.fromEntries(agg.usageByProvider.map((e) => [e.key, e.count]));
@@ -199,24 +199,24 @@ describe('run-stats aggregate', () => {
 
 	it('counts voting wins by node and by model separately', () => {
 		const agg = aggregate([
-			record({ voting: makeVoting({ winner: 'MELCHIOR', winnerModel: 'claude-x' }) }),
-			record({ voting: makeVoting({ winner: 'MELCHIOR', winnerModel: 'claude-x' }) }),
-			record({ voting: makeVoting({ winner: 'MELCHIOR', winnerModel: 'claude-y' }) }),
-			record({ voting: makeVoting({ winner: 'BALTHASAR', winnerModel: 'gpt-x' }) })
+			record({ voting: makeVoting({ winner: 'MAGI_1', winnerModel: 'claude-x' }) }),
+			record({ voting: makeVoting({ winner: 'MAGI_1', winnerModel: 'claude-x' }) }),
+			record({ voting: makeVoting({ winner: 'MAGI_1', winnerModel: 'claude-y' }) }),
+			record({ voting: makeVoting({ winner: 'MAGI_2', winnerModel: 'gpt-x' }) })
 		]);
 		expect(agg.voting.total).toBe(4);
-		expect(agg.voting.winsByNode).toEqual({ MELCHIOR: 3, BALTHASAR: 1, CASPAR: 0 });
+		expect(agg.voting.winsByNode).toEqual({ MAGI_1: 3, MAGI_2: 1, MAGI_3: 0 });
 		expect(agg.voting.winsByModel.map((w) => `${w.node}:${w.model}:${w.wins}`)).toEqual([
-			'MELCHIOR:claude-x:2',
-			'MELCHIOR:claude-y:1',
-			'BALTHASAR:gpt-x:1'
+			'MAGI_1:claude-x:2',
+			'MAGI_1:claude-y:1',
+			'MAGI_2:gpt-x:1'
 		]);
 	});
 
 	it('derives voting wins by gateway/provider from the winner node identity', () => {
 		const agg = aggregate([
-			record({ voting: makeVoting({ winner: 'MELCHIOR' }) }), // anthropic
-			record({ voting: makeVoting({ winner: 'CASPAR' }) }) // openrouter / deepseek
+			record({ voting: makeVoting({ winner: 'MAGI_1' }) }), // anthropic
+			record({ voting: makeVoting({ winner: 'MAGI_3' }) }) // openrouter / deepseek
 		]);
 		const wg = Object.fromEntries(agg.voting.winsByGateway.map((e) => [e.key, e.count]));
 		expect(wg).toEqual({ anthropic: 1, openrouter: 1 });
@@ -257,14 +257,14 @@ describe('run-stats aggregate', () => {
 			record({ strategy: 'synthesis', voting: undefined }),
 			record({
 				voting: makeVoting({
-					winner: 'MELCHIOR',
-					lengths: { MELCHIOR: 1000, BALTHASAR: 500, CASPAR: 700 }
+					winner: 'MAGI_1',
+					lengths: { MAGI_1: 1000, MAGI_2: 500, MAGI_3: 700 }
 				})
 			}),
 			record({
 				voting: makeVoting({
-					winner: 'BALTHASAR',
-					lengths: { MELCHIOR: 200, BALTHASAR: 800, CASPAR: 400 }
+					winner: 'MAGI_2',
+					lengths: { MAGI_1: 200, MAGI_2: 800, MAGI_3: 400 }
 				})
 			})
 		]);
@@ -284,7 +284,7 @@ describe('run-stats aggregate', () => {
 			debateRun({ verdict: 'consensus' }),
 			debateRun({ verdict: 'consensus' }),
 			debateRun({ verdict: 'split', hitLimit: true }),
-			debateRun({ verdict: 'walkover', rounds: 0, revisions: {}, models: { MELCHIOR: 'claude-x' } })
+			debateRun({ verdict: 'walkover', rounds: 0, revisions: {}, models: { MAGI_1: 'claude-x' } })
 		]);
 		expect(agg.debate.total).toBe(4);
 		expect(agg.debate.verdictCounts).toEqual({ consensus: 2, split: 1, walkover: 1 });
@@ -314,47 +314,47 @@ describe('run-stats aggregate', () => {
 		const agg = aggregate([
 			debateRun({
 				rounds: 2,
-				revisions: { MELCHIOR: 2, BALTHASAR: 0, CASPAR: 1 },
-				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' }
+				revisions: { MAGI_1: 2, MAGI_2: 0, MAGI_3: 1 },
+				models: { MAGI_1: 'claude-x', MAGI_2: 'gpt-x', MAGI_3: 'deepseek-x' }
 			}),
 			debateRun({
 				rounds: 3,
-				revisions: { MELCHIOR: 1, BALTHASAR: 3, CASPAR: 2 },
-				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x', CASPAR: 'deepseek-x' }
+				revisions: { MAGI_1: 1, MAGI_2: 3, MAGI_3: 2 },
+				models: { MAGI_1: 'claude-x', MAGI_2: 'gpt-x', MAGI_3: 'deepseek-x' }
 			})
 		]);
-		// MELCHIOR revised 3 out of 5 rounds (2 + 3). BALTHASAR 3/5. CASPAR 3/5.
-		expect(agg.debate.revisionRateByNode.MELCHIOR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
-		expect(agg.debate.revisionRateByNode.BALTHASAR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
-		expect(agg.debate.revisionRateByNode.CASPAR).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+		// MAGI_1 revised 3 out of 5 rounds (2 + 3). MAGI_2 3/5. MAGI_3 3/5.
+		expect(agg.debate.revisionRateByNode.MAGI_1).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+		expect(agg.debate.revisionRateByNode.MAGI_2).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
+		expect(agg.debate.revisionRateByNode.MAGI_3).toEqual({ revised: 3, rounds: 5, rate: 0.6 });
 	});
 
 	it('only credits rounds to nodes that actually participated', () => {
 		const agg = aggregate([
 			debateRun({
 				rounds: 2,
-				// CASPAR didn't respond this run — `models` omits it.
-				revisions: { MELCHIOR: 1, BALTHASAR: 2 },
-				models: { MELCHIOR: 'claude-x', BALTHASAR: 'gpt-x' }
+				// MAGI_3 didn't respond this run — `models` omits it.
+				revisions: { MAGI_1: 1, MAGI_2: 2 },
+				models: { MAGI_1: 'claude-x', MAGI_2: 'gpt-x' }
 			})
 		]);
-		expect(agg.debate.revisionRateByNode.MELCHIOR).toEqual({ revised: 1, rounds: 2, rate: 0.5 });
-		expect(agg.debate.revisionRateByNode.BALTHASAR).toEqual({ revised: 2, rounds: 2, rate: 1 });
-		// CASPAR's denominator stays 0 → rate 0, not NaN.
-		expect(agg.debate.revisionRateByNode.CASPAR).toEqual({ revised: 0, rounds: 0, rate: 0 });
+		expect(agg.debate.revisionRateByNode.MAGI_1).toEqual({ revised: 1, rounds: 2, rate: 0.5 });
+		expect(agg.debate.revisionRateByNode.MAGI_2).toEqual({ revised: 2, rounds: 2, rate: 1 });
+		// MAGI_3's denominator stays 0 → rate 0, not NaN.
+		expect(agg.debate.revisionRateByNode.MAGI_3).toEqual({ revised: 0, rounds: 0, rate: 0 });
 	});
 
 	it('tallies dissenter by node, ignoring three-way splits and consensus runs', () => {
 		const agg = aggregate([
-			debateRun({ verdict: 'split', dissenter: 'MELCHIOR' }),
-			debateRun({ verdict: 'split', dissenter: 'MELCHIOR' }),
-			debateRun({ verdict: 'split', dissenter: 'CASPAR' }),
+			debateRun({ verdict: 'split', dissenter: 'MAGI_1' }),
+			debateRun({ verdict: 'split', dissenter: 'MAGI_1' }),
+			debateRun({ verdict: 'split', dissenter: 'MAGI_3' }),
 			// Three-way split has no clean dissenter → not credited.
 			debateRun({ verdict: 'split', dissenter: null }),
 			// Consensus runs never set a dissenter, but verify they don't leak in.
 			debateRun({ verdict: 'consensus' })
 		]);
-		expect(agg.debate.dissenterByNode).toEqual({ MELCHIOR: 2, BALTHASAR: 0, CASPAR: 1 });
+		expect(agg.debate.dissenterByNode).toEqual({ MAGI_1: 2, MAGI_2: 0, MAGI_3: 1 });
 	});
 
 	it('ignores synthesis and voting runs when aggregating debate metrics', () => {

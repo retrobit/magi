@@ -697,7 +697,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// dedicated log line — synthesis already logged consensus.complete.
 							if (v) {
 								// Flatten the nested per-juror grid into greppable key=value
-								// lines (`MELCHIOR_A=BALTHASAR:7`) so a tail of dev logs reads
+								// lines (`MAGI_1_A=MAGI_2:7`) so a tail of dev logs reads
 								// cleanly without needing a JSON parser.
 								const jurorPairs = v.jurors.flatMap((j) => {
 									const out: string[] = [];

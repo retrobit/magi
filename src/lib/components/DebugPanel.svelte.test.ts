@@ -4,9 +4,9 @@ import DebugPanel, { freshDebugScenario, isDebugScenarioActive } from './DebugPa
 import type { NodeAssignment } from '$lib/magi/config';
 
 const assignments: NodeAssignment[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
 ];
 
 function setup(scenario = freshDebugScenario()) {
@@ -24,13 +24,13 @@ describe('freshDebugScenario / isDebugScenarioActive', () => {
 
 	it('a node error makes the scenario active', () => {
 		const s = freshDebugScenario();
-		s.nodeError.MELCHIOR = true;
+		s.nodeError.MAGI_1 = true;
 		expect(isDebugScenarioActive(s)).toBe(true);
 	});
 
 	it('a non-off context level makes the scenario active', () => {
 		const s = freshDebugScenario();
-		s.nodeContext.CASPAR = 'warn';
+		s.nodeContext.MAGI_3 = 'warn';
 		expect(isDebugScenarioActive(s)).toBe(true);
 	});
 
@@ -43,7 +43,7 @@ describe('freshDebugScenario / isDebugScenarioActive', () => {
 
 	it('a node Loading flag makes the scenario active', () => {
 		const s = freshDebugScenario();
-		s.nodeLoading.MELCHIOR = true;
+		s.nodeLoading.MAGI_1 = true;
 		expect(isDebugScenarioActive(s)).toBe(true);
 	});
 
@@ -66,12 +66,12 @@ describe('DebugPanel', () => {
 		const { onchange } = setup();
 		await fireEvent.click(screen.getAllByRole('button', { name: 'Error' })[0]);
 		expect(onchange).toHaveBeenCalledOnce();
-		expect(onchange.mock.calls[0][0].nodeError.MELCHIOR).toBe(true);
+		expect(onchange.mock.calls[0][0].nodeError.MAGI_1).toBe(true);
 	});
 
 	it('disables a node context select while that node has an injected error', () => {
 		const s = freshDebugScenario();
-		s.nodeError.MELCHIOR = true;
+		s.nodeError.MAGI_1 = true;
 		setup(s);
 		const selects = screen.getAllByRole('combobox');
 		expect(selects[0]).toBeDisabled();
@@ -81,7 +81,7 @@ describe('DebugPanel', () => {
 	it('emits the chosen context level when a select changes', async () => {
 		const { onchange } = setup();
 		await fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'critical' } });
-		expect(onchange.mock.calls[0][0].nodeContext.MELCHIOR).toBe('critical');
+		expect(onchange.mock.calls[0][0].nodeContext.MAGI_1).toBe('critical');
 	});
 
 	it('toggles the global-error flag', async () => {
@@ -93,7 +93,7 @@ describe('DebugPanel', () => {
 	it('clears every injected state when Reset all is clicked', async () => {
 		const dirty = freshDebugScenario();
 		dirty.globalError = true;
-		dirty.nodeContext.CASPAR = 'critical';
+		dirty.nodeContext.MAGI_3 = 'critical';
 		const { onchange } = setup(dirty);
 		await fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
 		expect(isDebugScenarioActive(onchange.mock.calls[0][0])).toBe(false);
@@ -115,22 +115,22 @@ describe('DebugPanel — Load toggles', () => {
 	it('node Load and Error are mutually exclusive', async () => {
 		const { onchange } = setup();
 		await fireEvent.click(screen.getAllByRole('button', { name: 'Error' })[0]);
-		expect(onchange.mock.calls[0][0].nodeError.MELCHIOR).toBe(true);
-		expect(onchange.mock.calls[0][0].nodeLoading.MELCHIOR).toBe(false);
+		expect(onchange.mock.calls[0][0].nodeError.MAGI_1).toBe(true);
+		expect(onchange.mock.calls[0][0].nodeLoading.MAGI_1).toBe(false);
 
 		// Re-render with the post-Error state so clicking Load flips from a true error.
 		onchange.mockClear();
 		const s = freshDebugScenario();
-		s.nodeError.MELCHIOR = true;
+		s.nodeError.MAGI_1 = true;
 		setup(s);
 		await fireEvent.click(screen.getAllByRole('button', { name: 'Load' })[0]);
-		expect(onchange.mock.calls[0][0].nodeLoading.MELCHIOR).toBe(true);
-		expect(onchange.mock.calls[0][0].nodeError.MELCHIOR).toBe(false);
+		expect(onchange.mock.calls[0][0].nodeLoading.MAGI_1).toBe(true);
+		expect(onchange.mock.calls[0][0].nodeError.MAGI_1).toBe(false);
 	});
 
 	it('node Context select is disabled when nodeLoading is on', () => {
 		const s = freshDebugScenario();
-		s.nodeLoading.MELCHIOR = true;
+		s.nodeLoading.MAGI_1 = true;
 		setup(s);
 		const selects = screen.getAllByRole('combobox');
 		expect(selects[0]).toBeDisabled();

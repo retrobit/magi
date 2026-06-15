@@ -3,9 +3,9 @@ import { seedFromString, seededShuffle, makePeerOrderer } from './peer-order';
 import type { MagiNodeName } from '../types';
 
 const NODES: { node: MagiNodeName }[] = [
-	{ node: 'MELCHIOR' },
-	{ node: 'BALTHASAR' },
-	{ node: 'CASPAR' }
+	{ node: 'MAGI_1' },
+	{ node: 'MAGI_2' },
+	{ node: 'MAGI_3' }
 ];
 
 describe('seededShuffle', () => {
@@ -61,7 +61,7 @@ describe('seedFromString', () => {
 describe('makePeerOrderer', () => {
 	it('is the identity when no seed is supplied (strict node order preserved)', () => {
 		const order = makePeerOrderer(NODES, undefined);
-		const peers = [{ node: 'BALTHASAR' as const }, { node: 'CASPAR' as const }];
+		const peers = [{ node: 'MAGI_2' as const }, { node: 'MAGI_3' as const }];
 		expect(order(peers)).toBe(peers); // same reference — untouched
 	});
 
@@ -71,7 +71,7 @@ describe('makePeerOrderer', () => {
 		// The seat order is the shuffle of the full responder set; every subset must
 		// agree with that single ranking.
 		const seatRank = new Map(seededShuffle(NODES, seed).map((r, i) => [r.node, i]));
-		const peers = [{ node: 'CASPAR' as const }, { node: 'MELCHIOR' as const }];
+		const peers = [{ node: 'MAGI_3' as const }, { node: 'MAGI_1' as const }];
 		const ordered = order(peers).map((p) => p.node);
 		const expected = [...peers]
 			.map((p) => p.node)
@@ -81,29 +81,29 @@ describe('makePeerOrderer', () => {
 
 	it('is stable: the same subset orders identically on repeated calls (round stability)', () => {
 		const order = makePeerOrderer(NODES, 777);
-		const peers = [{ node: 'MELCHIOR' as const }, { node: 'CASPAR' as const }];
+		const peers = [{ node: 'MAGI_1' as const }, { node: 'MAGI_3' as const }];
 		expect(order(peers)).toEqual(order(peers));
 	});
 
 	it('does not mutate the subset it is handed', () => {
 		const order = makePeerOrderer(NODES, 5);
-		const peers = [{ node: 'CASPAR' as const }, { node: 'BALTHASAR' as const }];
+		const peers = [{ node: 'MAGI_3' as const }, { node: 'MAGI_2' as const }];
 		const snapshot = peers.map((p) => p.node);
 		order(peers);
 		expect(peers.map((p) => p.node)).toEqual(snapshot);
 	});
 
 	it('rotates slot A across nodes over many seeds (washes out position bias)', () => {
-		// For each seed, slot A of MELCHIOR's two peers is whichever of BALTHASAR /
-		// CASPAR sits earlier in that turn's seat order. Over many seeds, both nodes
+		// For each seed, slot A of MAGI_1's two peers is whichever of MAGI_2 /
+		// MAGI_3 sits earlier in that turn's seat order. Over many seeds, both nodes
 		// should land in slot A a healthy fraction of the time — not one always.
-		const slotA = { BALTHASAR: 0, CASPAR: 0 } as Record<string, number>;
+		const slotA = { MAGI_2: 0, MAGI_3: 0 } as Record<string, number>;
 		for (let seed = 0; seed < 200; seed += 1) {
 			const order = makePeerOrderer(NODES, seed);
-			const peers = [{ node: 'BALTHASAR' as const }, { node: 'CASPAR' as const }];
+			const peers = [{ node: 'MAGI_2' as const }, { node: 'MAGI_3' as const }];
 			slotA[order(peers)[0].node] += 1;
 		}
-		expect(slotA.BALTHASAR).toBeGreaterThan(50);
-		expect(slotA.CASPAR).toBeGreaterThan(50);
+		expect(slotA.MAGI_2).toBeGreaterThan(50);
+		expect(slotA.MAGI_3).toBeGreaterThan(50);
 	});
 });

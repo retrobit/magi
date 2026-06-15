@@ -8,7 +8,7 @@ describe('encodeStreamEvent', () => {
 	});
 
 	it('JSON-encodes the payload so the receiver can round-trip it', () => {
-		const payload = { node: 'MELCHIOR', text: 'line one\nline two' } as const;
+		const payload = { node: 'MAGI_1', text: 'line one\nline two' } as const;
 		const frame = encodeStreamEvent('model-chunk', payload);
 		const dataLine = frame.split('\n').find((l) => l.startsWith('data: '));
 		expect(dataLine).toBeDefined();

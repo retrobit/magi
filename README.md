@@ -15,7 +15,7 @@
   </a>
 </p>
 
-MAGI sends your question to three frontier models from different providers in parallel, then reconciles their answers into one — by synthesis, structured voting, or a multi-round debate you can watch unfold. Inspired by the MAGI system (IYKYK): three independent supercomputers — MELCHIOR, BALTHASAR, CASPAR — that deliberate to reach consensus.
+MAGI sends your question to three frontier models from different providers in parallel, then reconciles their answers into one — by synthesis, structured voting, or a multi-round debate you can watch unfold. Inspired by the MAGI system (IYKYK): three independent supercomputers that deliberate to reach consensus.
 
 ## 🤔 Why three?
 
@@ -31,9 +31,9 @@ Any single LLM can hallucinate, hedge, or miss context. Querying three models fr
 ```mermaid
 graph TD
     A[User Query] --> B[MAGI Orchestrator<br><i>parallel dispatch</i>]
-    B --> C[MELCHIOR<br>Anthropic · Claude]
-    B --> D[BALTHASAR<br>OpenAI · GPT]
-    B --> E[CASPAR<br>Google · Gemini]
+    B --> C[MAGI 1<br>Anthropic · Claude]
+    B --> D[MAGI 2<br>OpenAI · GPT]
+    B --> E[MAGI 3<br>Google · Gemini]
     C --> F[Consensus Engine<br><i>pluggable strategies</i>]
     D --> F
     E --> F
@@ -49,7 +49,7 @@ graph TD
 
 The consensus engine is pluggable:
 
-- **Synthesis** — one model reads all three answers, reconciles agreements and disagreements, and writes a single unified response. The synthesizer seat is configurable (`consensusNode`, default MELCHIOR).
+- **Synthesis** — one model reads all three answers, reconciles agreements and disagreements, and writes a single unified response. The synthesizer seat is configurable (`consensusNode`, default `MAGI_1`).
 - **Structured Voting** — each node scores its peers' answers (anonymized as Candidate A/B) from 0–10; the highest aggregate wins and is shown **verbatim** under a tally table. No extra model call beyond the three jurors, and it works on every tier (lenient score parsing, no structured-output requirement).
 - **Multi-Round Debate** — each node stakes out a position, then reads anonymized peers and revises across 2–5 rounds (default 3) before a final synthesis. Stops early on convergence; each round is shown per node.
 - **None** — skip consensus entirely and compare the three raw answers side by side.
@@ -68,11 +68,11 @@ The consensus engine is pluggable:
 
 Each MAGI can answer through an optional **temperament** — a dispositional lens injected as a system prompt:
 
-| Node      | Temperament      | Guiding question                 |
-| --------- | ---------------- | -------------------------------- |
-| MELCHIOR  | 🧊 Rationalist   | "What do the facts say?"         |
-| BALTHASAR | 🛡️ Caretaker     | "Who does this affect, and how?" |
-| CASPAR    | 🔥 Individualist | "What feels true?"               |
+| Node   | Temperament      | Guiding question                 |
+| ------ | ---------------- | -------------------------------- |
+| MAGI 1 | 🧊 Rationalist   | "What do the facts say?"         |
+| MAGI 2 | 🛡️ Caretaker     | "Who does this affect, and how?" |
+| MAGI 3 | 🔥 Individualist | "What feels true?"               |
 
 Temperaments are **off by default** (toggle with 🧠, or `temperaments: true` in the API). Each seat's **name and persona are editable** via the ✏️ editor — rename it, rewrite the persona, or reset to the built-in default; edits persist (sparsely) in `localStorage` and are validated server-side.
 
@@ -202,22 +202,22 @@ Streams results via Server-Sent Events.
 	"query": "Your question here",
 	"tier": "free",
 	"strategy": "synthesis",
-	"consensusNode": "MELCHIOR",
+	"consensusNode": "MAGI_1",
 	"assignments": [
 		{
-			"node": "MELCHIOR",
+			"node": "MAGI_1",
 			"gateway": "openrouter",
 			"provider": "qwen",
 			"modelId": "qwen/qwen3-coder:free"
 		},
 		{
-			"node": "BALTHASAR",
+			"node": "MAGI_2",
 			"gateway": "openrouter",
 			"provider": "nvidia",
 			"modelId": "nvidia/nemotron-3-super-120b-a12b:free"
 		},
 		{
-			"node": "CASPAR",
+			"node": "MAGI_3",
 			"gateway": "openrouter",
 			"provider": "meta-llama",
 			"modelId": "meta-llama/llama-3.3-70b-instruct:free"
@@ -231,7 +231,7 @@ Streams results via Server-Sent Events.
 | `query`                | string  | Yes      | 1–10,000 characters                                                                               |
 | `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                          |
 | `strategy`             | string  | Yes      | `none`, `synthesis`, `voting`, or `debate`                                                        |
-| `consensusNode`        | string  | No       | `MELCHIOR` (default), `BALTHASAR`, or `CASPAR`                                                    |
+| `consensusNode`        | string  | No       | `MAGI_1` (default), `MAGI_2`, or `MAGI_3`                                                         |
 | `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects; omit to use the tier preset                                  |
 | `temperaments`         | boolean | No       | Enable dispositional temperaments. Default `false`                                                |
 | `consensusTemperament` | boolean | No       | Give the synthesizer the `consensusNode`'s lens. Default `false`                                  |
@@ -270,7 +270,7 @@ Streams results via Server-Sent Events.
 
 **Security:** optional Bearer-token auth (`MAGI_API_KEY`) with timing-safe comparison; SvelteKit CSRF protection when unset; per-IP rate limiting; Zod validation on every request; `Content-Type` enforcement; client disconnects abort in-flight LLM calls; server errors never leak internals to the client.
 
-## 🚀 Deployment
+## ☁️ Deployment
 
 Built with [`adapter-auto`](https://svelte.dev/docs/kit/adapter-auto) — works out of the box on [Vercel](https://vercel.com), [Netlify](https://netlify.com), and [Cloudflare Pages](https://pages.cloudflare.com); swap the adapter in `svelte.config.js` for anything else. Run `bun run build`, set your environment variables, and ship.
 

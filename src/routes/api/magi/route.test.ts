@@ -228,7 +228,7 @@ describe('POST /api/magi — streaming', () => {
 	});
 
 	it('reseats consensus onto a responding node when the consensus seat fails phase 1', async () => {
-		// MELCHIOR is the default consensus seat (config index 0). Fail it in phase 1
+		// MAGI_1 is the default consensus seat (config index 0). Fail it in phase 1
 		// so the synthesizer would otherwise be asked to run on a model that just
 		// errored — the reseat must move consensus onto the first survivor.
 		vi.mocked(logEvent).mockClear();
@@ -241,7 +241,7 @@ describe('POST /api/magi — streaming', () => {
 		expect(vi.mocked(logEvent)).toHaveBeenCalledWith(
 			'info',
 			'consensus.reseat',
-			expect.objectContaining({ from: 'MELCHIOR', to: 'BALTHASAR' })
+			expect.objectContaining({ from: 'MAGI_1', to: 'MAGI_2' })
 		);
 	});
 
@@ -491,10 +491,10 @@ describe('POST /api/magi — per-node retry', () => {
 		query: 'Hello MAGI',
 		tier: 'balanced',
 		strategy: 'synthesis',
-		retryNodes: ['MELCHIOR'],
+		retryNodes: ['MAGI_1'],
 		priorResponses: [
-			{ node: 'BALTHASAR', text: 'prior from BALTHASAR' },
-			{ node: 'CASPAR', text: 'prior from CASPAR' }
+			{ node: 'MAGI_2', text: 'prior from MAGI_2' },
+			{ node: 'MAGI_3', text: 'prior from MAGI_3' }
 		]
 	};
 
@@ -507,14 +507,14 @@ describe('POST /api/magi — per-node retry', () => {
 		const responded = events
 			.filter((e) => e.event === 'model-response')
 			.map((e) => (e.data as { node: string }).node);
-		expect(responded).toEqual(['MELCHIOR']);
+		expect(responded).toEqual(['MAGI_1']);
 		// Consensus still ran, over the full set.
 		expect(names(events)).toContain('consensus-complete');
 		// The merged priors reached the consensus input.
 		const consensusCall = streamTextMock.mock.calls.at(-1)?.[0];
 		const blob = JSON.stringify(consensusCall?.messages ?? consensusCall?.prompt ?? '');
-		expect(blob).toContain('prior from BALTHASAR');
-		expect(blob).toContain('prior from CASPAR');
+		expect(blob).toContain('prior from MAGI_2');
+		expect(blob).toContain('prior from MAGI_3');
 	});
 
 	it('clears health only for the retried node', async () => {

@@ -22,9 +22,9 @@
 
 	export function freshDebugScenario(): DebugScenario {
 		return {
-			nodeError: { MELCHIOR: false, BALTHASAR: false, CASPAR: false },
-			nodeLoading: { MELCHIOR: false, BALTHASAR: false, CASPAR: false },
-			nodeContext: { MELCHIOR: 'off', BALTHASAR: 'off', CASPAR: 'off' },
+			nodeError: { MAGI_1: false, MAGI_2: false, MAGI_3: false },
+			nodeLoading: { MAGI_1: false, MAGI_2: false, MAGI_3: false },
+			nodeContext: { MAGI_1: 'off', MAGI_2: 'off', MAGI_3: 'off' },
 			consensusContext: 'off',
 			consensusLoading: false,
 			globalError: false,

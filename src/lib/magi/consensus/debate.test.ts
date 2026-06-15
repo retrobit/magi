@@ -12,15 +12,15 @@ const generateTextMock = vi.mocked(generateText);
 const streamTextMock = vi.mocked(streamText);
 
 const assignments: NodeAssignment[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
 ];
 
 const threeResponses: MagiResponse[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MELCHIOR' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', text: 'Answer from BALTHASAR' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', text: 'Answer from CASPAR' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MAGI_1' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', text: 'Answer from MAGI_2' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', text: 'Answer from MAGI_3' }
 ];
 
 function context(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
@@ -186,7 +186,7 @@ describe('debateStrategy.execute', () => {
 		generateTextMock.mockResolvedValue(debaterReply('no') as never);
 		const getModel = vi.fn(() => ({}) as never);
 		await collect(debateStrategy.execute(context({ getModel, consensusNodeIndex: 1 })));
-		// The synthesis call is last — it must target BALTHASAR's model.
+		// The synthesis call is last — it must target MAGI_2's model.
 		expect(getModel.mock.calls.at(-1)).toEqual(['openai', 'gpt-x']);
 		expect(String(streamTextMock.mock.calls.at(-1)?.[0].system)).toContain('MAGI consensus system');
 	});
@@ -204,8 +204,8 @@ describe('debateStrategy.execute', () => {
 	it('gives each debater its own temperament lens when the MAGI are in-character', async () => {
 		generateTextMock.mockResolvedValue(debaterReply('no') as never);
 		await collect(debateStrategy.execute(context({ nodeTemperaments: true })));
-		// Debaters run in node order — MELCHIOR (Rationalist), BALTHASAR (Caretaker),
-		// CASPAR (Individualist). Each prompt carries that debater's lens only.
+		// Debaters run in node order — MAGI_1 (Rationalist), MAGI_2 (Caretaker),
+		// MAGI_3 (Individualist). Each prompt carries that debater's lens only.
 		const prompts = generateTextMock.mock.calls.map((c) => String(c[0].prompt));
 		expect(prompts[0]).toContain('Rationalist aspect');
 		expect(prompts[1]).toContain('Caretaker aspect');
@@ -214,7 +214,7 @@ describe('debateStrategy.execute', () => {
 	});
 
 	it('surfaces each round to its node panel via node-round events', async () => {
-		generateTextMock.mockResolvedValue(debaterReply('no', 'CASPAR revised text') as never);
+		generateTextMock.mockResolvedValue(debaterReply('no', 'MAGI_3 revised text') as never);
 		const events = await collect(debateStrategy.execute(context()));
 		const rounds = events.filter((e) => e.type === 'node-round');
 		// One round (converged) × three debaters.
@@ -222,18 +222,18 @@ describe('debateStrategy.execute', () => {
 		for (const r of rounds) {
 			if (r.type !== 'node-round') throw new Error('unreachable');
 			expect(r.entry.round).toBe(1);
-			expect(r.entry.response).toBe('CASPAR revised text');
+			expect(r.entry.response).toBe('MAGI_3 revised text');
 			// Trimmed inputs surface the node's prior answer + its anonymized peers.
 			expect(r.entry.prompt).toContain('Your previous answer');
 			expect(r.entry.prompt).toContain('Peer A');
 		}
 		// The three responding nodes are each represented exactly once.
 		const nodes = rounds.map((r) => (r.type === 'node-round' ? r.node : null));
-		expect(new Set(nodes)).toEqual(new Set(['MELCHIOR', 'BALTHASAR', 'CASPAR']));
+		expect(new Set(nodes)).toEqual(new Set(['MAGI_1', 'MAGI_2', 'MAGI_3']));
 	});
 
 	it('builds the round ledger from the CHANGED flag (revised / held)', async () => {
-		// MELCHIOR holds, the other two revise → ledger names both groups, no NOTE.
+		// MAGI_1 holds, the other two revise → ledger names both groups, no NOTE.
 		generateTextMock
 			.mockResolvedValueOnce(debaterReply('no') as never)
 			.mockResolvedValueOnce(debaterReply('yes') as never)
@@ -271,26 +271,26 @@ describe('debateStrategy.execute', () => {
 		const round1Idx = text.fullText.indexOf('**Round 1**');
 		expect(introIdx).toBeGreaterThanOrEqual(0);
 		expect(introIdx).toBeLessThan(round1Idx);
-		expect(text.fullText).toContain('Answer from MELCHIOR');
+		expect(text.fullText).toContain('Answer from MAGI_1');
 	});
 
 	it('uses the model’s own SUMMARY: line as the initial position when present', async () => {
 		generateTextMock.mockResolvedValue(debaterReply('no') as never);
 		const summaries: MagiResponse[] = [
 			{
-				node: 'MELCHIOR',
+				node: 'MAGI_1',
 				gateway: 'anthropic',
 				provider: 'anthropic',
 				text: 'Long discursive answer with many sentences.\n\nSUMMARY: Privacy must be the default.'
 			},
 			{
-				node: 'BALTHASAR',
+				node: 'MAGI_2',
 				gateway: 'openai',
 				provider: 'openai',
 				text: 'Another long answer.\nSUMMARY: Convenience usually wins.'
 			},
 			{
-				node: 'CASPAR',
+				node: 'MAGI_3',
 				gateway: 'google',
 				provider: 'google',
 				text: 'A third answer without the marker.'
@@ -318,7 +318,7 @@ describe('debateStrategy.execute', () => {
 
 	it('briefs the split synthesizer against self-bias and surfaces the coalition', async () => {
 		// Two converge & agree, one holds and dissents — a 2-vs-1 split where the
-		// consensus seat (index 0 → MELCHIOR) is on the majority side. The synthesis
+		// consensus seat (index 0 → MAGI_1) is on the majority side. The synthesis
 		// prompt must explicitly forbid privileging its own answer and name the
 		// coalition so the model knows which side it's on.
 		generateTextMock
@@ -334,15 +334,15 @@ describe('debateStrategy.execute', () => {
 		expect(system).toContain('NO privileged status');
 		expect(system).toContain('equal airtime');
 		// User prompt names the synthesizer's seat AND surfaces the coalition phrase.
-		expect(userMsg).toContain('You are writing as MELCHIOR');
+		expect(userMsg).toContain('You are writing as MAGI • 1');
 		// Coalition names both majority members, in either order (avoids coupling
 		// to coalitionPhrase's iteration order).
 		const coalitionIdx = userMsg.indexOf('Coalition:');
 		expect(coalitionIdx).toBeGreaterThanOrEqual(0);
-		expect(userMsg).toContain('MELCHIOR');
-		expect(userMsg).toContain('BALTHASAR');
-		expect(userMsg.slice(coalitionIdx)).toMatch(/MELCHIOR/);
-		expect(userMsg.slice(coalitionIdx)).toMatch(/BALTHASAR/);
+		expect(userMsg).toContain('MAGI • 1');
+		expect(userMsg).toContain('MAGI • 2');
+		expect(userMsg.slice(coalitionIdx)).toMatch(/MAGI . 1/);
+		expect(userMsg.slice(coalitionIdx)).toMatch(/MAGI . 2/);
 		expect(userMsg).toContain('NO extra weight');
 	});
 
@@ -363,8 +363,8 @@ describe('debateStrategy.execute', () => {
 
 	it('names the dissenter in a 2-vs-1 split from per-peer AGREE flags', async () => {
 		// Peer order per debater (responses minus self): M sees [B, C]; B sees [M, C];
-		// C sees [M, B]. MELCHIOR & BALTHASAR align with each other but reject CASPAR;
-		// CASPAR rejects both → a clean 2-vs-1 with CASPAR as the lone dissenter.
+		// C sees [M, B]. MAGI_1 & MAGI_2 align with each other but reject MAGI_3;
+		// MAGI_3 rejects both → a clean 2-vs-1 with MAGI_3 as the lone dissenter.
 		generateTextMock
 			.mockResolvedValueOnce(
 				debaterReply('no', 'ans M', 'note', undefined, 'Peer A: yes, Peer B: no') as never
@@ -380,7 +380,7 @@ describe('debateStrategy.execute', () => {
 		const summary = events.find((e) => e.type === 'complete');
 		if (!summary || summary.type !== 'complete') throw new Error('no complete');
 		expect(summary.debateSummary).toContain('aligned');
-		expect(summary.debateSummary).toMatch(/CASPAR.*dissents/);
+		expect(summary.debateSummary).toMatch(/MAGI . 3.*dissents/);
 		// The coalition shape is mirrored into the ledger text, not just the banner.
 		expect(summary.fullText).toContain('dissents');
 	});
@@ -423,12 +423,12 @@ describe('debateStrategy.execute', () => {
 	});
 
 	it('seats debate peers in the seeded seat order, stable across rounds', async () => {
-		// Pick a seed whose seat order ranks CASPAR ahead of BALTHASAR, so MELCHIOR's
-		// debater sees CASPAR as Peer A — the reverse of the node-order default.
+		// Pick a seed whose seat order ranks MAGI_3 ahead of MAGI_2, so MAGI_1's
+		// debater sees MAGI_3 as Peer A — the reverse of the node-order default.
 		let seed = 0;
 		for (; seed < 200; seed += 1) {
 			const rank = new Map(seededShuffle(threeResponses, seed).map((r, i) => [r.node, i]));
-			if ((rank.get('CASPAR') ?? 0) < (rank.get('BALTHASAR') ?? 0)) break;
+			if ((rank.get('MAGI_3') ?? 0) < (rank.get('MAGI_2') ?? 0)) break;
 		}
 		// Keep debaters changing so we get multiple rounds; echo a node-stable answer
 		// (derived from the incoming "Your current answer") so peers stay identifiable
@@ -436,7 +436,7 @@ describe('debateStrategy.execute', () => {
 		generateTextMock.mockImplementation((opts) => {
 			const own =
 				String((opts as { prompt: string }).prompt).match(/Your current answer:\n(.+)/)?.[1] ?? '';
-			const node = ['MELCHIOR', 'BALTHASAR', 'CASPAR'].find((n) => own.includes(n)) ?? 'X';
+			const node = ['MAGI_1', 'MAGI_2', 'MAGI_3'].find((n) => own.includes(n)) ?? 'X';
 			return Promise.resolve({
 				text: `CHANGED: yes\nNOTE: n\nANSWER:\nrevised-${node}`,
 				usage: { inputTokens: 1, outputTokens: 1, cachedInputTokens: 0 }
@@ -444,14 +444,14 @@ describe('debateStrategy.execute', () => {
 		});
 
 		const events = await collect(debateStrategy.execute(context({ peerOrderSeed: seed })));
-		const melchiorRounds = events
-			.filter((e) => e.type === 'node-round' && e.node === 'MELCHIOR')
+		const magi1Rounds = events
+			.filter((e) => e.type === 'node-round' && e.node === 'MAGI_1')
 			.map((e) => (e.type === 'node-round' ? e.entry.prompt : ''));
 		// More than one round actually ran (debaters never converge here).
-		expect(melchiorRounds.length).toBeGreaterThan(1);
-		// In every round, CASPAR (Peer A for this seed) precedes BALTHASAR (Peer B).
-		for (const prompt of melchiorRounds) {
-			expect(prompt.indexOf('CASPAR')).toBeLessThan(prompt.indexOf('BALTHASAR'));
+		expect(magi1Rounds.length).toBeGreaterThan(1);
+		// In every round, MAGI_3 (Peer A for this seed) precedes MAGI_2 (Peer B).
+		for (const prompt of magi1Rounds) {
+			expect(prompt.indexOf('MAGI_3')).toBeLessThan(prompt.indexOf('MAGI_2'));
 		}
 	});
 
@@ -463,7 +463,7 @@ describe('debateStrategy.execute', () => {
 		expect(e.stats.strategy).toBe('debate');
 		expect(e.stats.tier).toBe('frontier');
 		expect(e.stats.voting).toBeUndefined();
-		expect(e.stats.nodes.MELCHIOR).toEqual({
+		expect(e.stats.nodes.MAGI_1).toEqual({
 			gateway: 'anthropic',
 			provider: 'anthropic',
 			model: 'claude-x'

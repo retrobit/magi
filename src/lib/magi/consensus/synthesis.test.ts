@@ -22,15 +22,15 @@ function fakeResult(
 }
 
 const assignments: NodeAssignment[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
 ];
 
 const responses: MagiResponse[] = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', text: 'Response A' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', text: 'Response B' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', text: 'Response C' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Response A' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', text: 'Response B' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', text: 'Response C' }
 ];
 
 function baseContext(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
@@ -78,9 +78,9 @@ describe('synthesisStrategy.execute', () => {
 					synthesizerAwareness: false,
 					consensusTemperament: false,
 					nodes: {
-						MELCHIOR: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
-						BALTHASAR: { gateway: 'openai', provider: 'openai', model: 'gpt-x' },
-						CASPAR: { gateway: 'google', provider: 'google', model: 'gemini-x' }
+						MAGI_1: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-x' },
+						MAGI_2: { gateway: 'openai', provider: 'openai', model: 'gpt-x' },
+						MAGI_3: { gateway: 'google', provider: 'google', model: 'gemini-x' }
 					}
 				}
 			}
@@ -180,7 +180,7 @@ describe('synthesisStrategy.execute', () => {
 			synthesisStrategy.execute(
 				baseContext({
 					synthesizerAwareness: true,
-					customTemperaments: { MELCHIOR: { label: 'Skeptic', prompt: 'You doubt every claim.' } }
+					customTemperaments: { MAGI_1: { label: 'Skeptic', prompt: 'You doubt every claim.' } }
 				})
 			)
 		);
@@ -217,13 +217,13 @@ describe('synthesisStrategy.execute', () => {
 
 	it('names the unavailable MAGI in the synthesis prompt when one is missing', async () => {
 		const ctx = baseContext();
-		// MELCHIOR + BALTHASAR respond, CASPAR does not.
+		// MAGI_1 + MAGI_2 respond, MAGI_3 does not.
 		ctx.responses = responses.slice(0, 2);
 		await collect(synthesisStrategy.execute(ctx));
 		const messages = lastArgs().messages as ModelMessage[];
 		const prompt = messages.at(-1)!.content as string;
 		expect(prompt).toContain('Unavailable for this query:');
-		expect(prompt).toContain('CASPAR');
+		expect(prompt).toContain('MAGI • 3');
 		expect(prompt).toMatch(/do not let absent MAGI vanish silently/i);
 	});
 
@@ -234,7 +234,7 @@ describe('synthesisStrategy.execute', () => {
 		const messages = lastArgs().messages as ModelMessage[];
 		const prompt = messages.at(-1)!.content as string;
 		expect(prompt).toContain('Unavailable for this query:');
-		expect(prompt).not.toContain('CASPAR');
+		expect(prompt).not.toContain('MAGI_3');
 	});
 
 	it('omits the missing-node clause when every MAGI responded', async () => {

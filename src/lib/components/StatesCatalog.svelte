@@ -70,7 +70,7 @@
 	// Every debate verdict status line, enumerated via the same pure builder the
 	// runtime uses — so this list can never drift from what a real debate emits.
 	const sampleSummary = $derived(
-		`${nodeLabels.MELCHIOR} & ${nodeLabels.BALTHASAR} aligned; ${nodeLabels.CASPAR} dissents`
+		`${nodeLabels.MAGI_1} & ${nodeLabels.MAGI_2} aligned; ${nodeLabels.MAGI_3} dissents`
 	);
 	const verdictMessages = $derived([
 		{
@@ -103,7 +103,7 @@
 		}
 	]);
 	// Walkover emits an inline note (no framed banner) — shown verbatim for parity.
-	const walkoverNote = $derived(`Only ${nodeLabels.MELCHIOR} responded — no debate was held.`);
+	const walkoverNote = $derived(`Only ${nodeLabels.MAGI_1} responded — no debate was held.`);
 </script>
 
 <div class="flex max-h-[80vh] w-full flex-col magi-popover">

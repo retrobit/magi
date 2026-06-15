@@ -337,7 +337,9 @@ export const debateStrategy: ConsensusStrategy = {
 			Math.max(MIN_DEBATE_ROUNDS, Math.round(debateRounds ?? DEFAULT_DEBATE_ROUNDS))
 		);
 
-		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
+		// Default to numbered labels; proper names only on an explicit opt-in (the
+		// reveal path), so node names stay de-lored everywhere by default.
+		const labels = genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
 		// This turn's seat order for the anonymized Peer A/B presentation. Built once
 		// so every round assigns the same letter to the same peer (a stable mapping
 		// matters across rounds); identity (node order) when no seed is supplied.

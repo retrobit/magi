@@ -8,7 +8,7 @@ import type { ModelMessage } from 'ai';
  *  `providerOptions.anthropic` is namespaced — OpenAI, Google, and OpenRouter
  *  ignore it, so this is safe to apply unconditionally. OpenAI and Gemini 2.5
  *  already cache automatically; this closes the gap for Claude (every paid
- *  tier runs Claude in the MELCHIOR seat). */
+ *  tier runs Claude in the MAGI_1 seat). */
 export function markCacheBreakpoint(messages: ModelMessage[]): void {
 	const last = messages.at(-1);
 	if (!last) return;

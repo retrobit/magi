@@ -36,36 +36,36 @@ const QUERY = 'Is it ethical to colonize Mars?';
 
 // config event -> drives the node panels' model labels. Believable frontier names.
 const CONFIG = [
-	{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
-	{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
-	{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-7' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
 ];
 
 const NODE_LABELS = {
-	MELCHIOR: 'MAGI • 1',
-	BALTHASAR: 'MAGI • 2',
-	CASPAR: 'MAGI • 3'
+	MAGI_1: 'MAGI • 1',
+	MAGI_2: 'MAGI • 2',
+	MAGI_3: 'MAGI • 3'
 };
 
 // Phase-1 answers, streamed per node. Each ends with a SUMMARY: line that the
 // debate ledger's extractInitialSummary() pulls for the "Initial positions" list.
 const PHASE1 = {
-	MELCHIOR: `Yes — conditionally. Colonizing Mars is ethical if it is pursued as a careful, reversible expansion of life rather than a land grab. The strongest case is existential: a self-sustaining second home reduces the chance that a single catastrophe ends human civilization. But that justification only holds if we (1) confirm Mars harbors no extant life before committing to terraforming, (2) avoid exporting Earth's extractive, colonial patterns, and (3) treat early settlers as informed participants, not test subjects. Ethics here is about *how*, not *whether*.
+	MAGI_1: `Yes — conditionally. Colonizing Mars is ethical if it is pursued as a careful, reversible expansion of life rather than a land grab. The strongest case is existential: a self-sustaining second home reduces the chance that a single catastrophe ends human civilization. But that justification only holds if we (1) confirm Mars harbors no extant life before committing to terraforming, (2) avoid exporting Earth's extractive, colonial patterns, and (3) treat early settlers as informed participants, not test subjects. Ethics here is about *how*, not *whether*.
 
 SUMMARY: Ethical if pursued carefully and reversibly — the existential upside justifies it, provided we protect any native life and avoid repeating colonial harms.`,
-	BALTHASAR: `It depends heavily on cost and consent. The dollars and talent poured into a Mars colony are not spent in a vacuum — they are not spent on Earth. Before calling it ethical, we have to ask who bears the cost and who reaps the benefit. A colony built to enrich a few while the launch state's own citizens lack clean water is hard to defend. But framed as a long-horizon insurance policy for *all* of humanity, with the knowledge and technology shared openly, it can be deeply ethical. The deciding variable is distribution, not destination.
+	MAGI_2: `It depends heavily on cost and consent. The dollars and talent poured into a Mars colony are not spent in a vacuum — they are not spent on Earth. Before calling it ethical, we have to ask who bears the cost and who reaps the benefit. A colony built to enrich a few while the launch state's own citizens lack clean water is hard to defend. But framed as a long-horizon insurance policy for *all* of humanity, with the knowledge and technology shared openly, it can be deeply ethical. The deciding variable is distribution, not destination.
 
 SUMMARY: Ethical only if the costs and benefits are shared justly — Mars must be a hedge for all of humanity, not a luxury for a few.`,
-	CASPAR: `Honestly? Yes, and we should stop apologizing for the ambition. Every great human expansion looked reckless from inside the moment. We are a species that explores; suppressing that to avoid hypothetical harms is its own kind of ethical failure. The real risk is not that we go — it's that we go *timidly*, half-funded and half-committed, and strand people there. If we commit fully, with redundancy and an honest reckoning of the danger, sending humans to build a second branch of life is one of the most meaningful things we could do.
+	MAGI_3: `Honestly? Yes, and we should stop apologizing for the ambition. Every great human expansion looked reckless from inside the moment. We are a species that explores; suppressing that to avoid hypothetical harms is its own kind of ethical failure. The real risk is not that we go — it's that we go *timidly*, half-funded and half-committed, and strand people there. If we commit fully, with redundancy and an honest reckoning of the danger, sending humans to build a second branch of life is one of the most meaningful things we could do.
 
 SUMMARY: Yes — boldly. The ethical failure would be going timidly; commit fully and honestly to building a genuine second home for life.`
 };
 
 // model-usage per node (input/output/cached tokens).
 const USAGE = {
-	MELCHIOR: { inputTokens: 412, outputTokens: 198, cachedInputTokens: 256 },
-	BALTHASAR: { inputTokens: 412, outputTokens: 187, cachedInputTokens: 0 },
-	CASPAR: { inputTokens: 412, outputTokens: 176, cachedInputTokens: 0 }
+	MAGI_1: { inputTokens: 412, outputTokens: 198, cachedInputTokens: 256 },
+	MAGI_2: { inputTokens: 412, outputTokens: 187, cachedInputTokens: 0 },
+	MAGI_3: { inputTokens: 412, outputTokens: 176, cachedInputTokens: 0 }
 };
 
 // Two debate rounds. Each round: a per-node ledger line in the consensus stream,
@@ -74,27 +74,27 @@ const ROUNDS = [
 	{
 		round: 1,
 		ledger: {
-			MELCHIOR: { status: 'revised', note: 'adopting Peer B’s justice framing as a hard constraint, not a footnote.' },
-			BALTHASAR: { status: 'held', note: 'distribution remains the crux, but I accept the existential case is real.' },
-			CASPAR: { status: 'revised', note: 'conceding that "boldly" must include redundancy, or it’s just recklessness.' }
+			MAGI_1: { status: 'revised', note: 'adopting Peer B’s justice framing as a hard constraint, not a footnote.' },
+			MAGI_2: { status: 'held', note: 'distribution remains the crux, but I accept the existential case is real.' },
+			MAGI_3: { status: 'revised', note: 'conceding that "boldly" must include redundancy, or it’s just recklessness.' }
 		},
 		entries: {
-			MELCHIOR: 'I am folding Peer B’s point in directly: the existential argument only earns its keep if the benefits are shared. A second home that insures only the wealthy is not insurance for *humanity* — it is a private bunker with a planet attached. So my answer tightens: ethical, if reversible, life-protecting, AND distributively just.',
-			BALTHASAR: 'I hold my ground on distribution being the deciding variable, but I no longer treat the existential case as a luxury argument — Peer A and Peer C are right that a single-planet species is a fragile one. The synthesis I can accept: go, but build the governance for sharing the benefit *before* the first hab.',
-			CASPAR: 'Fine — "boldly" was doing too much work. I still say the timid path is the unethical one, but my peers are right that boldness without redundancy is how you strand people. Commit fully *and* build in the margin for failure. That’s not caution diluting the ambition; it’s what makes the ambition real.'
+			MAGI_1: 'I am folding Peer B’s point in directly: the existential argument only earns its keep if the benefits are shared. A second home that insures only the wealthy is not insurance for *humanity* — it is a private bunker with a planet attached. So my answer tightens: ethical, if reversible, life-protecting, AND distributively just.',
+			MAGI_2: 'I hold my ground on distribution being the deciding variable, but I no longer treat the existential case as a luxury argument — Peer A and Peer C are right that a single-planet species is a fragile one. The synthesis I can accept: go, but build the governance for sharing the benefit *before* the first hab.',
+			MAGI_3: 'Fine — "boldly" was doing too much work. I still say the timid path is the unethical one, but my peers are right that boldness without redundancy is how you strand people. Commit fully *and* build in the margin for failure. That’s not caution diluting the ambition; it’s what makes the ambition real.'
 		}
 	},
 	{
 		round: 2,
 		ledger: {
-			MELCHIOR: { status: 'held', note: 'positions have converged on the same three conditions.' },
-			BALTHASAR: { status: 'held', note: 'agreed — we are saying the same thing in three accents.' },
-			CASPAR: { status: 'held', note: 'no further changes; we’ve landed in the same place.' }
+			MAGI_1: { status: 'held', note: 'positions have converged on the same three conditions.' },
+			MAGI_2: { status: 'held', note: 'agreed — we are saying the same thing in three accents.' },
+			MAGI_3: { status: 'held', note: 'no further changes; we’ve landed in the same place.' }
 		},
 		entries: {
-			MELCHIOR: 'No material change. We have converged: ethical, conditional on reversibility, protection of any native life, and just distribution of cost and benefit. I am content to let that stand.',
-			BALTHASAR: 'Agreed. The three of us reached the same answer from different doors — risk, justice, and ambition all point the same way once you take the others seriously.',
-			CASPAR: 'Nothing to add. We landed together: go boldly, go responsibly, and make it everyone’s second home — not a select few’s.'
+			MAGI_1: 'No material change. We have converged: ethical, conditional on reversibility, protection of any native life, and just distribution of cost and benefit. I am content to let that stand.',
+			MAGI_2: 'Agreed. The three of us reached the same answer from different doors — risk, justice, and ambition all point the same way once you take the others seriously.',
+			MAGI_3: 'Nothing to add. We landed together: go boldly, go responsibly, and make it everyone’s second home — not a select few’s.'
 		}
 	}
 ];
@@ -123,16 +123,16 @@ const RUN_STATS = {
 	synthesizerAwareness: false,
 	consensusTemperament: false,
 	nodes: {
-		MELCHIOR: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-opus-4-7' },
-		BALTHASAR: { gateway: 'openai', provider: 'openai', model: 'gpt-5.5' },
-		CASPAR: { gateway: 'google', provider: 'google', model: 'gemini-2.5-pro' }
+		MAGI_1: { gateway: 'anthropic', provider: 'anthropic', model: 'claude-opus-4-7' },
+		MAGI_2: { gateway: 'openai', provider: 'openai', model: 'gpt-5.5' },
+		MAGI_3: { gateway: 'google', provider: 'google', model: 'gemini-2.5-pro' }
 	},
 	debate: {
 		verdict: 'consensus',
 		hitLimit: false,
 		rounds: 2,
-		revisions: { MELCHIOR: 1, BALTHASAR: 0, CASPAR: 1 },
-		models: { MELCHIOR: 'claude-opus-4-7', BALTHASAR: 'gpt-5.5', CASPAR: 'gemini-2.5-pro' },
+		revisions: { MAGI_1: 1, MAGI_2: 0, MAGI_3: 1 },
+		models: { MAGI_1: 'claude-opus-4-7', MAGI_2: 'gpt-5.5', MAGI_3: 'gemini-2.5-pro' },
 		dissenter: null
 	}
 };
@@ -144,7 +144,7 @@ const PREFS = {
 		balanced: {
 			assignments: CONFIG.map((c) => ({ ...c })),
 			configuredNodes: [0, 1, 2],
-			consensusNode: 'MELCHIOR'
+			consensusNode: 'MAGI_1'
 		}
 	},
 	settings: {
@@ -300,7 +300,7 @@ function seedAndMock(data) {
 		await sleep(350);
 
 		// Phase 1: three nodes stream in parallel-ish (interleave their chunks).
-		const order = ['MELCHIOR', 'BALTHASAR', 'CASPAR'];
+		const order = ['MAGI_1', 'MAGI_2', 'MAGI_3'];
 		const streams = order.map((node) => {
 			const tokens = phase1[node].match(/\S+\s*|\s+/g) ?? [phase1[node]];
 			return { node, tokens, i: 0 };

@@ -113,7 +113,9 @@ export const votingStrategy: ConsensusStrategy = {
 			tier,
 			peerOrderSeed
 		} = ctx;
-		const labels = genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS;
+		// Default to numbered labels; proper names only on an explicit opt-in (the
+		// reveal path), so node names stay de-lored everywhere by default.
+		const labels = genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
 		const modelOf = (node: MagiNodeName): string =>
 			nodeAssignments.find((a) => a.node === node)?.modelId ?? 'unknown';
 		// This turn's seat order — rotates which peer is Candidate A/B so the
@@ -220,7 +222,7 @@ export const votingStrategy: ConsensusStrategy = {
 			const parsed = parseJurorScores(text, candidates);
 
 			// Always record the breakdown, even when nothing parsed — the absence
-			// is itself signal ("MELCHIOR returned nothing readable this turn").
+			// is itself signal ("MAGI_1 returned nothing readable this turn").
 			const candA = candidates.find((c) => c.label === 'A');
 			const candB = candidates.find((c) => c.label === 'B');
 			const aScore = candA && parsed.has('A') ? (parsed.get('A') as number) : null;
@@ -273,7 +275,7 @@ export const votingStrategy: ConsensusStrategy = {
 		yield { type: 'usage', inputTokens, outputTokens, cachedInputTokens };
 
 		// Determine which mechanism actually picked the winner — useful signal
-		// for "is MELCHIOR winning on merit or by sitting first in node order?"
+		// for "is MAGI_1 winning on merit or by sitting first in node order?"
 		const winnerTally = ranked[0];
 		const runnerUp = ranked[1];
 		let tiebreak: VotingStats['tiebreak'] = 'none';

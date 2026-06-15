@@ -19,7 +19,7 @@ describe('MAGI_NODES', () => {
 
 	it('uses the canonical MAGI names', () => {
 		const names = MAGI_NODES.map((n) => n.name);
-		expect(names).toEqual(['MELCHIOR', 'BALTHASAR', 'CASPAR']);
+		expect(names).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
 	});
 });
 
