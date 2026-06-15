@@ -101,19 +101,27 @@ const ROUNDS = [
 
 const VERDICT_LINE = '**Converged after 2 rounds — the MAGI are in agreement.**';
 
-// The final synthesized consensus answer, streamed at the end.
-const FINAL = `**The MAGI converge: colonizing Mars can be ethical — but only under conditions, never by default.**
+// The final synthesized consensus answer, streamed at the end. Follows the
+// templated consensus skeleton for a converged debate (Verdict / Reasoning /
+// Confidence) — see src/lib/magi/consensus/format.ts.
+const FINAL = `## Verdict
 
-The deliberation began from three different doors and arrived at the same room. The existential argument (a single-planet species is a fragile one), the justice argument (who pays and who benefits decides everything), and the argument from ambition (timidity is its own moral failure) are not in conflict — each names a condition the others must satisfy.
+Colonizing Mars can be ethical — but only under conditions, never by default. Going to Mars is not the ethical question; *how* we go is.
 
-**Where the MAGI now agree:**
+## Reasoning
 
-- **It is permissible, not obligatory.** Mars colonization is ethical as a *carefully bounded* expansion of life — not as a frontier to be seized.
-- **Protect what's there first.** No irreversible terraforming until we have confirmed Mars harbors no extant life of its own.
-- **Share the hedge.** A second home that insures only the wealthy is a private bunker, not insurance for humanity. The governance for distributing cost and benefit must exist *before* the first habitat does.
-- **Commit fully or not at all.** Half-funded boldness strands people. Real ambition builds in redundancy and an honest reckoning of the danger.
+The deliberation began from three different doors and arrived at the same room. The existential argument (a single-planet species is a fragile one), the justice argument (who pays and who benefits decides everything), and the argument from ambition (timidity is its own moral failure) are not in conflict — each names a condition the others must satisfy:
 
-**The verdict:** Going to Mars is not the ethical question — *how* we go is. Done reversibly, done justly, and done with eyes open to the risk, it is among the most meaningful undertakings open to us. Done as a land grab or a billionaire's escape hatch, it is a betrayal of the very future it claims to protect.`;
+- **It is permissible, not obligatory** — a *carefully bounded* expansion of life, not a frontier to be seized.
+- **Protect what's there first** — no irreversible terraforming until we confirm Mars harbors no extant life of its own.
+- **Share the hedge** — a second home that insures only the wealthy is a private bunker, not insurance for humanity; the governance for distributing cost and benefit must exist *before* the first habitat does.
+- **Commit fully or not at all** — half-funded boldness strands people; real ambition builds in redundancy and an honest reckoning of the danger.
+
+Done reversibly, justly, and with eyes open to the risk, it is among the most meaningful undertakings open to us. Done as a land grab or a billionaire's escape hatch, it is a betrayal of the very future it claims to protect.
+
+## Confidence
+
+High — the three positions converged on the same conditional framework from independent starting points. The residual uncertainty is empirical, not moral: whether Mars harbors extant life of its own, which must be settled before any irreversible step.`;
 
 const CONSENSUS_USAGE = { inputTokens: 1840, outputTokens: 412, cachedInputTokens: 1536 };
 

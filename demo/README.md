@@ -26,8 +26,9 @@ fully separate from the app — it adds nothing to the app's `package.json` or
 
 1. **Seeds `localStorage`** (`magi:prefs:v1`) so the app opens in the showcase
    state: `strategy: debate`, `palette: nebula`, `motionMode: full`,
-   `bgVariant: hex`, dark theme, generic node labels, Opinionated + Collaborative
-   on. The payload matches the app's Zod persistence schema so it validates.
+   `bgVariant: off` (blank background for the recording), dark theme, generic node
+   labels, Opinionated + Collaborative on. The payload matches the app's Zod
+   persistence schema so it validates.
 2. **Overrides `window.fetch`** (via `addInitScript`, before any app code runs)
    so a `POST /api/magi` returns a `Response` whose body is a `ReadableStream`
    that enqueues hand-authored SSE bytes with realistic per-token delays.
@@ -80,8 +81,8 @@ ffmpeg -y -i "$WEBM" -c:v libx264 -pix_fmt yuv420p -profile:v high \
   -level 4.1 -crf 20 -preset slow -movflags +faststart -an \
   docs/media/magi-demo.mp4
 
-#   GIF (two-pass palette, 800px, 10fps, ~5 MB — the hex lattice + streaming
-#   text is palette-heavy, so 10fps keeps it under the README-friendly size)
+#   GIF (two-pass palette, 800px, 10fps, ~5 MB — the streaming text + node
+#   colors are palette-heavy, so 10fps keeps it under the README-friendly size)
 ffmpeg -y -i "$WEBM" -vf "fps=10,scale=800:-1:flags=lanczos,palettegen=max_colors=128:stats_mode=diff" \
   demo/palette.png
 ffmpeg -y -i "$WEBM" -i demo/palette.png \
