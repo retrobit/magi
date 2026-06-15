@@ -51,7 +51,7 @@ The consensus engine is pluggable:
 
 - **Synthesis** — one model reads all three answers, reconciles agreements and disagreements, and writes a single unified response. The synthesizer seat is configurable (`consensusNode`, default `MAGI_1`).
 - **Structured Voting** — each node scores its peers' answers (anonymized as Candidate A/B) from 0–10; the highest aggregate wins and is shown **verbatim** under a tally table. No extra model call beyond the three jurors, and it works on every tier (lenient score parsing, no structured-output requirement).
-- **Multi-Round Debate** — each node stakes out a position, then reads anonymized peers and revises across 2–5 rounds (default 3) before a final synthesis. Stops early on convergence; each round is shown per node.
+- **Multi-Round Debate** _(default)_ — each node stakes out a position, then reads anonymized peers and revises across 2–5 rounds (default 3) before a final synthesis. Stops early on convergence; each round is shown per node.
 - **None** — skip consensus entirely and compare the three raw answers side by side.
 
 ## ✨ Features
@@ -92,6 +92,8 @@ Pick a tier to trade quality against cost:
 | **Free**     | \*                | \*           | \*                    |
 
 > The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai), fetching the currently-live model list dynamically and auto-selecting three from different providers. Set `OPENROUTER_API_KEY` to enable it.
+>
+> ⚠️ Free-tier models are community / promotional endpoints and can be flaky — retry or swap any node that stalls or fails. A caution icon by the tier selector flags this in-app.
 
 ## 🚀 Quick start
 
