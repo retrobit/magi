@@ -29,7 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { smoothSnap } from '$lib/motion';
+	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -285,20 +285,28 @@
 	const loadingVerbs = $derived(temperament ? TEMPERAMENT_VERBS[temperament] : GENERIC_VERBS);
 	let verbIndex = $state(0);
 	let sweep = $state(0);
+	// Reduced motion freezes the sweep on the plain verb — a JS interval can't be
+	// stopped by CSS, so we gate it here. Captured per pending phase.
+	let staticVerb = $state(false);
 	// The previous verb is what the block overwrites; the first verb (index 0)
 	// writes onto blank instead.
 	const prevVerb = $derived(
 		verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length]
 	);
 	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
-	// text instead of floating past blank space.
+	// text instead of floating past blank space. When reduced-motion is on, show
+	// the plain verb with no sweep.
 	const loadingText = $derived(
-		sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb).trimEnd()
+		staticVerb
+			? loadingVerbs[verbIndex % loadingVerbs.length]
+			: sweepVerb(loadingVerbs[verbIndex % loadingVerbs.length], sweep, prevVerb).trimEnd()
 	);
 	$effect(() => {
 		if (status !== 'pending' || text) return;
 		verbIndex = 0;
 		sweep = 0;
+		staticVerb = prefersReducedMotion();
+		if (staticVerb) return; // honor reduced motion: no animated sweep
 		const id = setInterval(() => {
 			const word = loadingVerbs[verbIndex % loadingVerbs.length];
 			const prev = verbIndex === 0 ? '' : loadingVerbs[(verbIndex - 1) % loadingVerbs.length];

@@ -29,7 +29,7 @@
 		sweepCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { smoothSnap } from '$lib/motion';
+	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import VerdictPill from './VerdictPill.svelte';
@@ -412,19 +412,27 @@
 	const consensusVerbs = $derived(strategy === 'none' ? GENERIC_VERBS : STRATEGY_VERBS[strategy]);
 	let cVerbIndex = $state(0);
 	let cSweep = $state(0);
+	// Reduced motion freezes the sweep on the plain verb — a JS interval can't be
+	// stopped by CSS, so we gate it here. Captured per loader phase.
+	let cStaticVerb = $state(false);
 	// The block overwrites the previous verb; the first verb writes onto blank.
 	const cPrevVerb = $derived(
 		cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length]
 	);
 	// Trim the to-be-filled padding off the end so the trailing "…" hugs the live
-	// text instead of floating past blank space.
+	// text instead of floating past blank space. When reduced-motion is on, show
+	// the plain verb with no sweep.
 	const consensusLoadingText = $derived(
-		sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb).trimEnd()
+		cStaticVerb
+			? consensusVerbs[cVerbIndex % consensusVerbs.length]
+			: sweepVerb(consensusVerbs[cVerbIndex % consensusVerbs.length], cSweep, cPrevVerb).trimEnd()
 	);
 	$effect(() => {
 		if (!showConsensusLoader) return;
 		cVerbIndex = 0;
 		cSweep = 0;
+		cStaticVerb = prefersReducedMotion();
+		if (cStaticVerb) return; // honor reduced motion: no animated sweep
 		const id = setInterval(() => {
 			const word = consensusVerbs[cVerbIndex % consensusVerbs.length];
 			const prev = cVerbIndex === 0 ? '' : consensusVerbs[(cVerbIndex - 1) % consensusVerbs.length];
