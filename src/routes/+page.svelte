@@ -1415,6 +1415,19 @@
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-gray-500">TIER</span>
 				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
+				{#if tier === 'free'}
+					<!-- Free-tier models are flaky; the note hangs off a caution icon so it
+					     stays out of the way until hovered/focused. A button (not a span) so
+					     it's keyboard-focusable without an a11y tabindex warning. -->
+					<button
+						type="button"
+						class="flex shrink-0 cursor-default items-center magi-warn"
+						aria-label="Free-tier reliability warning"
+						use:tooltip={'Free-tier models can be flaky — retry or swap any node that stalls or fails.'}
+					>
+						<AlertTriangle size={14} />
+					</button>
+				{/if}
 			</div>
 			<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
 				<div class="flex items-center gap-2">
