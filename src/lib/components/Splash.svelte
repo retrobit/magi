@@ -389,10 +389,12 @@
 	@keyframes tri-glow {
 		0%,
 		100% {
-			filter: drop-shadow(0 0 0 transparent);
+			/* Never fully dark — a faint always-on halo keeps the triad lit. */
+			filter: drop-shadow(0 0 3px var(--c));
 		}
 		50% {
-			filter: drop-shadow(0 0 10px var(--c));
+			/* Layered shadows read as a brighter, fuller bloom than a single one. */
+			filter: drop-shadow(0 0 16px var(--c)) drop-shadow(0 0 7px var(--c));
 		}
 	}
 	/* Reduced motion: no entrance, no glow — the triad just sits at full opacity. */
