@@ -263,9 +263,6 @@
 	let contentEl = $state<HTMLDivElement>();
 	let liveTurnEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
-	// Follow mode: tracks whether we've already settled on this turn's verdict line
-	// (debate only), so the one-time landing fires once per turn. Reset on a new turn.
-	let landedVerdict = $state(false);
 	// Scroll-viewport height — gives the latest turn block a min-height in snap
 	// mode so its prompt can always reach the top even on a short consensus.
 	let viewportH = $state(0);
@@ -287,15 +284,24 @@
 		return () => observer.disconnect();
 	});
 
+	// Re-pin when the VIEWPORT's own height changes — e.g. the layout accordion
+	// expanding this zone to full height on resolve. The content ResizeObserver
+	// above only watches content height, so a viewport-only growth would otherwise
+	// let the browser clamp scrollTop toward the top (the "pop to the top" on a
+	// debate verdict). Reading viewportH keeps follow glued to the bottom through it.
+	$effect(() => {
+		void viewportH;
+		if (scrollMode === 'follow' && pinned && scrollEl) {
+			scrollEl.scrollTop = scrollEl.scrollHeight;
+		}
+	});
+
 	// Re-engage follow at the start of each new live turn. A manual scroll-up while
 	// reading a previous turn leaves `pinned` false; without this, follow would
 	// stay paused for the next turn and never track the new consensus.
 	let prevLiveQuery = '';
 	$effect(() => {
-		if (liveQuery && liveQuery !== prevLiveQuery) {
-			pinned = true;
-			landedVerdict = false;
-		}
+		if (liveQuery && liveQuery !== prevLiveQuery) pinned = true;
 		prevLiveQuery = liveQuery;
 	});
 
@@ -348,12 +354,12 @@
 		strategy === 'debate' ? (text.match(/\*\*Round \d+\*\*/g) ?? []).length : 0
 	);
 	let lastSnappedRound = $state(0);
-	let snappedSynthesis = $state(false);
+	let snappedVerdict = $state(false);
 	$effect(() => {
 		// Reset both watermarks on every new live turn (or when leaving snap mode).
 		if (scrollMode !== 'snap' || !liveQuery) {
 			lastSnappedRound = 0;
-			snappedSynthesis = false;
+			snappedVerdict = false;
 			return;
 		}
 		if (collapsed) return;
@@ -390,51 +396,18 @@
 		};
 	});
 
-	// Snap mode + debate: when the `---` divider arrives (the boundary between
-	// the round ledger and the streamed synthesis), snap so the divider lands at
-	// the top of the viewport — the user reads the synthesis from its first line
-	// rather than chasing it as it streams. Mirrors the round-snap pattern: wait
-	// for Markdown's throttled re-render, find the last `<hr>` in the live block,
-	// scroll it to top, fire exactly once per turn.
-	const hasSynthesisStarted = $derived(strategy === 'debate' && text.includes(DEBATE_DIVIDER));
+	// Snap mode + debate: when the round ledger resolves, the verdict line lands
+	// framed by `---` rules. Snap its LEADING rule (the first `<hr>` — the boundary
+	// between the ledger and the verdict) to the top, so the verdict itself is the
+	// headline the reader lands on, with the synthesis answer streaming in below it.
+	// The first `<hr>` is always the ledger↔verdict boundary regardless of whether
+	// the synthesis divider has arrived yet. Mirrors the round-snap pattern: wait
+	// for Markdown's throttled re-render to land the `<hr>`, scroll it to the top,
+	// fire exactly once per turn.
+	const hasVerdict = $derived(strategy === 'debate' && text.includes(DEBATE_DIVIDER));
 	$effect(() => {
 		if (scrollMode !== 'snap' || !liveQuery || collapsed) return;
-		if (!hasSynthesisStarted || snappedSynthesis) return;
-		const el = scrollEl;
-		const content = contentEl;
-		if (!el || !content) return;
-		const observer = new ResizeObserver(() => {
-			const hr = Array.from(content.querySelectorAll('hr')).at(-1);
-			if (!hr) return;
-			smoothSnap(
-				el,
-				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-			);
-			snappedSynthesis = true;
-			observer.disconnect();
-		});
-		observer.observe(content);
-		const timeout = setTimeout(() => observer.disconnect(), 500);
-		return () => {
-			clearTimeout(timeout);
-			observer.disconnect();
-		};
-	});
-
-	// Follow mode + debate: a resolved debate's payoff is the verdict, not the tail
-	// of the streamed answer. The instant the verdict line lands (its leading `---`
-	// boundary appears) we anchor that boundary to the top of the viewport and
-	// RELEASE the bottom-pin, so the synthesis then fills in *below* the verdict the
-	// user is reading instead of dragging them to the end of the answer. This also
-	// cures the "pop to the top" on resolve: the consensus zone expanding to full
-	// height changes only the viewport's clientHeight — which none of follow's
-	// content/text re-pin triggers react to — so the browser would otherwise clamp
-	// the scroll back to the round ledger at the document top. Fires once per turn;
-	// mirrors the snap effect's throttle-aware ResizeObserver, but targets the FIRST
-	// `<hr>` (the ledger↔verdict boundary) so the verdict itself sits at the top.
-	$effect(() => {
-		if (scrollMode !== 'follow' || !liveQuery || collapsed) return;
-		if (!hasSynthesisStarted || landedVerdict) return;
+		if (!hasVerdict || snappedVerdict) return;
 		const el = scrollEl;
 		const content = contentEl;
 		if (!el || !content) return;
@@ -445,8 +418,7 @@
 				el,
 				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
 			);
-			landedVerdict = true;
-			pinned = false;
+			snappedVerdict = true;
 			observer.disconnect();
 		});
 		observer.observe(content);

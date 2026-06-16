@@ -353,7 +353,7 @@
 				aria-pressed={scrollMode === 'snap'}
 				onclick={() => (scrollMode = 'snap')}
 			>
-				Snap to top
+				Snap
 			</button>
 			<button
 				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'

@@ -231,6 +231,17 @@
 		return () => observer.disconnect();
 	});
 
+	// Re-pin when the VIEWPORT's own height changes — e.g. the layout accordion
+	// expanding this panel's zone. The content ResizeObserver above only watches
+	// content height, so a viewport-only growth would otherwise let the browser
+	// clamp scrollTop toward the top. Reading viewportH keeps follow glued to bottom.
+	$effect(() => {
+		void viewportH;
+		if (scrollMode === 'follow' && pinned && scrollEl) {
+			scrollEl.scrollTop = scrollEl.scrollHeight;
+		}
+	});
+
 	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
 	// the new turn block sits at the top of the panel — the blank line above the
 	// prompt lands at the very top, and the response then streams in below it.
