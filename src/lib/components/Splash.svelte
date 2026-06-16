@@ -336,9 +336,11 @@
 		gap: 1rem;
 	}
 	.decode .word {
-		/* Monospace so every scramble glyph shares one cell width — the root of the
-		   horizontal jitter was the proportional display font. */
-		font-family: var(--font-mono, ui-monospace, 'Courier New', monospace);
+		/* Michroma — the same display face as the rest of the splash and the headers,
+		   so every MAGI mark reads as one system. The decode word can use a
+		   proportional face because the fixed 1ch slots below (not the font) are what
+		   stop the scramble from shifting its glyphs horizontally. */
+		font-family: var(--magi-font-display);
 		font-size: clamp(2rem, 8vw, 3.5rem);
 		font-weight: 700;
 		letter-spacing: 0.12em;
