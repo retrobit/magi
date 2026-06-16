@@ -263,6 +263,9 @@
 	let contentEl = $state<HTMLDivElement>();
 	let liveTurnEl = $state<HTMLDivElement>();
 	let pinned = $state(true);
+	// Follow mode: tracks whether we've already settled on this turn's verdict line
+	// (debate only), so the one-time landing fires once per turn. Reset on a new turn.
+	let landedVerdict = $state(false);
 	// Scroll-viewport height — gives the latest turn block a min-height in snap
 	// mode so its prompt can always reach the top even on a short consensus.
 	let viewportH = $state(0);
@@ -289,7 +292,10 @@
 	// stay paused for the next turn and never track the new consensus.
 	let prevLiveQuery = '';
 	$effect(() => {
-		if (liveQuery && liveQuery !== prevLiveQuery) pinned = true;
+		if (liveQuery && liveQuery !== prevLiveQuery) {
+			pinned = true;
+			landedVerdict = false;
+		}
 		prevLiveQuery = liveQuery;
 	});
 
@@ -405,6 +411,42 @@
 				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
 			);
 			snappedSynthesis = true;
+			observer.disconnect();
+		});
+		observer.observe(content);
+		const timeout = setTimeout(() => observer.disconnect(), 500);
+		return () => {
+			clearTimeout(timeout);
+			observer.disconnect();
+		};
+	});
+
+	// Follow mode + debate: a resolved debate's payoff is the verdict, not the tail
+	// of the streamed answer. The instant the verdict line lands (its leading `---`
+	// boundary appears) we anchor that boundary to the top of the viewport and
+	// RELEASE the bottom-pin, so the synthesis then fills in *below* the verdict the
+	// user is reading instead of dragging them to the end of the answer. This also
+	// cures the "pop to the top" on resolve: the consensus zone expanding to full
+	// height changes only the viewport's clientHeight — which none of follow's
+	// content/text re-pin triggers react to — so the browser would otherwise clamp
+	// the scroll back to the round ledger at the document top. Fires once per turn;
+	// mirrors the snap effect's throttle-aware ResizeObserver, but targets the FIRST
+	// `<hr>` (the ledger↔verdict boundary) so the verdict itself sits at the top.
+	$effect(() => {
+		if (scrollMode !== 'follow' || !liveQuery || collapsed) return;
+		if (!hasSynthesisStarted || landedVerdict) return;
+		const el = scrollEl;
+		const content = contentEl;
+		if (!el || !content) return;
+		const observer = new ResizeObserver(() => {
+			const hr = content.querySelector('hr');
+			if (!hr) return;
+			smoothSnap(
+				el,
+				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+			);
+			landedVerdict = true;
+			pinned = false;
 			observer.disconnect();
 		});
 		observer.observe(content);
