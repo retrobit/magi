@@ -10,49 +10,61 @@ import {
 	STRATEGY_VERBS
 } from './loading-verbs';
 
-describe('loaderFrame', () => {
-	const verbs = ['Thinking', 'Pondering'];
-	const ELL = LOADER_ELLIPSIS;
-	const NB = ' '; // the non-breaking blank the delete phase leaves behind
-	const word = 'Thinking' + ELL; // length 9
-	const L = word.length;
+const ELL = LOADER_ELLIPSIS;
+const NB = ' '; // the non-breaking blank used for padding/cleared columns
+const BLOCK = SWEEP_CHAR;
 
-	it('WRITE: lays the verb (ellipsis included) down up to the block', () => {
-		expect(loaderFrame(verbs, 0, 0)).toBe(SWEEP_CHAR);
-		expect(loaderFrame(verbs, 0, 2)).toBe('Th' + SWEEP_CHAR);
+describe('loaderFrame', () => {
+	const verbs = ['Thinking', 'Pondering']; // tokens: "Thinking…" (9), "Pondering…" (10)
+	const first = 'Thinking' + ELL;
+	const second = 'Pondering' + ELL;
+
+	it('writes the first verb onto blank, block hugging the live text', () => {
+		expect(loaderFrame(verbs, 0, 0)).toBe(BLOCK);
+		expect(loaderFrame(verbs, 0, 2)).toBe('Th' + BLOCK);
 		// Block sits on the ellipsis position — the last glyph written.
-		expect(loaderFrame(verbs, 0, L - 1)).toBe('Thinking' + SWEEP_CHAR);
+		expect(loaderFrame(verbs, 0, first.length - 1)).toBe('Thinking' + BLOCK);
 	});
 
 	it('HOLD: shows the finished word through the pause window', () => {
-		expect(loaderFrame(verbs, 0, L)).toBe(word);
-		expect(loaderFrame(verbs, 0, L + PAUSE_TICKS - 1)).toBe(word);
+		expect(loaderFrame(verbs, 0, first.length)).toBe(first);
+		expect(loaderFrame(verbs, 0, first.length + PAUSE_TICKS - 1)).toBe(first);
 	});
 
-	it('DELETE: forward-deletes left-to-right, blanks trailing behind the block', () => {
-		expect(loaderFrame(verbs, 0, L + PAUSE_TICKS)).toBe(SWEEP_CHAR + 'hinking' + ELL);
-		expect(loaderFrame(verbs, 0, L + PAUSE_TICKS + 1)).toBe(NB + SWEEP_CHAR + 'inking' + ELL);
-		// Final delete frame: only blanks and the block remain.
-		expect(loaderFrame(verbs, 0, 2 * L + PAUSE_TICKS - 1)).toBe(NB.repeat(L - 1) + SWEEP_CHAR);
+	it('overwrites the previous verb in place — old letters linger ahead of the block', () => {
+		// index 1 replaces "Thinking…" with "Pondering…"; the outgoing tail shows ahead.
+		expect(loaderFrame(verbs, 1, 0)).toBe(BLOCK + 'hinking' + ELL);
+		expect(loaderFrame(verbs, 1, 2)).toBe('Po' + BLOCK + 'nking' + ELL);
+		expect(loaderFrame(verbs, 1, second.length - 1)).toBe('Pondering' + BLOCK);
+	});
+
+	it('clears the leftover tail when the outgoing word is longer', () => {
+		const shrink = ['Pondering', 'Mulling']; // "Pondering…" (10) → "Mulling…" (8)
+		// Block has written the whole new word and now sweeps the old tail, blanking it.
+		expect(loaderFrame(shrink, 1, 8)).toBe('Mulling' + ELL + BLOCK + ELL);
+		expect(loaderFrame(shrink, 1, 9)).toBe('Mulling' + ELL + NB + BLOCK);
 	});
 
 	it('shows the plain verb + ellipsis with no animation when reduced', () => {
-		expect(loaderFrame(verbs, 0, 3, true)).toBe(word);
-		expect(loaderFrame(verbs, 1, 99, true)).toBe('Pondering' + ELL);
+		expect(loaderFrame(verbs, 0, 3, true)).toBe(first);
+		expect(loaderFrame(verbs, 1, 99, true)).toBe(second);
 	});
 
 	it('wraps the index around the verb list', () => {
-		expect(loaderFrame(verbs, 2, 99, true)).toBe(word);
+		expect(loaderFrame(verbs, 2, 99, true)).toBe(first);
 	});
 });
 
 describe('loaderCycleLength', () => {
-	it('is write (len) + hold (pause) + delete (len) for the verb + ellipsis', () => {
+	it('spans the wider of the incoming/outgoing word + the pause', () => {
 		const verbs = ['Thinking', 'Pondering'];
-		const a = ('Thinking' + LOADER_ELLIPSIS).length; // 9
-		const b = ('Pondering' + LOADER_ELLIPSIS).length; // 10
-		expect(loaderCycleLength(verbs, 0)).toBe(2 * a + PAUSE_TICKS);
-		expect(loaderCycleLength(verbs, 1)).toBe(2 * b + PAUSE_TICKS);
+		// index 0 has no previous → just the word length + pause.
+		expect(loaderCycleLength(verbs, 0)).toBe(('Thinking' + ELL).length + PAUSE_TICKS);
+		// index 1 overwrites "Thinking…" (9) with "Pondering…" (10) → wider wins.
+		expect(loaderCycleLength(verbs, 1)).toBe(('Pondering' + ELL).length + PAUSE_TICKS);
+		// Shrinking still spans the wider (old) word so its tail is fully cleared.
+		const shrink = ['Pondering', 'Mulling'];
+		expect(loaderCycleLength(shrink, 1)).toBe(('Pondering' + ELL).length + PAUSE_TICKS);
 	});
 });
 
