@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { TIER_NAMES, type TierName } from '$lib/magi/types';
+	import { tooltip } from '$lib/actions/tooltip';
 	import { tick } from 'svelte';
 
 	interface Props {
@@ -21,6 +22,13 @@
 		balanced: 'Balanced',
 		budget: 'Budget',
 		free: 'Free'
+	};
+
+	const tierTooltips: Record<TierName, string> = {
+		frontier: 'Frontier — the most capable model from each provider.',
+		balanced: 'Balanced — strong models that weigh quality against cost.',
+		budget: 'Budget — cheaper, faster models for everyday questions.',
+		free: 'Free — no-cost models via OpenRouter; can be slower or flakier.'
 	};
 
 	// A single pill slides to whichever tier is active — across the free/paid
@@ -84,6 +92,7 @@
 				{disabled}
 				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}
+				use:tooltip={tierTooltips[tier]}
 			>
 				{tierLabels[tier]}
 			</button>
@@ -105,6 +114,7 @@
 				{disabled}
 				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}
+				use:tooltip={tierTooltips[tier]}
 			>
 				{tierLabels[tier]}
 			</button>

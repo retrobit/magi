@@ -4,7 +4,6 @@
 	// the node panels so a user can grab just the final response (default) or
 	// pull in the original query and/or every debate round.
 	import { Copy, Check, ChevronDown } from 'lucide-svelte';
-	import { tooltip } from '$lib/actions/tooltip';
 
 	export interface CopyScope {
 		/** Stable identifier — used to highlight the default in the menu. */
@@ -146,7 +145,6 @@
 		class="rounded-l p-0.5 text-(--magi-text-muted) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text)"
 		onclick={copyDefault}
 		aria-label={copied ? 'Copied' : title}
-		use:tooltip={title}
 	>
 		{#if copied}
 			<Check size={14} class="magi-success" />
@@ -162,7 +160,7 @@
 		onkeydown={onChevronKeydown}
 		aria-haspopup="menu"
 		aria-expanded={open}
-		use:tooltip={'Copy options'}
+		aria-label="Copy options"
 	>
 		<ChevronDown size={11} class="transition-transform {open ? 'rotate-180' : ''}" />
 	</button>

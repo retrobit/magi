@@ -170,6 +170,20 @@ export const PALETTE_LABELS: Record<Palette, string> = {
 	green: 'Green'
 };
 
+/** Launch curation: experimental UI options — the single-hue palettes
+ *  (red/blue/green), the orbs/columns backgrounds, and the motion picker — are
+ *  kept in the code + validation but hidden from Settings until they're polished.
+ *  Flip this to surface them again. The full PALETTES / BG_VARIANTS unions stay
+ *  valid so any persisted value still loads, and motion still honors the OS
+ *  prefers-reduced-motion regardless of whether the picker is shown. */
+export const REVEAL_EXPERIMENTAL_UI = false;
+export const VISIBLE_PALETTES: readonly Palette[] = REVEAL_EXPERIMENTAL_UI
+	? PALETTES
+	: ['nebula', 'rgb'];
+export const VISIBLE_BG_VARIANTS: readonly BgVariant[] = REVEAL_EXPERIMENTAL_UI
+	? BG_VARIANTS
+	: ['off', 'hex'];
+
 /** Dev-only escape hatch for the MAGI node proper-names (MELCHIOR / BALTHASAR /
  *  CASPAR). When false (shipped default) the app shows only the neutral generic
  *  labels (MAGI · 1/2/3) and the name-reveal toggle is removed; the proper-name
@@ -182,7 +196,7 @@ export const REVEAL_NODE_NAMES = false;
 export const MOTION_MODES = ['normal', 'full', 'reduced'] as const;
 export type MotionMode = (typeof MOTION_MODES)[number];
 export const MOTION_MODE_LABELS: Record<MotionMode, string> = {
-	normal: 'Normal (default)',
+	normal: 'Normal',
 	full: 'Full',
 	reduced: 'Reduced'
 };

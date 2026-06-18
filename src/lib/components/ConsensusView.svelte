@@ -321,6 +321,32 @@
 		);
 	});
 
+	// Re-pin to the bottom when a turn COMMITS in follow mode. On commit the live
+	// block is torn down and the finished turn re-mounts as a transcript entry that
+	// Markdown renders in full at once — so the body can settle at the SAME net
+	// height it held while streaming, and the content ResizeObserver never fires.
+	// That left an earlier, shorter-content re-pin (from the live→committed gap) as
+	// the final scroll position: the "pop toward the top" the moment a debate
+	// resolved. Watch the committed-turn count and chase the bottom across a couple
+	// of frames plus one tick past Markdown's ~100 ms throttle. The `-1` sentinel
+	// makes the first run only seed the watermark, so a restored conversation never
+	// yanks the view on mount.
+	let prevTranscriptLen = -1;
+	$effect(() => {
+		const len = transcript.length;
+		const prev = prevTranscriptLen;
+		prevTranscriptLen = len;
+		if (prev < 0 || len <= prev || scrollMode !== 'follow' || !scrollEl) return;
+		pinned = true;
+		const el = scrollEl;
+		const toBottom = () => {
+			if (scrollMode === 'follow' && pinned) el.scrollTop = el.scrollHeight;
+		};
+		requestAnimationFrame(() => requestAnimationFrame(toBottom));
+		const t = setTimeout(toBottom, 140);
+		return () => clearTimeout(t);
+	});
+
 	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
 	// the new turn block sits at the top of the panel — the blank line above the
 	// prompt lands at the very top, and the consensus then streams in below it.
@@ -465,6 +491,22 @@
 		return isRouter(consensusGateway)
 			? `${GATEWAY_LABELS[consensusGateway]} — ${getProviderLabel(consensusProvider)} ${consensusModelDisplayName}`
 			: `${getProviderLabel(consensusProvider)} ${consensusModelDisplayName}`;
+	});
+
+	// The model label is `truncate`d; only offer a tooltip when it's actually cut
+	// off (so it's a peek-the-full-name affordance, not redundant chrome). Measure
+	// scrollWidth vs clientWidth on label change and on resize.
+	let synthLabelEl = $state<HTMLSpanElement>();
+	let synthLabelTruncated = $state(false);
+	$effect(() => {
+		void synthesisLabel;
+		const el = synthLabelEl;
+		if (!el) return;
+		const check = () => (synthLabelTruncated = el.scrollWidth > el.clientWidth + 1);
+		check();
+		const ro = new ResizeObserver(check);
+		ro.observe(el);
+		return () => ro.disconnect();
 	});
 
 	function handleNodeChange(e: Event) {
@@ -671,8 +713,10 @@
 						     also meaningless in voting, since there is no such call. -->
 						{#if synthesisLabel && consensusNodeApplies}
 							<span
+								bind:this={synthLabelEl}
 								class="min-w-0 truncate text-xs text-(--magi-text-muted)"
-								use:tooltip={synthesisLabel}>{synthesisLabel}</span
+								use:tooltip={synthLabelTruncated ? synthesisLabel : undefined}
+								>{synthesisLabel}</span
 							>
 						{/if}
 					</div>

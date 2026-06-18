@@ -146,7 +146,6 @@
 		{disabled}
 		aria-haspopup="listbox"
 		aria-expanded={open}
-		use:tooltip={STRATEGY_DESCRIPTIONS[strategy]}
 	>
 		<span>
 			{#if strategy === FLAGSHIP_STRATEGY}<span aria-hidden="true" class="mr-1">✦</span

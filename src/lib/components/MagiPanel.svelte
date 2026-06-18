@@ -242,6 +242,30 @@
 		}
 	});
 
+	// Re-pin to the bottom when a turn COMMITS in follow mode — same fix as the
+	// consensus panel. The live block is torn down and the finished turn re-mounts
+	// as a transcript entry Markdown renders in full at once, so the body can settle
+	// at the SAME net height it streamed at and the content ResizeObserver never
+	// fires — leaving an earlier shorter-content re-pin as the final position (a pop
+	// toward the top on completion). Chase the bottom across a couple of frames plus
+	// one past Markdown's ~100 ms throttle. The `-1` sentinel makes the first run
+	// only seed the watermark, so a restored conversation never yanks on mount.
+	let prevTranscriptLen = -1;
+	$effect(() => {
+		const len = transcript.length;
+		const prev = prevTranscriptLen;
+		prevTranscriptLen = len;
+		if (prev < 0 || len <= prev || scrollMode !== 'follow' || !scrollEl) return;
+		pinned = true;
+		const el = scrollEl;
+		const toBottom = () => {
+			if (scrollMode === 'follow' && pinned) el.scrollTop = el.scrollHeight;
+		};
+		requestAnimationFrame(() => requestAnimationFrame(toBottom));
+		const t = setTimeout(toBottom, 140);
+		return () => clearTimeout(t);
+	});
+
 	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
 	// the new turn block sits at the top of the panel — the blank line above the
 	// prompt lands at the very top, and the response then streams in below it.
@@ -562,7 +586,6 @@
 						onclick={() => (configExpanded = !configExpanded)}
 						aria-label="{displayLabel} configuration"
 						aria-expanded={configExpanded}
-						use:tooltip={configExpanded ? 'Hide model configuration' : 'Show model configuration'}
 					>
 						<ChevronRight
 							size={12}
@@ -575,7 +598,7 @@
 						onclick={handleRandomize}
 						{disabled}
 						class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
-						use:tooltip={'Randomize selection'}
+						aria-label="Randomize selection"
 					>
 						<Shuffle size={12} />
 					</button>
@@ -645,7 +668,7 @@
 							onclick={handleRandomize}
 							{disabled}
 							class="magi-randomize flex h-[26px] w-[26px] shrink-0 items-center justify-center self-center rounded transition-colors disabled:opacity-50"
-							use:tooltip={'Randomize selection'}
+							aria-label="Randomize selection"
 						>
 							<Shuffle size={14} />
 						</button>

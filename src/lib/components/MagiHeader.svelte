@@ -10,12 +10,12 @@
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
 	import StatesCatalog from './StatesCatalog.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
-	import { tooltip } from '$lib/actions/tooltip';
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
 	import type { NodeAssignment } from '$lib/magi/config';
 	import {
-		PALETTES,
+		VISIBLE_PALETTES,
+		REVEAL_EXPERIMENTAL_UI,
 		PALETTE_LABELS,
 		MOTION_MODES,
 		MOTION_MODE_LABELS,
@@ -95,7 +95,6 @@
 				type="button"
 				class="inline-block cursor-pointer transition-opacity hover:opacity-80"
 				onclick={() => onreplaysplash?.()}
-				use:tooltip={{ text: 'Replay the MAGI intro', touch: false }}
 				aria-label="MAGI — replay the intro animation"
 			>
 				MAGI <span class="text-base" aria-hidden="true"
@@ -111,7 +110,6 @@
 				type="button"
 				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white sm:hidden"
 				onclick={() => togglePanel('menu')}
-				use:tooltip={{ text: 'Menu', touch: false }}
 				aria-label="Open menu"
 				aria-expanded={openPanel === 'menu'}
 			>
@@ -124,7 +122,6 @@
 						type="button"
 						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
 						onclick={() => togglePanel('debug')}
-						use:tooltip={{ text: 'Debug panel (dev only)', touch: false }}
 						aria-label="Debug panel"
 						aria-expanded={openPanel === 'debug'}
 					>
@@ -135,7 +132,6 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('stats')}
-					use:tooltip={{ text: 'Stats', touch: false }}
 					aria-label="Stats"
 					aria-expanded={openPanel === 'stats'}
 				>
@@ -145,7 +141,6 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('budget')}
-					use:tooltip={{ text: 'Budget', touch: false }}
 					aria-label="Budget"
 					aria-expanded={openPanel === 'budget'}
 				>
@@ -155,7 +150,6 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
 					onclick={() => togglePanel('settings')}
-					use:tooltip={{ text: 'Settings', touch: false }}
 					aria-label="Settings"
 					aria-expanded={openPanel === 'settings'}
 				>
@@ -278,7 +272,7 @@
 		</div>
 		<span class="mt-3 magi-section-header text-gray-500">PALETTE</span>
 		<div class="mt-2 flex flex-col gap-1">
-			{#each PALETTES as p (p)}
+			{#each VISIBLE_PALETTES as p (p)}
 				<button
 					class="rounded px-3 py-1.5 text-left text-sm transition-colors {palette === p
 						? 'bg-gray-600 text-white'
@@ -310,39 +304,43 @@
 			>
 				Hex
 			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={bgVariant === 'orbs'}
-				onclick={() => (bgVariant = 'orbs')}
-			>
-				Orbs
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={bgVariant === 'columns'}
-				onclick={() => (bgVariant = 'columns')}
-			>
-				Columns
-			</button>
-		</div>
-		<span class="mt-3 magi-section-header text-gray-500">MOTION</span>
-		<div class="mt-2 flex flex-col gap-1">
-			{#each MOTION_MODES as mode (mode)}
+			{#if REVEAL_EXPERIMENTAL_UI}
 				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {motionMode === mode
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
 						? 'bg-gray-600 text-white'
 						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-					aria-pressed={motionMode === mode}
-					onclick={() => (motionMode = mode)}
+					aria-pressed={bgVariant === 'orbs'}
+					onclick={() => (bgVariant = 'orbs')}
 				>
-					{MOTION_MODE_LABELS[mode]}
+					Orbs
 				</button>
-			{/each}
+				<button
+					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
+						? 'bg-gray-600 text-white'
+						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+					aria-pressed={bgVariant === 'columns'}
+					onclick={() => (bgVariant = 'columns')}
+				>
+					Columns
+				</button>
+			{/if}
 		</div>
+		{#if REVEAL_EXPERIMENTAL_UI}
+			<span class="mt-3 magi-section-header text-gray-500">MOTION</span>
+			<div class="mt-2 flex flex-col gap-1">
+				{#each MOTION_MODES as mode (mode)}
+					<button
+						class="rounded px-3 py-1.5 text-left text-sm transition-colors {motionMode === mode
+							? 'bg-gray-600 text-white'
+							: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
+						aria-pressed={motionMode === mode}
+						onclick={() => (motionMode = mode)}
+					>
+						{MOTION_MODE_LABELS[mode]}
+					</button>
+				{/each}
+			</div>
+		{/if}
 		<span class="mt-3 magi-section-header text-gray-500">AUTO-SCROLL</span>
 		<div class="mt-2 flex flex-col gap-1">
 			<button

@@ -306,7 +306,7 @@
 		position: absolute;
 		width: 50%;
 		height: 50%;
-		opacity: 0.12;
+		opacity: 0.17;
 		will-change: transform;
 	}
 

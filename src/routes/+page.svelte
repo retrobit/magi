@@ -1379,6 +1379,11 @@
 
 <svelte:head>
 	<title>MAGI</title>
+	{#if import.meta.env.DEV}
+		<!-- Dev override: the all-red mark so a dev tab is easy to spot among prod
+		     tabs (prod uses the RGB mark set in app.html). -->
+		<link rel="icon" href="/favicons/triangles-red.svg" />
+	{/if}
 </svelte:head>
 
 {#if showSplash}
@@ -1452,9 +1457,7 @@
 						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
 							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-						use:tooltip={temperaments
-							? `Temperaments active — each MAGI answers through its own persona (${resolvedTemperaments.MAGI_1.label}, ${resolvedTemperaments.MAGI_2.label}, ${resolvedTemperaments.MAGI_3.label}). Click to turn off.`
-							: `Enable temperaments — give each MAGI a distinct persona: ${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}. Click to turn on.`}
+						use:tooltip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
 					>
 						<Brain size={12} />
 						<span class="inline-block w-7 text-left">{temperaments ? 'ON' : 'OFF'}</span>
@@ -1464,7 +1467,6 @@
 						onclick={() => (showTemperamentEditor = true)}
 						disabled={loading}
 						class="magi-temperament-off flex items-center justify-center rounded-lg bg-gray-800 p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:opacity-50"
-						use:tooltip={'Edit temperaments — rename each MAGI and write its persona'}
 						aria-label="Edit temperaments"
 					>
 						<Pencil size={12} />
@@ -1479,9 +1481,7 @@
 						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {opinionated
 							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-						use:tooltip={opinionated
-							? 'Opinionated active — on open-ended questions the MAGI commit to a single answer instead of hedging or listing options. Click to turn off.'
-							: 'Enable Opinionated — push each MAGI to choose one definitive answer on open-ended questions, rather than presenting many equally-weighted options. Click to turn on.'}
+						use:tooltip={'Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options.'}
 					>
 						<Target size={12} />
 						<span class="inline-block w-7 text-left">{opinionated ? 'ON' : 'OFF'}</span>
@@ -1499,9 +1499,7 @@
 							class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {collaborative
 								? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
 								: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
-							use:tooltip={collaborative
-								? 'Collaborative active — the MAGI weigh each other’s reasoning and lean toward genuine convergence (without caving). Click to turn off.'
-								: 'Enable Collaborative — encourage the MAGI to consider each other’s positions and move toward agreement when warranted. Click to turn on.'}
+							use:tooltip={'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'}
 						>
 							<Handshake size={12} />
 							<span class="inline-block w-7 text-left">{collaborative ? 'ON' : 'OFF'}</span>
@@ -1703,7 +1701,6 @@
 							onclick={() => handleSwap(i - 1, i)}
 							disabled={loading}
 							class="magi-randomize rounded p-1 transition-colors disabled:opacity-50"
-							use:tooltip={'Swap configurations'}
 							aria-label="Swap {activeNodeLabels[assignments[i - 1].node]} and {activeNodeLabels[
 								assignment.node
 							]} configurations"
