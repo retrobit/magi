@@ -23,7 +23,8 @@
 	let longTaskMs = $state(0);
 	let cpuPressure = $state<string | null>(null);
 	let gpuPressure = $state<string | null>(null);
-	let collapsed = $state(false);
+	// Start collapsed — the HUD is opt-in, so it doesn't cover content on load.
+	let collapsed = $state(true);
 
 	function fpsColor(v: number): string {
 		if (v >= 55) return 'text-emerald-400';

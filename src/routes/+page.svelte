@@ -287,10 +287,16 @@
 
 	function fillPrompt(prompt: string) {
 		query = prompt;
-		// Focus the input so keyboard users land where the workflow continues —
-		// and so screen readers read the populated value (Execute is unfocusable
-		// while the input is empty, making silent fills easy to lose).
-		queryInputEl?.focus();
+		// Defer past the DOM flush, then bring the input into view and focus it. On
+		// mobile the example chips sit in the consensus panel well below the input,
+		// so an explicit scroll is what carries the user back up to the populated
+		// box — focus() alone fired too early (before the fill rendered) and the
+		// first tap didn't scroll. Also lands keyboard/SR users where the workflow
+		// continues (Execute is unfocusable while the input is empty).
+		void tick().then(() => {
+			queryInputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			queryInputEl?.focus();
+		});
 	}
 	// The dice icon animates on each roll — click feedback that fires even when
 	// the random pick lands on the prompt already in the box (otherwise re-rolling
@@ -1415,19 +1421,23 @@
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-gray-500">TIER</span>
 				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
-				{#if tier === 'free'}
-					<!-- Free-tier models are flaky; the note hangs off a caution icon so it
-					     stays out of the way until hovered/focused. A button (not a span) so
-					     it's keyboard-focusable without an a11y tabindex warning. -->
-					<button
-						type="button"
-						class="flex shrink-0 cursor-default items-center magi-warn"
-						aria-label="Free-tier reliability warning"
-						use:tooltip={'Free-tier models can be flaky — retry or swap any node that stalls or fails.'}
-					>
-						<AlertTriangle size={14} />
-					</button>
-				{/if}
+				<!-- Free-tier models are flaky; the note hangs off a caution icon so it
+				     stays out of the way until hovered/focused. Always rendered (only its
+				     visibility toggles per tier) so its slot is reserved and switching
+				     tiers can't shift the TIER control sideways. A button (not a span) so
+				     it's keyboard-focusable without an a11y tabindex warning. -->
+				<button
+					type="button"
+					class="flex shrink-0 cursor-default items-center magi-warn"
+					class:invisible={tier !== 'free'}
+					aria-hidden={tier !== 'free'}
+					aria-label="Free-tier reliability warning"
+					use:tooltip={tier === 'free'
+						? 'Free-tier models can be flaky — retry or swap any node that stalls or fails.'
+						: undefined}
+				>
+					<AlertTriangle size={14} />
+				</button>
 			</div>
 			<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
 				<div class="flex items-center gap-2">
@@ -1775,7 +1785,7 @@
 		</div>
 	</main>
 
-	<footer class="shrink-0 py-1.5 text-center magi-meta text-gray-600">
+	<footer class="magi-footer shrink-0 py-1.5 text-center magi-meta text-gray-600">
 		<a
 			href="https://github.com/retrobit/magi"
 			target="_blank"

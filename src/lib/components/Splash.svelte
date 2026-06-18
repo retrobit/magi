@@ -22,6 +22,10 @@
 				window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 	);
 
+	// Coarse pointer (touch) → the skip affordance is a tap, not a click. Pointer
+	// type is stable for the session, so a one-shot read is enough.
+	const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 	let fading = $state(false);
 	let finished = false;
 	const timers: ReturnType<typeof setTimeout>[] = [];
@@ -135,7 +139,7 @@
 	class:reduced
 	role="button"
 	tabindex="0"
-	aria-label="MAGI intro animation — press any key or click to skip"
+	aria-label="MAGI intro animation — press any key or {coarse ? 'touch' : 'click'} to skip"
 	onclick={finish}
 	onkeydown={guardedFinish}
 >
@@ -191,7 +195,7 @@
 		</div>
 	{/if}
 
-	<p class="hint">click to skip</p>
+	<p class="hint">{coarse ? 'touch to skip' : 'click to skip'}</p>
 </div>
 
 <style>
@@ -367,9 +371,12 @@
 		opacity: 0;
 	}
 	.decode .triad.show .tri {
+		/* One pulse, then hold the faint always-on halo (forwards) — the finish
+		   timer was truncating a second, infinite cycle mid-bloom. The linger in
+		   runDecode() is timed so the last triangle's single pulse completes first. */
 		animation:
 			tri-in 420ms ease forwards,
-			tri-glow 1.9s ease-in-out infinite;
+			tri-glow 1.9s ease-in-out 1 forwards;
 	}
 	.decode .triad.show .tri:nth-child(1) {
 		animation-delay: 0ms, 480ms;

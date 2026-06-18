@@ -95,7 +95,7 @@
 				type="button"
 				class="inline-block cursor-pointer transition-opacity hover:opacity-80"
 				onclick={() => onreplaysplash?.()}
-				use:tooltip={'Replay the MAGI intro'}
+				use:tooltip={{ text: 'Replay the MAGI intro', touch: false }}
 				aria-label="MAGI — replay the intro animation"
 			>
 				MAGI <span class="text-base" aria-hidden="true"
@@ -111,7 +111,7 @@
 				type="button"
 				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white sm:hidden"
 				onclick={() => togglePanel('menu')}
-				use:tooltip={'Menu'}
+				use:tooltip={{ text: 'Menu', touch: false }}
 				aria-label="Open menu"
 				aria-expanded={openPanel === 'menu'}
 			>
@@ -124,7 +124,7 @@
 						type="button"
 						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
 						onclick={() => togglePanel('debug')}
-						use:tooltip={'Debug panel (dev only)'}
+						use:tooltip={{ text: 'Debug panel (dev only)', touch: false }}
 						aria-label="Debug panel"
 						aria-expanded={openPanel === 'debug'}
 					>
@@ -135,7 +135,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('stats')}
-					use:tooltip={'Stats'}
+					use:tooltip={{ text: 'Stats', touch: false }}
 					aria-label="Stats"
 					aria-expanded={openPanel === 'stats'}
 				>
@@ -145,7 +145,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
 					onclick={() => togglePanel('budget')}
-					use:tooltip={'Budget'}
+					use:tooltip={{ text: 'Budget', touch: false }}
 					aria-label="Budget"
 					aria-expanded={openPanel === 'budget'}
 				>
@@ -155,7 +155,7 @@
 					type="button"
 					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
 					onclick={() => togglePanel('settings')}
-					use:tooltip={'Settings'}
+					use:tooltip={{ text: 'Settings', touch: false }}
 					aria-label="Settings"
 					aria-expanded={openPanel === 'settings'}
 				>
@@ -178,7 +178,9 @@
 	<div
 		class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-[88rem] px-4 md:px-6"
 	>
-		<div class="pointer-events-auto ml-auto {width}">
+		<!-- Cap the panel to the space below the header and let it scroll, so a tall
+		     panel (Settings, Stats) can always reach its bottom on a short screen. -->
+		<div class="pointer-events-auto ml-auto {width} max-h-[calc(100dvh-4.5rem)] overflow-y-auto">
 			{@render body()}
 		</div>
 	</div>
@@ -188,11 +190,17 @@
 	{@render panelShell('w-56', menuBody)}
 {/if}
 {#snippet menuBody()}
-	<!-- No explicit close button: the menu is mobile-only and the hamburger
-	     itself toggles it; tapping the backdrop also dismisses via panelShell. -->
 	<div class="magi-popover p-3">
-		<div class="mb-3">
+		<div class="mb-3 flex items-center justify-between">
 			<span class="magi-section-header text-gray-400">MENU</span>
+			<button
+				type="button"
+				class="text-gray-500 transition-colors hover:text-(--magi-text)"
+				onclick={() => (openPanel = null)}
+				aria-label="Close menu"
+			>
+				<X size={14} />
+			</button>
 		</div>
 		<div class="flex flex-col gap-1">
 			{#if import.meta.env.DEV}

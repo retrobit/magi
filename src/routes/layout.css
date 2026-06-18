@@ -260,6 +260,14 @@
 		z-index: 1;
 	}
 
+	/* The footer is the last of those z-index:1 siblings, so it would paint over a
+	   `position: fixed` dropdown (e.g. the Strategy picker) that's trapped in an
+	   earlier sibling's stacking context. Drop the footer a layer — z-0 still keeps
+	   it above the z-0 aurora (which is earlier in the DOM). */
+	.magi-bg > .magi-footer {
+		z-index: 0;
+	}
+
 	.magi-bg {
 		position: relative;
 		background-color: var(--magi-page-bg);
@@ -298,9 +306,12 @@
 	}
 
 	/* Randomize button — match the auto-bordered <select> controls */
+	/* Sits in the prompt-entry row beside the input, so it wears the input's own
+	   surface + border tokens to read as one unit; only the icon color and a
+	   subtle hover set it apart as a button. */
 	.magi-randomize {
-		border: 1px solid var(--magi-control-border);
-		background-color: var(--magi-surface-bg);
+		border: 1px solid var(--magi-input-border);
+		background-color: var(--magi-input-bg);
 		color: var(--magi-text-muted);
 	}
 
