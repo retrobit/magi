@@ -295,7 +295,10 @@
 		// continues (Execute is unfocusable while the input is empty).
 		void tick().then(() => {
 			queryInputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			queryInputEl?.focus();
+			// Don't pop the on-screen keyboard on touch — the user wants to review the
+			// filled prompt, not edit it. Focus only with a fine pointer, so keyboard /
+			// SR users still land in the box where the workflow continues.
+			if (!window.matchMedia('(pointer: coarse)').matches) queryInputEl?.focus();
 		});
 	}
 	// The dice icon animates on each roll — click feedback that fires even when
@@ -1388,7 +1391,7 @@
 	{/key}
 {/if}
 
-<div class="magi-bg flex h-screen flex-col overflow-y-auto">
+<div class="magi-bg flex h-screen flex-col overflow-hidden">
 	<MagiBackground variant={bgVariant} bgStill={motionMode !== 'full'} />
 
 	{#if import.meta.env.DEV}
@@ -1509,8 +1512,12 @@
 		</div>
 	</div>
 
-	<!-- Main content -->
-	<main class="mx-auto flex w-full max-w-[88rem] flex-1 flex-col gap-4 p-4 md:min-h-0 md:p-6">
+	<!-- Main content. App-shell scroll: the header + control strip above stay put
+	     (shrink-0) and THIS region scrolls, so the scrollbar lives below the tier
+	     strip instead of being drawn under the opaque, stacked header on mobile. -->
+	<main
+		class="mx-auto flex min-h-0 w-full max-w-[88rem] flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6"
+	>
 		<!-- Screen-reader live region for node/consensus state transitions. Kept
 		     visually hidden so it doesn't affect layout; polite so it doesn't
 		     interrupt in-progress speech. -->
