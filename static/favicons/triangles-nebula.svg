@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+	<title>MAGI</title>
+	<!-- Header motif 🔺🔻🔺 in the Nebula palette: node 1 blue, node 2 purple, node 3 red -->
+	<polygon points="6,8 1,28 11,28" fill="#3b82f6" />
+	<polygon points="13,8 23,8 18,28" fill="#a855f7" />
+	<polygon points="30,8 25,28 35,28" fill="#ef4444" />
+</svg>

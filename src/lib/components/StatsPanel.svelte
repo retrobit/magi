@@ -132,7 +132,7 @@
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="text-(--magi-text-faint) transition-colors hover:text-green-400 disabled:opacity-40"
+				class="text-(--magi-text-faint) transition-colors hover:text-green-400 disabled:opacity-50"
 				onclick={exportJson}
 				disabled={records.length === 0}
 				aria-label="Export stats as JSON"
@@ -142,7 +142,7 @@
 			</button>
 			<button
 				type="button"
-				class="text-(--magi-text-faint) transition-colors hover:text-red-400 disabled:opacity-40"
+				class="text-(--magi-text-faint) transition-colors hover:text-red-400 disabled:opacity-50"
 				onclick={() => (confirmingClear = true)}
 				disabled={agg.total === 0}
 				aria-label="Clear stats"

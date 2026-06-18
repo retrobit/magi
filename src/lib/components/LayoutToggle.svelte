@@ -77,11 +77,11 @@
 
 <div
 	bind:this={containerEl}
-	class="relative flex items-center gap-0.5 rounded bg-gray-800/60 p-0.5"
+	class="relative flex items-center gap-0.5 rounded bg-(--magi-surface-bg) p-0.5"
 >
 	<!-- Sliding active indicator -->
 	<div
-		class="layout-indicator pointer-events-none absolute top-0.5 bottom-0.5 rounded bg-gray-600"
+		class="layout-indicator pointer-events-none absolute top-0.5 bottom-0.5 rounded bg-(--magi-btn-bg)"
 		class:animate={ready}
 		style:left="{pill.left}px"
 		style:width="{pill.width}px"
@@ -91,7 +91,10 @@
 	{#each options as opt, i (opt.value)}
 		{#if i === 1}
 			<!-- Separator setting Auto apart from the manual focus segments. -->
-			<div class="relative z-10 mx-0.5 h-5 w-px bg-gray-600" aria-hidden="true"></div>
+			<div
+				class="relative z-10 mx-0.5 h-5 w-px bg-(--magi-control-border)"
+				aria-hidden="true"
+			></div>
 		{/if}
 		<button
 			bind:this={buttonEls[opt.value]}
@@ -99,7 +102,7 @@
 			class="relative z-10 flex items-center justify-center rounded p-1.5 transition-colors {selected ===
 			opt.value
 				? 'text-white'
-				: 'text-gray-500 hover:text-gray-300'}"
+				: 'text-(--magi-text-muted) hover:text-(--magi-text-secondary)'}"
 			onclick={() => onchange(opt.value)}
 			aria-label={opt.label}
 			aria-pressed={selected === opt.value}

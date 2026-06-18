@@ -130,7 +130,7 @@
 				{/if}
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
+					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-blue-400"
 					onclick={() => togglePanel('stats')}
 					aria-label="Stats"
 					aria-expanded={openPanel === 'stats'}
@@ -208,7 +208,7 @@
 			{/if}
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-green-400"
+				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-blue-400"
 				onclick={() => (openPanel = 'stats')}
 			>
 				<BarChart3 size={14} /> Stats

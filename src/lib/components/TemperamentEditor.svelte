@@ -109,7 +109,7 @@
 						>
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded px-1.5 py-0.5 magi-meta text-(--magi-text-secondary) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text) disabled:opacity-40 disabled:hover:bg-transparent"
+							class="flex items-center gap-1 rounded px-1.5 py-0.5 magi-meta text-(--magi-text-secondary) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text) disabled:opacity-50 disabled:hover:bg-transparent"
 							onclick={() => resetNode(node)}
 							disabled={isDefault(node)}
 						>

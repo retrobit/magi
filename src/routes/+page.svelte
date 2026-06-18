@@ -1454,9 +1454,7 @@
 						type="button"
 						onclick={() => (temperaments = !temperaments)}
 						disabled={loading}
-						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {temperaments
-							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						class="magi-toggle {temperaments ? 'magi-toggle-on' : ''}"
 						use:tooltip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
 					>
 						<Brain size={12} />
@@ -1466,7 +1464,7 @@
 						type="button"
 						onclick={() => (showTemperamentEditor = true)}
 						disabled={loading}
-						class="magi-temperament-off flex items-center justify-center rounded-lg bg-gray-800 p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:opacity-50"
+						class="flex items-center justify-center rounded-lg bg-gray-800 p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:opacity-50"
 						aria-label="Edit temperaments"
 					>
 						<Pencil size={12} />
@@ -1478,9 +1476,7 @@
 						type="button"
 						onclick={() => (opinionated = !opinionated)}
 						disabled={loading}
-						class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {opinionated
-							? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-							: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+						class="magi-toggle {opinionated ? 'magi-toggle-on' : ''}"
 						use:tooltip={'Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options.'}
 					>
 						<Target size={12} />
@@ -1496,9 +1492,7 @@
 							type="button"
 							onclick={() => (collaborative = !collaborative)}
 							disabled={loading}
-							class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors {collaborative
-								? 'magi-temperament-on bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
-								: 'magi-temperament-off bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'} disabled:opacity-50"
+							class="magi-toggle {collaborative ? 'magi-toggle-on' : ''}"
 							use:tooltip={'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'}
 						>
 							<Handshake size={12} />

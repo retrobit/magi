@@ -140,7 +140,7 @@
 	<button
 		type="button"
 		bind:this={triggerEl}
-		class="magi-select flex items-center gap-1 rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+		class="magi-select flex items-center gap-1 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 		onclick={toggleOpen}
 		onkeydown={onTriggerKeydown}
 		{disabled}

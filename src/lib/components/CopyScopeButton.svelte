@@ -187,7 +187,7 @@
 				type="button"
 				role="menuitem"
 				bind:this={menuItemRefs[i]}
-				class="flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+				class="flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={() => onSelect(scope)}
 				disabled={!scope.content}
 			>

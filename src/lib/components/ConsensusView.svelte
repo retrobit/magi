@@ -699,7 +699,7 @@
 			>
 				{#if onstrategychange}
 					<div class="flex items-center gap-x-2">
-						<span class="text-xs text-gray-500">Strategy</span>
+						<span class="text-xs text-gray-500 uppercase">Strategy</span>
 						<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
 					</div>
 					<span class="hidden text-xs text-gray-700 sm:inline">·</span>
@@ -707,9 +707,9 @@
 					     may still converge before the limit, so it's a maximum. -->
 					{#if strategy === 'debate' && ondebateroundschange}
 						<div class="flex items-center gap-x-2">
-							<span class="text-xs text-gray-500">Rounds</span>
+							<span class="text-xs text-gray-500 uppercase">Rounds</span>
 							<select
-								class="magi-select rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+								class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 								value={debateRounds}
 								onchange={handleRoundsChange}
 								{disabled}
@@ -727,10 +727,10 @@
 					<div class="flex w-full items-center gap-x-2 sm:contents">
 						{#if onconsensuschange}
 							<div class="flex shrink-0 items-center gap-x-2">
-								<span class="text-xs text-gray-500">{consensusSeatLabel}</span>
+								<span class="text-xs text-gray-500 uppercase">{consensusSeatLabel}</span>
 								{#if consensusNodeApplies}
 									<select
-										class="magi-select rounded py-0.5 pr-6 pl-2 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 										value={consensusNode}
 										onchange={handleNodeChange}
 										use:tooltip={consensusSeatTooltip}
@@ -747,7 +747,7 @@
 									     The original `consensusNode` state is kept so it returns
 									     when the user switches back to Synthesis. -->
 									<select
-										class="magi-select rounded py-0.5 pr-6 pl-2 text-xs text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:cursor-not-allowed"
+										class="magi-select text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
 										disabled
 										title={consensusSkipped
 											? 'No consensus is computed in None mode — the three model responses stand on their own, so there is no node to assign.'
@@ -775,12 +775,12 @@
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 					{#if onconsensustemperamentchange}
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-gray-500" use:tooltip={consensusTempTip}>Temperament</span>
+							<span class="text-xs text-gray-500 uppercase" use:tooltip={consensusTempTip}
+								>Temperament</span
+							>
 							<button
 								type="button"
-								class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
-									? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-									: ''} {consensusTempApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
+								class="magi-toggle {consensusTemperament ? 'magi-toggle-on' : ''}"
 								onclick={() =>
 									!disabled &&
 									consensusTempApplies &&
@@ -790,18 +790,19 @@
 								aria-label="Consensus temperament {consensusTemperament ? 'on' : 'off'}"
 							>
 								<Brain size={12} />
-								{consensusTemperament ? 'ON' : 'OFF'}
+								<span class="inline-block w-7 text-left">{consensusTemperament ? 'ON' : 'OFF'}</span
+								>
 							</button>
 						</div>
 					{/if}
 					{#if onawarenesschange}
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-gray-500" use:tooltip={awarenessTip}>Awareness</span>
+							<span class="text-xs text-gray-500 uppercase" use:tooltip={awarenessTip}
+								>Awareness</span
+							>
 							<button
 								type="button"
-								class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
-									? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-									: ''} {awarenessApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
+								class="magi-toggle {temperamentAwareness ? 'magi-toggle-on' : ''}"
 								onclick={() =>
 									!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
 								aria-pressed={temperamentAwareness}
@@ -809,7 +810,8 @@
 								aria-label="Temperament awareness {temperamentAwareness ? 'on' : 'off'}"
 							>
 								<Eye size={12} />
-								{temperamentAwareness ? 'ON' : 'OFF'}
+								<span class="inline-block w-7 text-left">{temperamentAwareness ? 'ON' : 'OFF'}</span
+								>
 							</button>
 						</div>
 					{/if}

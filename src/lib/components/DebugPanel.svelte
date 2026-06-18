@@ -175,7 +175,7 @@
 					Load
 				</button>
 				<select
-					class="rounded bg-gray-800 py-1 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+					class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 					value={scenario.nodeContext[assignment.node]}
 					disabled={disabled ||
 						scenario.nodeError[assignment.node] ||

@@ -582,7 +582,7 @@
 					     own rotating ChevronRight, not a <select>. -->
 					<button
 						type="button"
-						class="magi-select flex min-w-0 flex-1 items-center gap-1 rounded bg-none px-2 py-1 text-left text-xs transition-colors"
+						class="magi-select flex min-w-0 flex-1 items-center gap-1 bg-none px-2 py-1 text-left transition-colors"
 						onclick={() => (configExpanded = !configExpanded)}
 						aria-label="{displayLabel} configuration"
 						aria-expanded={configExpanded}
@@ -609,7 +609,7 @@
 					<div class="flex flex-1 flex-col gap-1.5">
 						<!-- Gateway / Provider selector -->
 						<select
-							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none"
 							value={gateway}
 							onchange={handleGatewayChange}
 							{disabled}
@@ -625,7 +625,7 @@
 
 						<!-- Provider selector (always rendered for consistent height) -->
 						<select
-							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
+							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
 							!showRouterProvider
 								? 'text-gray-600'
 								: ''}"
@@ -649,7 +649,7 @@
 
 						<!-- Model selector -->
 						<select
-							class="magi-select w-full rounded px-2 py-1 text-xs focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none"
 							value={modelId}
 							onchange={handleModelChange}
 							{disabled}

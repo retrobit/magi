@@ -79,7 +79,7 @@
 <div class="flex items-center justify-end">
 	<button
 		type="button"
-		class="text-gray-500 transition-colors hover:text-(--magi-text) disabled:opacity-40"
+		class="text-gray-500 transition-colors hover:text-(--magi-text) disabled:opacity-50"
 		onclick={() => fetchBudgets(true)}
 		disabled={loading || !loaded}
 		aria-label="Refresh budgets"
