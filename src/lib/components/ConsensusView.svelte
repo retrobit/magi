@@ -34,23 +34,8 @@
 	import StrategyPicker from './StrategyPicker.svelte';
 	import VerdictPill from './VerdictPill.svelte';
 	import TokenCount from './TokenCount.svelte';
-	import {
-		Copy,
-		Check,
-		LoaderCircle,
-		CircleCheck,
-		CircleHelp,
-		AlertTriangle,
-		Brain
-	} from 'lucide-svelte';
-
-	let copied = $state(false);
-	function copyConsensus() {
-		if (!copyTarget) return;
-		navigator.clipboard.writeText(copyTarget).catch(() => {});
-		copied = true;
-		setTimeout(() => (copied = false), 1500);
-	}
+	import CopyScopeButton, { type CopyScope } from './CopyScopeButton.svelte';
+	import { LoaderCircle, CircleCheck, CircleHelp, AlertTriangle, Brain, Eye } from 'lucide-svelte';
 
 	interface Props {
 		text: string;
@@ -219,6 +204,81 @@
 	const DEBATE_DIVIDER = '\n\n---\n\n';
 	const debateRounding = $derived(
 		strategy === 'debate' && loading && text !== '' && !text.includes(DEBATE_DIVIDER)
+	);
+
+	// The query paired with whatever `copyTarget` points at — the live turn's
+	// query while a finished turn is still in live state, the last committed
+	// turn's query once it settles into the transcript.
+	const copyQuery = $derived(liveQuery || transcript[transcript.length - 1]?.query || '');
+
+	// Strategy-shaped copy scopes for the split copy button. The consensus is a
+	// rigid Markdown skeleton we can slice on its SECTION_RULE (`---`) boundaries
+	// (DEBATE_DIVIDER): a debate is `ledger ⟂ verdict ⟂ synthesis`, structured
+	// voting is `tally ⟂ winner`, and a synthesis is one answer block. Each
+	// strategy offers only the cuts that mean something for it; all keep `answer`
+	// (the default) so a direct click on the icon always grabs the useful part.
+	const copyScopes = $derived.by<CopyScope[]>(() => {
+		const full = copyTarget;
+		if (!full) return [];
+		const query = copyQuery;
+		const withQuery = (body: string) => (query && body ? `Query:\n${query}\n\n${body}` : '');
+
+		if (strategy === 'debate') {
+			const parts = full.split(DEBATE_DIVIDER);
+			const structured = parts.length >= 3;
+			const synthesis = structured ? parts.slice(2).join(DEBATE_DIVIDER) : full;
+			const verdict = structured ? parts[1] : '';
+			return [
+				{ id: 'answer', label: 'Answer', content: synthesis },
+				...(verdict ? [{ id: 'verdict', label: 'Verdict', content: verdict }] : []),
+				{ id: 'queryAnswer', label: 'Query + answer', content: withQuery(synthesis) },
+				...(structured
+					? [{ id: 'everything', label: 'Everything (with rounds)', content: full }]
+					: [])
+			];
+		}
+		if (strategy === 'voting') {
+			const parts = full.split(DEBATE_DIVIDER);
+			const structured = parts.length >= 2;
+			const winner = structured ? parts.slice(1).join(DEBATE_DIVIDER) : full;
+			const tally = structured ? parts[0] : '';
+			return [
+				{ id: 'answer', label: 'Winning answer', content: winner },
+				...(tally ? [{ id: 'tally', label: 'Vote tally', content: tally }] : []),
+				{ id: 'queryAnswer', label: 'Query + answer', content: withQuery(winner) },
+				...(structured
+					? [{ id: 'everything', label: 'Everything (with tally)', content: full }]
+					: [])
+			];
+		}
+		// Synthesis (and any fallback): a single answer block, optionally with the query.
+		return [
+			{ id: 'answer', label: 'Answer', content: full },
+			{ id: 'queryAnswer', label: 'Query + answer', content: withQuery(full) }
+		];
+	});
+
+	// Static tooltips for the consensus Temperament / Awareness LABELS (not their
+	// toggles) — purpose when the control applies, or why it's inert for the active
+	// strategy. Static with respect to on/off so a mobile peek never has to flip
+	// the toggle to read the tip.
+	const consensusTempTip = $derived(
+		consensusTempApplies
+			? 'Consensus temperament — give the synthesizer its own dispositional lens.'
+			: consensusSkipped
+				? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
+				: strategy === 'voting'
+					? 'Consensus temperament has no effect on Structured Voting — the winner is a tally of juror scores judged on substance, not disposition.'
+					: 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
+	);
+	const awarenessTip = $derived(
+		awarenessApplies
+			? "Temperament awareness — tell the synthesizer about each node's dispositional lens."
+			: strategy === 'debate'
+				? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead.'
+				: strategy === 'voting'
+					? 'Temperament awareness has no effect on Structured Voting — voting jurors score neutrally on substance, so there is no synthesizer lens to shape.'
+					: 'No consensus model runs in None mode — there is no synthesizer to be aware of node temperaments.'
 	);
 
 	// Drives both the loader effect and its placement: true the whole time the
@@ -609,19 +669,8 @@
 					<LoaderCircle size={14} class="animate-spin magi-pending" />
 				{:else if hasConsensus}
 					<div class="flex items-center gap-2">
-						{#if copyTarget}
-							<button
-								class="text-(--magi-text-muted) transition-colors hover:text-(--magi-text)"
-								onclick={copyConsensus}
-								aria-label={copied ? 'Copied' : 'Copy consensus'}
-								use:tooltip={'Copy consensus'}
-							>
-								{#if copied}
-									<Check size={14} class="magi-success" />
-								{:else}
-									<Copy size={14} />
-								{/if}
-							</button>
+						{#if copyScopes.length > 0}
+							<CopyScopeButton defaultId="answer" scopes={copyScopes} title="Copy consensus" />
 						{/if}
 						{#if lastTurnAborted}
 							<!-- Aborted turn — response was truncated, not a clean completion. -->
@@ -723,57 +772,46 @@
 				{/if}
 			</div>
 			{#if onconsensustemperamentchange || onawarenesschange}
-				<div class="flex flex-wrap items-center gap-2">
-					<span class="text-xs text-gray-500">Temperament</span>
+				<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 					{#if onconsensustemperamentchange}
-						<button
-							type="button"
-							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
-								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-								: ''} {consensusTempApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
-							onclick={() =>
-								!disabled &&
-								consensusTempApplies &&
-								onconsensustemperamentchange(!consensusTemperament)}
-							aria-pressed={consensusTemperament}
-							aria-disabled={disabled || !consensusTempApplies}
-							use:tooltip={!consensusTempApplies
-								? consensusSkipped
-									? 'No consensus model runs in None mode — there is no synthesizer to give a temperament to.'
-									: strategy === 'voting'
-										? 'Consensus temperament has no effect on Structured Voting — the winner is a tally of juror scores judged on substance, not disposition.'
-										: 'Consensus temperament has no effect on Multi-Round Debate — the synthesizer is a neutral scribe. Use the main Temperaments toggle to make the debaters argue in-character.'
-								: consensusTemperament
-									? 'Consensus temperament active — synthesizer responds through its dispositional lens'
-									: 'Enable consensus temperament — give the synthesizer its own dispositional personality'}
-						>
-							<Brain size={12} />
-							{consensusTemperament ? 'ON' : 'OFF'}
-						</button>
+						<div class="flex items-center gap-1.5">
+							<span class="text-xs text-gray-500" use:tooltip={consensusTempTip}>Temperament</span>
+							<button
+								type="button"
+								class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {consensusTemperament
+									? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
+									: ''} {consensusTempApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
+								onclick={() =>
+									!disabled &&
+									consensusTempApplies &&
+									onconsensustemperamentchange(!consensusTemperament)}
+								aria-pressed={consensusTemperament}
+								aria-disabled={disabled || !consensusTempApplies}
+								aria-label="Consensus temperament {consensusTemperament ? 'on' : 'off'}"
+							>
+								<Brain size={12} />
+								{consensusTemperament ? 'ON' : 'OFF'}
+							</button>
+						</div>
 					{/if}
 					{#if onawarenesschange}
-						<button
-							type="button"
-							class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
-								? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
-								: ''} {awarenessApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
-							onclick={() =>
-								!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
-							aria-pressed={temperamentAwareness}
-							aria-disabled={disabled || !awarenessApplies}
-							use:tooltip={!awarenessApplies
-								? strategy === 'debate'
-									? 'Temperament awareness has no effect on Multi-Round Debate — the synthesizer is a neutral scribe; the lenses shape the debaters instead'
-									: strategy === 'voting'
-										? 'Temperament awareness has no effect on Structured Voting — voting jurors score neutrally on substance, so there is no synthesizer lens to shape'
-										: 'No consensus model runs in None mode — there is no synthesizer to be aware of node temperaments.'
-								: temperamentAwareness
-									? 'Temperament awareness active — synthesizer considers dispositional lenses'
-									: "Enable temperament awareness — tell the synthesizer about each node's dispositional lens"}
-						>
-							<Brain size={12} />
-							Awareness {temperamentAwareness ? 'ON' : 'OFF'}
-						</button>
+						<div class="flex items-center gap-1.5">
+							<span class="text-xs text-gray-500" use:tooltip={awarenessTip}>Awareness</span>
+							<button
+								type="button"
+								class="magi-temperament-toggle flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors {temperamentAwareness
+									? 'magi-temperament-toggle-on ring-1 ring-gray-500/50'
+									: ''} {awarenessApplies && !disabled ? '' : 'cursor-not-allowed opacity-40'}"
+								onclick={() =>
+									!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
+								aria-pressed={temperamentAwareness}
+								aria-disabled={disabled || !awarenessApplies}
+								aria-label="Temperament awareness {temperamentAwareness ? 'on' : 'off'}"
+							>
+								<Eye size={12} />
+								{temperamentAwareness ? 'ON' : 'OFF'}
+							</button>
+						</div>
 					{/if}
 				</div>
 			{/if}
