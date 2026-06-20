@@ -14,6 +14,15 @@ const env = _env as unknown as MutableEnv;
 
 vi.mock('ai', () => ({ streamText: vi.fn(), generateText: vi.fn() }));
 vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
+// `dev` is a primitive import, so back it with a mutable holder exposed through a
+// getter — tests flip `appEnvState.dev` to simulate a production build (the
+// public-demo tier gate only engages when !dev && !MAGI_API_KEY).
+const appEnvState = vi.hoisted(() => ({ dev: true }));
+vi.mock('$app/environment', () => ({
+	get dev() {
+		return appEnvState.dev;
+	}
+}));
 vi.mock('$lib/server/rate-limit', () => ({
 	isRateLimited: vi.fn(() => false),
 	retryAfterSeconds: vi.fn(() => 30)
@@ -106,6 +115,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	delete env.MAGI_API_KEY;
+	appEnvState.dev = true;
 });
 
 describe('POST /api/magi — request guards', () => {
@@ -130,6 +140,43 @@ describe('POST /api/magi — request guards', () => {
 		vi.mocked(isRateLimited).mockReturnValue(true);
 		const res = await callPost(validBody);
 		expect(res.status).toBe(429);
+	});
+});
+
+describe('POST /api/magi — public-demo tier gate', () => {
+	it('forbids a paid tier in production when no operator key is set', async () => {
+		appEnvState.dev = false; // simulate a production build
+		// MAGI_API_KEY stays unset → public demo mode → only the free tier is allowed.
+		const res = await callPost({ query: 'hi', tier: 'balanced', strategy: 'synthesis' });
+		expect(res.status).toBe(403);
+		expect((await res.json()).error).toMatch(/free tier/i);
+	});
+
+	it('forbids client assignments on a non-openrouter gateway in public mode', async () => {
+		appEnvState.dev = false;
+		const res = await callPost({
+			query: 'hi',
+			tier: 'free',
+			strategy: 'synthesis',
+			assignments: [
+				{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
+				{ node: 'MAGI_2', gateway: 'openrouter', provider: 'x', modelId: 'x/y' },
+				{ node: 'MAGI_3', gateway: 'openrouter', provider: 'z', modelId: 'z/w' }
+			]
+		});
+		expect(res.status).toBe(403);
+	});
+
+	it('allows the free tier in production with no operator key', async () => {
+		appEnvState.dev = false;
+		const res = await callPost({ query: 'hi', tier: 'free', strategy: 'synthesis' });
+		expect(res.status).toBe(200);
+	});
+
+	it('allows paid tiers in dev (operator convenience)', async () => {
+		// appEnvState.dev defaults to true → gate is skipped.
+		const res = await callPost(validBody);
+		expect(res.status).toBe(200);
 	});
 });
 

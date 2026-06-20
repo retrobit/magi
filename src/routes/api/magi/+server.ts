@@ -34,6 +34,8 @@ import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { logEvent, startTimer } from '$lib/server/logger';
 import { checkApiKey } from '$lib/server/auth';
+import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 
 // Validate hardcoded configs once at module load
 validateConfig(DEFAULT_MAGI_CONFIG);
@@ -242,6 +244,22 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		temperaments: useTemperaments ?? false,
 		priorTurns: history.length
 	});
+
+	// Public-demo guard. Inference is intentionally left open when MAGI_API_KEY is
+	// unset (the free-tier demo), but "open" must mean FREE: the only tier whose
+	// models cost nothing is `free` (OpenRouter). Without this, a public caller
+	// could request a paid tier or pin direct anthropic/openai/google assignments
+	// and spend the operator's money the moment those provider keys are configured.
+	// Mirrors the budget endpoint's prod-lock: dev and authenticated operators
+	// (MAGI_API_KEY set → checkApiKey already gated above) stay unrestricted.
+	if (!dev && !env.MAGI_API_KEY) {
+		const usesPaidGateway =
+			tier !== 'free' || (clientAssignments?.some((a) => a.gateway !== 'openrouter') ?? false);
+		if (usesPaidGateway) {
+			logEvent('warn', 'request.tier_forbidden', { requestId, ip, tier });
+			return errResp({ error: 'Only the free tier is available on the public demo.' }, 403);
+		}
+	}
 
 	// Use client assignments if provided, otherwise fall back to tier preset
 	let config: MagiConfig;
