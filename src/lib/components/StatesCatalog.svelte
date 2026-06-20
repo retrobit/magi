@@ -109,14 +109,14 @@
 	const walkoverNote = $derived(`Only ${nodeLabels.MAGI_1} responded — no debate was held.`);
 </script>
 
-<div class="flex max-h-[80vh] w-full flex-col magi-popover">
+<div class="flex max-h-[80vh] min-h-0 w-full flex-col overflow-hidden magi-popover">
 	<div class="flex shrink-0 items-center justify-between border-b magi-divider p-3">
 		<span class="flex items-center gap-1.5 magi-section-header magi-warn">
 			<CircleHelp size={13} /> STATES CATALOG · dev only
 		</span>
 		<button
 			type="button"
-			class="text-gray-500 transition-colors hover:text-(--magi-text)"
+			class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 			onclick={onclose}
 			aria-label="Close states catalog"
 		>
@@ -124,7 +124,7 @@
 		</button>
 	</div>
 
-	<div class="flex flex-col gap-5 overflow-y-auto p-4">
+	<div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
 		<p class="magi-meta">
 			Every transient status, result, and progress indicator — enumerated so they can be eyeballed
 			without driving the exact conditions that trigger them.
@@ -132,7 +132,7 @@
 
 		<!-- ── Node / consensus status icons ── -->
 		<section class="flex flex-col gap-2">
-			<span class="magi-section-header text-gray-500">Status icons</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Status icons</span>
 			<div class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
 				<div class="flex items-center gap-2">
 					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
@@ -163,7 +163,7 @@
 
 		<!-- ── Result indicators (header verdict pills) ── -->
 		<section class="flex flex-col gap-2">
-			<span class="magi-section-header text-gray-500">Result indicators</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Result indicators</span>
 			<div class="flex flex-wrap items-center gap-4">
 				<div class="flex items-center gap-2">
 					<VerdictPill verdict="consensus" />
@@ -178,7 +178,7 @@
 
 		<!-- ── Round indicators (per-node pills) ── -->
 		<section class="flex flex-col gap-2">
-			<span class="magi-section-header text-gray-500">Round indicators</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Round indicators</span>
 			<div class="flex flex-col gap-0.5">
 				<div class="flex flex-wrap items-center gap-3">
 					{#each MAGI_NODE_NAMES as node, i (node)}
@@ -199,7 +199,7 @@
 
 		<!-- ── Progress indicators ── -->
 		<section class="flex flex-col gap-2">
-			<span class="magi-section-header text-gray-500">Progress indicators</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Progress indicators</span>
 			<div class="flex flex-col gap-2">
 				<div class="flex flex-col gap-0.5">
 					<p class="magi-loader-text">{nodeLoadingText}</p>
@@ -231,7 +231,7 @@
 
 		<!-- ── Debate verdict status messages ── -->
 		<section class="flex flex-col gap-2">
-			<span class="magi-section-header text-gray-500">Debate status messages</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Debate status messages</span>
 			<p class="magi-meta">
 				In-stream these sit between the round ledger and the final answer, framed by horizontal
 				rules (shown here per item).
@@ -252,7 +252,7 @@
 
 		<!-- ── Banners & cards ── -->
 		<section class="flex flex-col gap-3">
-			<span class="magi-section-header text-gray-500">Banners &amp; cards</span>
+			<span class="magi-section-header text-(--magi-text-muted)">Banners &amp; cards</span>
 
 			<div class="flex flex-col gap-0.5">
 				<div class="rounded-lg border magi-divider">

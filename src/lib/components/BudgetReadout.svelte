@@ -79,7 +79,7 @@
 <div class="flex items-center justify-end">
 	<button
 		type="button"
-		class="text-gray-500 transition-colors hover:text-(--magi-text) disabled:opacity-50"
+		class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text) disabled:opacity-50"
 		onclick={() => fetchBudgets(true)}
 		disabled={loading || !loaded}
 		aria-label="Refresh budgets"
@@ -101,16 +101,16 @@
 				{#if p.status === 'ok'}
 					{@const ratio = usageRatio(p)}
 					{#if typeof p.usage === 'number' && typeof p.limit === 'number'}
-						<span class="magi-numeric text-gray-400">
+						<span class="magi-numeric text-(--magi-text-muted)">
 							{formatMoney(p.usage)} / {formatMoney(p.limit)}
 						</span>
 					{:else if typeof p.usage === 'number'}
-						<span class="magi-numeric text-gray-400">
-							{formatMoney(p.usage)} <span class="text-gray-500">spent</span>
+						<span class="magi-numeric text-(--magi-text-muted)">
+							{formatMoney(p.usage)} <span class="text-(--magi-text-faint)">spent</span>
 						</span>
 					{/if}
 					{#if ratio !== null}
-						<div class="h-1 w-full overflow-hidden rounded-sm bg-gray-800">
+						<div class="h-1 w-full overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div
 								class="h-full bg-green-500/80 transition-all"
 								style="width: {(ratio * 100).toFixed(1)}%"

@@ -155,7 +155,7 @@
 	<button
 		type="button"
 		bind:this={chevronEl}
-		class="rounded-r p-0.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+		class="rounded-r p-0.5 text-(--magi-text-faint) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text-secondary)"
 		onclick={toggleMenu}
 		onkeydown={onChevronKeydown}
 		aria-haspopup="menu"
@@ -187,13 +187,13 @@
 				type="button"
 				role="menuitem"
 				bind:this={menuItemRefs[i]}
-				class="flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+				class="magi-menu-item flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-xs text-(--magi-text-secondary) hover:text-(--magi-text) disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={() => onSelect(scope)}
 				disabled={!scope.content}
 			>
 				<span>{scope.label}</span>
 				{#if scope.id === defaultId}
-					<span class="magi-meta text-gray-500">default</span>
+					<span class="magi-meta text-(--magi-text-faint)">default</span>
 				{/if}
 			</button>
 		{/each}

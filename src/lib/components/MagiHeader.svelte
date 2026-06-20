@@ -172,9 +172,11 @@
 	<div
 		class="pointer-events-none fixed top-14 right-0 left-0 z-50 mx-auto max-w-[88rem] px-4 md:px-6"
 	>
-		<!-- Cap the panel to the space below the header and let it scroll, so a tall
-		     panel (Settings, Stats) can always reach its bottom on a short screen. -->
-		<div class="pointer-events-auto ml-auto {width} max-h-[calc(100dvh-4.5rem)] overflow-y-auto">
+		<!-- Cap the panel to the space below the header. The wrapper no longer scrolls
+		     — each panel card is a flex column that keeps its header (and rounded top
+		     border) pinned and scrolls only its own body, so a tall panel never loses
+		     its header off the top on a short screen. -->
+		<div class="pointer-events-auto ml-auto flex {width} max-h-[calc(100dvh-4.5rem)] flex-col">
 			{@render body()}
 		</div>
 	</div>
@@ -184,23 +186,23 @@
 	{@render panelShell('w-56', menuBody)}
 {/if}
 {#snippet menuBody()}
-	<div class="magi-popover p-3">
-		<div class="mb-3 flex items-center justify-between">
-			<span class="magi-section-header text-gray-400">MENU</span>
+	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
+		<div class="flex shrink-0 items-center justify-between px-3 pt-3 pb-2">
+			<span class="magi-section-header text-(--magi-text-muted)">MENU</span>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-(--magi-text)"
+				class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 				onclick={() => (openPanel = null)}
 				aria-label="Close menu"
 			>
 				<X size={14} />
 			</button>
 		</div>
-		<div class="flex flex-col gap-1">
+		<div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3">
 			{#if import.meta.env.DEV}
 				<button
 					type="button"
-					class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-amber-400"
+					class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-amber-400"
 					onclick={() => (openPanel = 'debug')}
 				>
 					<Bug size={14} /> Debug
@@ -208,21 +210,21 @@
 			{/if}
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-blue-400"
+				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-blue-400"
 				onclick={() => (openPanel = 'stats')}
 			>
 				<BarChart3 size={14} /> Stats
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-green-400"
+				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-green-400"
 				onclick={() => (openPanel = 'budget')}
 			>
 				<Wallet size={14} /> Budget
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) transition-colors hover:bg-gray-800 hover:text-white"
+				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-(--magi-text)"
 				onclick={() => (openPanel = 'settings')}
 			>
 				<Settings size={14} /> Settings
@@ -235,153 +237,155 @@
 	{@render panelShell('w-48', settingsBody)}
 {/if}
 {#snippet settingsBody()}
-	<div class="magi-popover p-3">
-		<div class="mb-3 flex items-center justify-between">
-			<span class="flex items-center gap-1.5 magi-section-header text-gray-400">
+	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
+		<div class="flex shrink-0 items-center justify-between px-3 pt-3 pb-2">
+			<span class="flex items-center gap-1.5 magi-section-header text-(--magi-text-muted)">
 				<Settings size={13} /> SETTINGS
 			</span>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-(--magi-text)"
+				class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 				onclick={() => (openPanel = null)}
 				aria-label="Close settings"
 			>
 				<X size={14} />
 			</button>
 		</div>
-		<span class="magi-section-header text-gray-500">THEME</span>
-		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'dark'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={theme === 'dark'}
-				onclick={() => (theme = 'dark')}
-			>
-				Dark
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {theme === 'light'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={theme === 'light'}
-				onclick={() => (theme = 'light')}
-			>
-				Light
-			</button>
-		</div>
-		<span class="mt-3 magi-section-header text-gray-500">PALETTE</span>
-		<div class="mt-2 flex flex-col gap-1">
-			{#each VISIBLE_PALETTES as p (p)}
-				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {palette === p
-						? 'bg-gray-600 text-white'
-						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-					aria-pressed={palette === p}
-					onclick={() => (palette = p)}
-				>
-					{PALETTE_LABELS[p]}
-				</button>
-			{/each}
-		</div>
-		<span class="mt-3 magi-section-header text-gray-500">BACKGROUND</span>
-		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'off'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={bgVariant === 'off'}
-				onclick={() => (bgVariant = 'off')}
-			>
-				Off
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'hex'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={bgVariant === 'hex'}
-				onclick={() => (bgVariant = 'hex')}
-			>
-				Hex
-			</button>
-			{#if REVEAL_EXPERIMENTAL_UI}
-				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'orbs'
-						? 'bg-gray-600 text-white'
-						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-					aria-pressed={bgVariant === 'orbs'}
-					onclick={() => (bgVariant = 'orbs')}
-				>
-					Orbs
-				</button>
-				<button
-					class="rounded px-3 py-1.5 text-left text-sm transition-colors {bgVariant === 'columns'
-						? 'bg-gray-600 text-white'
-						: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-					aria-pressed={bgVariant === 'columns'}
-					onclick={() => (bgVariant = 'columns')}
-				>
-					Columns
-				</button>
-			{/if}
-		</div>
-		{#if REVEAL_EXPERIMENTAL_UI}
-			<span class="mt-3 magi-section-header text-gray-500">MOTION</span>
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
+			<span class="magi-section-header text-(--magi-text-muted)">THEME</span>
 			<div class="mt-2 flex flex-col gap-1">
-				{#each MOTION_MODES as mode (mode)}
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {theme === 'dark'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={theme === 'dark'}
+					onclick={() => (theme = 'dark')}
+				>
+					Dark
+				</button>
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {theme === 'light'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={theme === 'light'}
+					onclick={() => (theme = 'light')}
+				>
+					Light
+				</button>
+			</div>
+			<span class="mt-3 magi-section-header text-(--magi-text-muted)">PALETTE</span>
+			<div class="mt-2 flex flex-col gap-1">
+				{#each VISIBLE_PALETTES as p (p)}
 					<button
-						class="rounded px-3 py-1.5 text-left text-sm transition-colors {motionMode === mode
-							? 'bg-gray-600 text-white'
-							: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-						aria-pressed={motionMode === mode}
-						onclick={() => (motionMode = mode)}
+						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {palette === p
+							? 'magi-menu-item-active'
+							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+						aria-pressed={palette === p}
+						onclick={() => (palette = p)}
 					>
-						{MOTION_MODE_LABELS[mode]}
+						{PALETTE_LABELS[p]}
 					</button>
 				{/each}
 			</div>
-		{/if}
-		<span class="mt-3 magi-section-header text-gray-500">AUTO-SCROLL</span>
-		<div class="mt-2 flex flex-col gap-1">
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'follow'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={scrollMode === 'follow'}
-				onclick={() => (scrollMode = 'follow')}
-			>
-				Follow
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'snap'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={scrollMode === 'snap'}
-				onclick={() => (scrollMode = 'snap')}
-			>
-				Snap
-			</button>
-			<button
-				class="rounded px-3 py-1.5 text-left text-sm transition-colors {scrollMode === 'off'
-					? 'bg-gray-600 text-white'
-					: 'text-(--magi-text-muted) hover:bg-gray-800 hover:text-gray-200'}"
-				aria-pressed={scrollMode === 'off'}
-				onclick={() => (scrollMode = 'off')}
-			>
-				Off
-			</button>
-		</div>
-		<div class="mt-3 border-t border-gray-800 pt-3">
-			<button
-				type="button"
-				class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-red-400 transition-colors hover:bg-red-950/40 hover:text-red-300"
-				onclick={() => {
-					openPanel = null;
-					showResetConfirm = true;
-				}}
-			>
-				<RotateCcw size={13} /> Reset to defaults
-			</button>
+			<span class="mt-3 magi-section-header text-(--magi-text-muted)">BACKGROUND</span>
+			<div class="mt-2 flex flex-col gap-1">
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'off'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={bgVariant === 'off'}
+					onclick={() => (bgVariant = 'off')}
+				>
+					Off
+				</button>
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'hex'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={bgVariant === 'hex'}
+					onclick={() => (bgVariant = 'hex')}
+				>
+					Hex
+				</button>
+				{#if REVEAL_EXPERIMENTAL_UI}
+					<button
+						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'orbs'
+							? 'magi-menu-item-active'
+							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+						aria-pressed={bgVariant === 'orbs'}
+						onclick={() => (bgVariant = 'orbs')}
+					>
+						Orbs
+					</button>
+					<button
+						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'columns'
+							? 'magi-menu-item-active'
+							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+						aria-pressed={bgVariant === 'columns'}
+						onclick={() => (bgVariant = 'columns')}
+					>
+						Columns
+					</button>
+				{/if}
+			</div>
+			{#if REVEAL_EXPERIMENTAL_UI}
+				<span class="mt-3 magi-section-header text-(--magi-text-muted)">MOTION</span>
+				<div class="mt-2 flex flex-col gap-1">
+					{#each MOTION_MODES as mode (mode)}
+						<button
+							class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {motionMode === mode
+								? 'magi-menu-item-active'
+								: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+							aria-pressed={motionMode === mode}
+							onclick={() => (motionMode = mode)}
+						>
+							{MOTION_MODE_LABELS[mode]}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			<span class="mt-3 magi-section-header text-(--magi-text-muted)">AUTO-SCROLL</span>
+			<div class="mt-2 flex flex-col gap-1">
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'follow'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={scrollMode === 'follow'}
+					onclick={() => (scrollMode = 'follow')}
+				>
+					Follow
+				</button>
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'snap'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={scrollMode === 'snap'}
+					onclick={() => (scrollMode = 'snap')}
+				>
+					Snap
+				</button>
+				<button
+					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'off'
+						? 'magi-menu-item-active'
+						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					aria-pressed={scrollMode === 'off'}
+					onclick={() => (scrollMode = 'off')}
+				>
+					Off
+				</button>
+			</div>
+			<div class="mt-3 border-t border-(--magi-border-subtle) pt-3">
+				<button
+					type="button"
+					class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-color-error) transition-colors hover:bg-red-500/10"
+					onclick={() => {
+						openPanel = null;
+						showResetConfirm = true;
+					}}
+				>
+					<RotateCcw size={13} /> Reset to defaults
+				</button>
+			</div>
 		</div>
 	</div>
 {/snippet}
@@ -390,21 +394,23 @@
 	{@render panelShell('w-64', budgetBody)}
 {/if}
 {#snippet budgetBody()}
-	<div class="magi-popover p-3">
-		<div class="mb-3 flex items-center justify-between">
+	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
+		<div class="flex shrink-0 items-center justify-between px-3 pt-3 pb-2">
 			<span class="flex items-center gap-1.5 magi-section-header magi-success">
 				<Wallet size={13} /> BUDGET
 			</span>
 			<button
 				type="button"
-				class="text-gray-500 transition-colors hover:text-(--magi-text)"
+				class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 				onclick={() => (openPanel = null)}
 				aria-label="Close budget"
 			>
 				<X size={14} />
 			</button>
 		</div>
-		<BudgetReadout active={openPanel === 'budget'} />
+		<div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+			<BudgetReadout active={openPanel === 'budget'} />
+		</div>
 	</div>
 {/snippet}
 

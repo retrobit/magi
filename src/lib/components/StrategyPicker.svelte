@@ -179,8 +179,8 @@
 					role="option"
 					bind:this={optionRefs[i]}
 					aria-selected={selected}
-					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-gray-800 {selected
-						? 'bg-gray-800'
+					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-(--magi-surface-hover) {selected
+						? 'bg-(--magi-surface-hover)'
 						: ''}"
 					onclick={() => select(s)}
 				>
@@ -211,8 +211,8 @@
 											class="h-1.5 w-1.5 rounded-full {filled
 												? flagship
 													? ''
-													: 'bg-gray-300'
-												: 'bg-gray-700'}"
+													: 'bg-(--magi-text-secondary)'
+												: 'bg-(--magi-surface-hover)'}"
 											style:background-color={filled && flagship
 												? `var(${NODE_DOT_COLORS[dot - 1]})`
 												: undefined}

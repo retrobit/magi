@@ -117,133 +117,135 @@
 		{disabled}
 		class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {on
 			? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40'
-			: 'bg-gray-800 text-gray-400 hover:text-white'}"
+			: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
 		onclick={() => set(!on)}
 	>
 		{on ? 'ON' : 'OFF'}
 	</button>
 {/snippet}
 
-<div class="w-full magi-popover p-3">
-	<div class="flex items-center justify-between">
+<div class="flex min-h-0 w-full flex-col overflow-hidden magi-popover">
+	<div class="flex shrink-0 items-center justify-between px-3 pt-3 pb-2">
 		<span class="flex items-center gap-1.5 magi-section-header magi-warn">
 			<Bug size={13} /> DEBUG · dev only
 		</span>
 		<button
 			type="button"
-			class="text-gray-500 transition-colors hover:text-(--magi-text)"
+			class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 			onclick={onclose}
 			aria-label="Close debug panel"
 		>
 			<X size={14} />
 		</button>
 	</div>
-	<p class="mt-1 magi-meta">Inject error and context-limit UI states without a live request.</p>
+	<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
+		<p class="mt-1 magi-meta">Inject error and context-limit UI states without a live request.</p>
 
-	<!-- Per-node error + context controls -->
-	<div class="mt-3 flex flex-col gap-1.5">
-		{#each assignments as assignment (assignment.node)}
+		<!-- Per-node error + context controls -->
+		<div class="mt-3 flex flex-col gap-1.5">
+			{#each assignments as assignment (assignment.node)}
+				<div class="flex items-center gap-2">
+					<span class="flex min-w-0 flex-1 items-center gap-1.5 magi-label">
+						<span
+							class="h-2 w-2 shrink-0 rounded-full"
+							style="background: {NODE_HEX_COLORS[assignment.node]}"
+						></span>
+						<span class="truncate">{nodeLabels[assignment.node]}</span>
+					</span>
+					<button
+						type="button"
+						{disabled}
+						class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
+							.nodeError[assignment.node]
+							? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
+							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
+						onclick={() => setNodeError(assignment.node, !scenario.nodeError[assignment.node])}
+					>
+						Error
+					</button>
+					<button
+						type="button"
+						{disabled}
+						title="Show the pulsating loading state for this node"
+						class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
+							.nodeLoading[assignment.node]
+							? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
+							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
+						onclick={() => setNodeLoading(assignment.node, !scenario.nodeLoading[assignment.node])}
+					>
+						Load
+					</button>
+					<select
+						class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						value={scenario.nodeContext[assignment.node]}
+						disabled={disabled ||
+							scenario.nodeError[assignment.node] ||
+							scenario.nodeLoading[assignment.node]}
+						onchange={(e) => setNodeContext(assignment.node, e.currentTarget.value as ContextLevel)}
+					>
+						{#each CONTEXT_LEVELS as level (level)}
+							<option value={level}>{CONTEXT_LABELS[level]}</option>
+						{/each}
+					</select>
+				</div>
+			{/each}
+		</div>
+
+		<div class="mt-3 border-t border-(--magi-border-subtle)"></div>
+
+		<!-- Consensus + global states -->
+		<div class="mt-3 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
-				<span class="flex min-w-0 flex-1 items-center gap-1.5 magi-label">
-					<span
-						class="h-2 w-2 shrink-0 rounded-full"
-						style="background: {NODE_HEX_COLORS[assignment.node]}"
-					></span>
-					<span class="truncate">{nodeLabels[assignment.node]}</span>
-				</span>
+				<span class="flex-1 magi-label">Consensus</span>
 				<button
 					type="button"
 					{disabled}
-					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
-						.nodeError[assignment.node]
-						? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
-						: 'bg-gray-800 text-gray-400 hover:text-white'}"
-					onclick={() => setNodeError(assignment.node, !scenario.nodeError[assignment.node])}
-				>
-					Error
-				</button>
-				<button
-					type="button"
-					{disabled}
-					title="Show the pulsating loading state for this node"
-					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
-						.nodeLoading[assignment.node]
+					title="Show the strategy-flavoured sweeping verb loader on the consensus pane"
+					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
 						? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
-						: 'bg-gray-800 text-gray-400 hover:text-white'}"
-					onclick={() => setNodeLoading(assignment.node, !scenario.nodeLoading[assignment.node])}
+						: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
+					onclick={() => setConsensusLoading(!scenario.consensusLoading)}
 				>
 					Load
 				</button>
 				<select
-					class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
-					value={scenario.nodeContext[assignment.node]}
-					disabled={disabled ||
-						scenario.nodeError[assignment.node] ||
-						scenario.nodeLoading[assignment.node]}
-					onchange={(e) => setNodeContext(assignment.node, e.currentTarget.value as ContextLevel)}
+					class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
+					value={scenario.consensusContext}
+					disabled={disabled || scenario.consensusLoading}
+					onchange={(e) => setConsensusContext(e.currentTarget.value as ContextLevel)}
 				>
 					{#each CONTEXT_LEVELS as level (level)}
 						<option value={level}>{CONTEXT_LABELS[level]}</option>
 					{/each}
 				</select>
 			</div>
-		{/each}
+			<div class="flex items-center justify-between">
+				<span class="magi-label">Global error banner</span>
+				{@render toggle(scenario.globalError, (v) => onchange({ ...scenario, globalError: v }))}
+			</div>
+			<div class="flex items-center justify-between">
+				<span class="magi-label">Partial-consensus warning</span>
+				{@render toggle(scenario.partialConsensus, (v) =>
+					onchange({ ...scenario, partialConsensus: v })
+				)}
+			</div>
+		</div>
+
+		<button
+			type="button"
+			class="mt-3 flex w-full items-center justify-center gap-1.5 rounded bg-(--magi-surface-bg) py-1.5 magi-label transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text)"
+			onclick={onopencatalog}
+		>
+			<CircleHelp size={13} /> View states catalog
+		</button>
+
+		<button
+			type="button"
+			{disabled}
+			class="mt-1.5 w-full rounded bg-(--magi-surface-bg) py-1.5 magi-label transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text) disabled:opacity-50"
+			onclick={() => onchange(freshDebugScenario())}
+		>
+			Reset all
+		</button>
 	</div>
-
-	<div class="mt-3 border-t border-gray-800"></div>
-
-	<!-- Consensus + global states -->
-	<div class="mt-3 flex flex-col gap-2">
-		<div class="flex items-center gap-2">
-			<span class="flex-1 magi-label">Consensus</span>
-			<button
-				type="button"
-				{disabled}
-				title="Show the strategy-flavoured sweeping verb loader on the consensus pane"
-				class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
-					? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
-					: 'bg-gray-800 text-gray-400 hover:text-white'}"
-				onclick={() => setConsensusLoading(!scenario.consensusLoading)}
-			>
-				Load
-			</button>
-			<select
-				class="rounded bg-gray-800 py-1 pr-6 pl-2 text-xs text-gray-300 focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
-				value={scenario.consensusContext}
-				disabled={disabled || scenario.consensusLoading}
-				onchange={(e) => setConsensusContext(e.currentTarget.value as ContextLevel)}
-			>
-				{#each CONTEXT_LEVELS as level (level)}
-					<option value={level}>{CONTEXT_LABELS[level]}</option>
-				{/each}
-			</select>
-		</div>
-		<div class="flex items-center justify-between">
-			<span class="magi-label">Global error banner</span>
-			{@render toggle(scenario.globalError, (v) => onchange({ ...scenario, globalError: v }))}
-		</div>
-		<div class="flex items-center justify-between">
-			<span class="magi-label">Partial-consensus warning</span>
-			{@render toggle(scenario.partialConsensus, (v) =>
-				onchange({ ...scenario, partialConsensus: v })
-			)}
-		</div>
-	</div>
-
-	<button
-		type="button"
-		class="mt-3 flex w-full items-center justify-center gap-1.5 rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white"
-		onclick={onopencatalog}
-	>
-		<CircleHelp size={13} /> View states catalog
-	</button>
-
-	<button
-		type="button"
-		{disabled}
-		class="mt-1.5 w-full rounded bg-gray-800 py-1.5 magi-label transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
-		onclick={() => onchange(freshDebugScenario())}
-	>
-		Reset all
-	</button>
 </div>

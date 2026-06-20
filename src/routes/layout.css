@@ -208,6 +208,12 @@
 	--magi-surface-bg: var(--color-gray-800);
 	--magi-surface-hover: var(--color-gray-700);
 	--magi-control-border: var(--color-gray-500);
+	/* Hairline edge that defines a control against its surface. Dark mode leans on
+	   fill contrast (a gray-800 control reads against the gray-950 page), so the
+	   edge is transparent there; light mode adds a visible hairline because a light
+	   fill on white/near-white chrome has almost no contrast on its own. Applied to
+	   the toggles, selects, and the tier selector (controls that have no border). */
+	--magi-control-edge: transparent;
 	--magi-input-bg: var(--color-gray-900);
 	--magi-input-border: var(--color-gray-700);
 	--magi-btn-bg: var(--color-gray-600);
@@ -377,6 +383,7 @@
 	.magi-select {
 		appearance: none;
 		border: 0;
+		box-shadow: inset 0 0 0 1px var(--magi-control-edge);
 		border-radius: 0.25rem;
 		padding: 0.25rem 1.5rem 0.25rem 0.5rem;
 		font-size: 0.75rem;
@@ -418,10 +425,17 @@
 		line-height: 1rem;
 		font-weight: 500;
 		background-color: var(--magi-surface-bg);
+		box-shadow: inset 0 0 0 1px var(--magi-control-edge);
 		color: var(--magi-text-muted);
 		transition:
 			background-color 150ms,
 			color 150ms;
+	}
+
+	/* Tier selector track — same hairline edge so it reads as a control surface and
+	   not as bare chrome in light mode (where its fill is near-white). */
+	.magi-tier-selector {
+		box-shadow: inset 0 0 0 1px var(--magi-control-edge);
 	}
 
 	.magi-toggle:hover:not(:disabled):not([aria-disabled='true']):not(.magi-toggle-on) {
@@ -445,6 +459,25 @@
 	   the same theme-aware .magi-toggle as the consensus panel — no dark-pinned
 	   override. This is what makes the strip and consensus on/off switches identical
 	   across every state (on / off / disabled) in both themes. */
+
+	/* Popover menu rows — the option/nav buttons inside the header popovers and the
+	   copy-scope menu. One theme-aware recipe (surface-hover wash on hover, a filled
+	   `-active` for the selected row) so every popover row matches and follows the
+	   theme; the old hard-coded `hover:bg-gray-800` stayed dark on the light surface.
+	   Call sites keep their own layout (rounded / padding / flex) and resting text
+	   color; this owns only the stateful background + the active fill. */
+	.magi-menu-item {
+		transition:
+			background-color 150ms,
+			color 150ms;
+	}
+	.magi-menu-item:not(.magi-menu-item-active):hover:not(:disabled) {
+		background-color: var(--magi-surface-hover);
+	}
+	.magi-menu-item-active {
+		background-color: var(--magi-btn-bg);
+		color: #fff;
+	}
 
 	.magi-temperament-badge {
 		color: var(--magi-text-secondary);
@@ -484,9 +517,12 @@
 	--magi-output-bg: #ffffff;
 	--magi-border: #d1d5db;
 	--magi-border-subtle: #e5e7eb;
-	--magi-surface-bg: #f3f4f6;
-	--magi-surface-hover: #e5e7eb;
+	/* A touch darker than before (#f3f4f6) so the control fill is perceptible on the
+	   white chrome/panels; the hairline --magi-control-edge does the rest. */
+	--magi-surface-bg: #e6e9ef;
+	--magi-surface-hover: #d8dce3;
 	--magi-control-border: #9ca3af;
+	--magi-control-edge: #d1d5db;
 	--magi-input-bg: #ffffff;
 	--magi-input-border: #d1d5db;
 	--magi-btn-bg: #4b5563;
