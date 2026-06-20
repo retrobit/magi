@@ -297,8 +297,12 @@ export function loadConversations(): Partial<Record<TierName, ConversationTurn[]
 			const turns = parsed[t];
 			if (!Array.isArray(turns)) continue;
 			const migrated = turns.map(migrateTurn);
-			if (migrated.every((turn) => conversationTurnSchema.safeParse(turn).success)) {
-				out[t] = migrated as ConversationTurn[];
+			// Drop only the turns that fail validation, not the whole thread — one
+			// corrupt or forward-incompatible turn shouldn't wipe a tier's entire
+			// saved history. Matches the per-snapshot resilience in loadPrefs.
+			const valid = migrated.filter((turn) => conversationTurnSchema.safeParse(turn).success);
+			if (valid.length > 0) {
+				out[t] = valid as ConversationTurn[];
 			}
 		}
 		return out;

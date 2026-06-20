@@ -231,7 +231,7 @@ describe('loadConversations / saveConversations', () => {
 		expect(loadConversations()).toEqual({});
 	});
 
-	it('drops a tier whose turns are not all valid', () => {
+	it('drops a tier whose every turn is invalid', () => {
 		const mixed = {
 			balanced: [validTurn],
 			free: [{ query: 'incomplete turn' }]
@@ -239,7 +239,18 @@ describe('loadConversations / saveConversations', () => {
 		localStorage.setItem(CONVERSATION_KEY, JSON.stringify(mixed));
 		const result = loadConversations();
 		expect(result.balanced).toEqual([validTurn]);
+		// `free` has no parseable turns, so it filters to empty and is omitted.
 		expect(result.free).toBeUndefined();
+	});
+
+	it('keeps the valid turns in a tier and drops only the invalid ones', () => {
+		// A single corrupt or forward-incompatible turn must not wipe a tier's
+		// entire saved history — the parseable turns around it survive.
+		localStorage.setItem(
+			CONVERSATION_KEY,
+			JSON.stringify({ balanced: [validTurn, { query: 'incomplete turn' }, validTurn] })
+		);
+		expect(loadConversations().balanced).toEqual([validTurn, validTurn]);
 	});
 
 	it('drops a tier whose value is not an array', () => {
