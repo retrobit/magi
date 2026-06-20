@@ -1,36 +1,35 @@
-<script lang="ts">
+<script module lang="ts">
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
 	import hljs from 'highlight.js/lib/common';
 	import DOMPurify from 'dompurify';
-	import { browser } from '$app/environment';
-	import { onDestroy } from 'svelte';
 
-	// A marked instance with syntax highlighting wired in. A fenced block with a
-	// recognized language is highlighted as that language; an untagged or unknown
-	// block falls back to auto-detection. Token colors are themed in layout.css.
+	// Escape the HTML specials so an untagged code block renders literally (and can
+	// never become live markup). Used by the no-highlight path below.
+	function escapeHtml(s: string): string {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	// ONE marked instance shared by every Markdown component. The config is static,
+	// so the former per-instance `new Marked()` was pure waste (3 node panels + the
+	// consensus panel each built their own).
 	const marked = new Marked(
 		markedHighlight({
 			emptyLangClass: 'hljs',
 			langPrefix: 'hljs language-',
 			highlight(code, lang) {
+				// Only highlight when the fence names a language hljs recognizes. The
+				// old fallback called hljs.highlightAuto, which probes ~36 languages and
+				// ran on EVERY throttled re-parse of the growing stream across up to 4
+				// panels (and again per debate round) — by far the heaviest op on the
+				// render path. Untagged blocks now render as plain escaped code, which
+				// is cheap; auto-detection was frequently wrong on short snippets anyway.
 				return lang && hljs.getLanguage(lang)
 					? hljs.highlight(code, { language: lang }).value
-					: hljs.highlightAuto(code).value;
+					: escapeHtml(code);
 			}
 		})
 	);
-
-	interface Props {
-		source: string;
-	}
-
-	let { source }: Props = $props();
-
-	// A streamed `source` grows one chunk at a time; re-parsing the whole string
-	// on every chunk is O(n²) over a response. Cap re-renders to this interval —
-	// the trailing edge still flushes the final text.
-	const THROTTLE_MS = 100;
 
 	// Detection uses a non-global pattern; a /g/ regex carries `lastIndex` between
 	// .test() calls and would skip matches across successive text nodes.
@@ -38,6 +37,9 @@
 	const emojiReplace = /([\p{Emoji_Presentation}\p{Extended_Pictographic}])/gu;
 
 	function wrapEmojisInTextNodes(html: string): string {
+		// Fast path: most chunks contain no emoji at all, so skip the DOMParser build
+		// and the full text-node walk entirely when there's nothing to wrap.
+		if (!emojiTest.test(html)) return html;
 		const doc = new DOMParser().parseFromString(html, 'text/html');
 		const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
 		const textNodes: Text[] = [];
@@ -72,6 +74,22 @@
 		const raw = marked.parse(src, { async: false, breaks: true, gfm: true }) as string;
 		return wrapEmojisInTextNodes(DOMPurify.sanitize(raw));
 	}
+
+	// A streamed `source` grows one chunk at a time; re-parsing the whole string on
+	// every chunk is O(n²) over a response. Cap re-renders to this interval — the
+	// trailing edge still flushes the final text.
+	const THROTTLE_MS = 100;
+</script>
+
+<script lang="ts">
+	import { browser } from '$app/environment';
+	import { onDestroy } from 'svelte';
+
+	interface Props {
+		source: string;
+	}
+
+	let { source }: Props = $props();
 
 	let html = $state('');
 	let lastRenderAt = 0;

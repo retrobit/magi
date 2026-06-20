@@ -376,6 +376,10 @@
 		.aurora-col,
 		.aurora-blob {
 			animation: none;
+			/* Release the compositor promotion too — a stilled layer that keeps
+			   will-change:transform holds GPU memory for an animation that will
+			   never run. */
+			will-change: auto;
 		}
 	}
 
@@ -387,6 +391,9 @@
 	:global(.calm-bg) .aurora-col,
 	:global(.calm-bg) .aurora-blob {
 		animation: none;
+		/* Drop the compositor layer when the drift is stilled (see the media-query
+		   block above) so an idle aurora costs no GPU memory. */
+		will-change: auto;
 	}
 
 	/* ── Hex variant ──────────────────────────────────────────────────────────
