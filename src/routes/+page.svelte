@@ -116,6 +116,11 @@
 	let loading = $state(false);
 	let configuredNodes = new SvelteSet([0, 1, 2]);
 	let consensusNode: MagiNodeName = $state('MAGI_1');
+	// The seat synthesis ACTUALLY ran on for the live run. The server reseats off a
+	// consensus seat that failed phase 1, so it reports the real seat via the
+	// `consensus-seat` event. Null until that arrives (then it overrides the
+	// displayed seat); the user's own `consensusNode` selection is what persists.
+	let effectiveConsensusNode = $state<MagiNodeName | null>(null);
 	let availableModels = $state<AvailableModel[]>([]);
 	let modelsLoading = $state(true);
 	let copiedQuery = $state(false);
@@ -442,8 +447,10 @@
 	const errorMap = $derived(new Map(live.modelErrors.map((e) => [e.node, e.error])));
 	const allModelsResponded = $derived(live.responses.length + live.modelErrors.length >= 3);
 
+	// Prefer the seat the server actually synthesized on (set during a live run);
+	// fall back to the user's selection before the seat event arrives and at rest.
 	const consensusAssignment = $derived(
-		assignments.find((a) => a.node === consensusNode) ?? assignments[0]
+		assignments.find((a) => a.node === (effectiveConsensusNode ?? consensusNode)) ?? assignments[0]
 	);
 
 	// Live output tokens: exact once the usage event lands, otherwise an estimate
@@ -1327,6 +1334,9 @@
 	} = {
 		config: (data) => {
 			assignments = [...data] as [NodeAssignment, NodeAssignment, NodeAssignment];
+			// Fresh run: drop any prior effective seat so the display tracks the
+			// requested seat until this run reports its own (if it reseats).
+			effectiveConsensusNode = null;
 		},
 		'model-chunk': ({ node, text }) => {
 			if (node in live.modelStreams) live.modelStreams[node] += text;
@@ -1339,6 +1349,9 @@
 		},
 		'model-error': (data) => {
 			live.modelErrors = [...live.modelErrors, data];
+		},
+		'consensus-seat': ({ node }) => {
+			effectiveConsensusNode = node;
 		},
 		'consensus-chunk': ({ text }) => {
 			live.consensusStream += text;
@@ -1776,7 +1789,7 @@
 				warning={live.consensusWarning}
 				{strategy}
 				{debateRounds}
-				{consensusNode}
+				consensusNode={effectiveConsensusNode ?? consensusNode}
 				consensusGateway={consensusAssignment.gateway}
 				consensusProvider={consensusAssignment.provider}
 				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}

@@ -215,6 +215,16 @@ describe('POST /api/magi — streaming', () => {
 		expect(got).not.toContain('partial-consensus');
 	});
 
+	it('reports the seat synthesis ran on via a consensus-seat event', async () => {
+		const events = await readEvents(await callPost(validBody));
+		const seat = events.find((e) => e.event === 'consensus-seat');
+		expect(seat).toBeDefined();
+		// All three nodes respond and the default seat is MAGI_1, so no reseat —
+		// the emitted seat is the requested one. (The reseat branch swaps in the
+		// first responding node; this pins the event + payload shape either way.)
+		expect((seat!.data as { node: string }).node).toBe('MAGI_1');
+	});
+
 	it('emits events in the contract order: config → phase-1 → consensus', async () => {
 		const events = await readEvents(await callPost(validBody));
 		// config opens the stream, before any node output.

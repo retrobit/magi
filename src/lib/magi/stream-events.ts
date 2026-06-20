@@ -24,6 +24,12 @@ export interface StreamEventPayloads {
 		cachedInputTokens: number;
 	};
 	'partial-consensus': { responded: number; total: number };
+	/** The node whose seat the server ACTUALLY used for synthesis. Usually the
+	 *  requested consensus node, but the server reseats onto the first responding
+	 *  node when the chosen seat failed phase 1 — so the client reads the seat from
+	 *  here (not the original request) to label the synthesizer and size its context
+	 *  gauge against the right model. */
+	'consensus-seat': { node: MagiNodeName };
 	'consensus-chunk': { text: string };
 	'consensus-complete': { text: string; debateVerdict?: DebateVerdict; debateSummary?: string };
 	'consensus-usage': { inputTokens: number; outputTokens: number; cachedInputTokens: number };

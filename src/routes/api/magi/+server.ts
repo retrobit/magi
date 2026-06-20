@@ -695,6 +695,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					debateRounds
 				};
 
+				// Tell the client which seat synthesis actually ran on (may differ from
+				// the requested seat after a reseat) so its synthesizer label and
+				// context gauge track the real model rather than the failed one.
+				send('consensus-seat', { node: consensusSeat.node });
+
 				const consensusTimer = startTimer();
 				let consensusTtftMs: number | null = null;
 				for await (const event of consensusStrategy.execute(ctx)) {
