@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_MAGI_CONFIG, FREE_MAGI_CONFIG, TIER_CONFIGS, validateConfig } from './config';
+import {
+	DEFAULT_MAGI_CONFIG,
+	FREE_MAGI_CONFIG,
+	TIER_CONFIGS,
+	validateConfig,
+	buildDiverseConfig
+} from './config';
 import type { MagiConfig } from './config';
+import type { AvailableModel } from './types';
 import { findModelEntry } from './registry';
 
 describe('DEFAULT_MAGI_CONFIG', () => {
@@ -189,5 +196,32 @@ describe('validateConfig', () => {
 			}
 		];
 		expect(() => validateConfig(config)).not.toThrow();
+	});
+});
+
+describe('buildDiverseConfig', () => {
+	const model = (id: string, provider: string): AvailableModel => ({
+		id,
+		gateway: 'openrouter',
+		provider,
+		displayName: id
+	});
+
+	it('maps three diverse models onto MAGI_1/2/3 in order', () => {
+		const config = buildDiverseConfig([model('a/1', 'a'), model('b/1', 'b'), model('c/1', 'c')]);
+		expect(config).toHaveLength(3);
+		expect(config.map((c) => c.node)).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
+		expect(config[0]).toMatchObject({ gateway: 'openrouter', provider: 'a', modelId: 'a/1' });
+		expect(config[2].modelId).toBe('c/1');
+	});
+
+	it('still produces three seats from a low-provider pool (backfill)', () => {
+		const config = buildDiverseConfig([model('a/1', 'a'), model('a/2', 'a'), model('b/1', 'b')]);
+		expect(config).toHaveLength(3);
+		expect(config.map((c) => c.node)).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
+	});
+
+	it('returns fewer than three when the pool is too small (caller falls back)', () => {
+		expect(buildDiverseConfig([model('a/1', 'a'), model('b/1', 'b')])).toHaveLength(2);
 	});
 });

@@ -319,11 +319,25 @@ export function getProviderLabel(provider: string): string {
 export function pickDiverseModels(models: AvailableModel[], count: number): AvailableModel[] {
 	const picked: AvailableModel[] = [];
 	const usedProviders = new Set<string>();
+	// First pass: one model per provider, in order, for maximum provider diversity.
 	for (const m of models) {
 		if (usedProviders.has(m.provider)) continue;
 		picked.push(m);
 		usedProviders.add(m.provider);
-		if (picked.length >= count) break;
+		if (picked.length >= count) return picked;
+	}
+	// Backfill: the pool had fewer than `count` DISTINCT providers but may still
+	// hold enough models. Fill the remaining slots from the leftovers (duplicate
+	// providers allowed) so a small-provider pool yields a FULL config instead of a
+	// short one — callers (buildDiverseConfig → the free tier) would otherwise have
+	// to special-case an under-count result. Only diversity degrades, never arity.
+	if (picked.length < count) {
+		const taken = new Set(picked);
+		for (const m of models) {
+			if (taken.has(m)) continue;
+			picked.push(m);
+			if (picked.length >= count) break;
+		}
 	}
 	return picked;
 }

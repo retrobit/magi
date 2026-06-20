@@ -302,12 +302,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			return errResp({ error: `Invalid assignments: ${reason}` }, 400);
 		}
 	} else if (tier === 'free') {
-		// Resolve free tier dynamically from OpenRouter
+		// Resolve free tier dynamically from OpenRouter. Gate on the RESULTING
+		// config arity, not the pool size: buildDiverseConfig now backfills to three
+		// whenever the pool has >=3 models, but fall back to the static free config
+		// if it ever yields fewer than a full three seats rather than casting a short
+		// array to the 3-tuple MagiConfig (which consensus assumes is exactly 3).
 		const orModels = await getOpenRouterFreeModels();
-		config =
-			orModels.length >= 3
-				? (buildDiverseConfig(orModels) as unknown as MagiConfig)
-				: FREE_MAGI_CONFIG;
+		const diverse = buildDiverseConfig(orModels);
+		config = diverse.length === 3 ? (diverse as unknown as MagiConfig) : FREE_MAGI_CONFIG;
 	} else {
 		config = TIER_CONFIGS[tier];
 	}
