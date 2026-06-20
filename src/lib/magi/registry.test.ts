@@ -44,9 +44,9 @@ describe('getModelsForTier', () => {
 
 describe('findModelEntry', () => {
 	it('finds an existing model', () => {
-		const entry = findModelEntry('anthropic', 'claude-opus-4-7');
+		const entry = findModelEntry('anthropic', 'claude-opus-4-8');
 		expect(entry).toBeDefined();
-		expect(entry!.displayName).toBe('Claude Opus 4.7');
+		expect(entry!.displayName).toBe('Claude Opus 4.8');
 	});
 
 	it('returns undefined for unknown model', () => {

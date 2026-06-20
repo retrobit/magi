@@ -14,11 +14,11 @@ export interface ModelEntry {
 export const MODEL_REGISTRY: readonly ModelEntry[] = [
 	// Anthropic (direct)
 	{
-		id: 'claude-opus-4-7',
+		id: 'claude-opus-4-8',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'frontier',
-		displayName: 'Claude Opus 4.7',
+		displayName: 'Claude Opus 4.8',
 		contextLength: 1_000_000
 	},
 	{
@@ -62,7 +62,10 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		displayName: 'GPT-5.4 Mini',
 		contextLength: 400_000
 	},
-	// Google (direct)
+	// Google (direct). NB: gemini-2.5-pro is the latest GA Pro — Gemini 3.x Pro is
+	// preview-only as of 2026-06 (gemini-3-pro-preview was shut down 2026-03-09,
+	// gemini-3.1-pro-preview is not yet GA), so the Flash line runs a generation
+	// ahead of the GA Pro. Bump frontier to a 3.x Pro once one reaches GA.
 	{
 		id: 'gemini-2.5-pro',
 		gateway: 'google',
