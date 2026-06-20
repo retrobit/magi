@@ -1458,6 +1458,7 @@
 						type="button"
 						onclick={() => (temperaments = !temperaments)}
 						disabled={loading}
+						aria-pressed={temperaments}
 						class="magi-toggle {temperaments ? 'magi-toggle-on' : ''}"
 					>
 						<Brain size={12} />
@@ -1483,6 +1484,7 @@
 						type="button"
 						onclick={() => (opinionated = !opinionated)}
 						disabled={loading}
+						aria-pressed={opinionated}
 						class="magi-toggle {opinionated ? 'magi-toggle-on' : ''}"
 					>
 						<Target size={12} />
@@ -1503,6 +1505,7 @@
 						type="button"
 						onclick={() => (collaborative = !collaborative)}
 						disabled={loading || strategy !== 'debate'}
+						aria-pressed={collaborative}
 						class="magi-toggle {collaborative ? 'magi-toggle-on' : ''}"
 					>
 						<Handshake size={12} />
@@ -1552,7 +1555,7 @@
 					aria-label="Query the MAGI system"
 					placeholder="Ask the MAGI system…"
 					disabled={loading}
-					class="magi-input w-full overflow-hidden rounded-lg px-4 py-3 pr-10 text-ellipsis whitespace-nowrap focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+					class="magi-input w-full overflow-hidden rounded-lg px-4 py-3 pr-10 text-ellipsis whitespace-nowrap focus:border-(--magi-ring) focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 				/>
 				{#if query.trim()}
 					<button
@@ -1643,7 +1646,7 @@
 						use:tooltip={'Completed turns — each turn is one prompt answered by all three MAGI, then merged into a consensus. Multi-turn context carries forward across turns.'}
 						>{conversation.length} turn{conversation.length === 1 ? '' : 's'}</span
 					>
-					<span class="text-gray-500">·</span>
+					<span class="text-(--magi-text-faint)">·</span>
 					<span class="magi-token-total" use:tooltip={conversationTokensTooltip}>
 						<TokenCount
 							input={conversationUsage.input}
@@ -1653,16 +1656,16 @@
 						/>
 					</span>
 					{#if contextWarnings.length > 0}
-						<span class="text-gray-500">·</span>
+						<span class="text-(--magi-text-faint)">·</span>
 						<span class="flex items-center gap-1 magi-warn">
 							<AlertTriangle size={12} />
 							{contextWarningLabels.join(', ')} near context limit
 						</span>
 					{/if}
 				{:else}
-					<span class="text-gray-600">0 turns</span>
-					<span class="text-gray-600">·</span>
-					<span class="text-gray-600">0 tokens</span>
+					<span class="text-(--magi-text-muted)">0 turns</span>
+					<span class="text-(--magi-text-faint)">·</span>
+					<span class="text-(--magi-text-muted)">0 tokens</span>
 				{/if}
 			</div>
 		</div>
@@ -1673,14 +1676,14 @@
 		     the health cache so the models are actually re-called. -->
 		{#if displayedError}
 			<div
-				class="flex shrink-0 items-center gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-300"
+				class="flex shrink-0 items-center gap-2 rounded-lg border border-(--magi-color-error)/40 bg-(--magi-color-error)/10 px-4 py-3 text-sm magi-error"
 			>
 				<CircleAlert size={16} class="shrink-0" />
 				<span class="flex-1">{displayedError}</span>
 				{#if !loading && conversation.at(-1)?.nodeErrors && Object.keys(conversation.at(-1)!.nodeErrors).length > 0}
 					<button
 						type="button"
-						class="ml-2 shrink-0 rounded border border-red-700 px-2 py-0.5 text-xs text-red-300 transition-colors hover:bg-red-900"
+						class="ml-2 shrink-0 rounded border border-(--magi-color-error)/40 px-2 py-0.5 text-xs magi-error transition-colors hover:bg-(--magi-color-error)/10"
 						onclick={handleRetry}
 					>
 						Retry
@@ -1792,26 +1795,26 @@
 		</div>
 	</main>
 
-	<footer class="magi-footer shrink-0 py-1.5 text-center magi-meta text-gray-600">
+	<footer class="magi-footer shrink-0 py-1.5 text-center magi-meta">
 		<a
 			href="https://github.com/retrobit/magi"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="transition-colors hover:text-gray-400">MAGI</a
+			class="transition-colors hover:text-(--magi-text)">MAGI</a
 		>
 		·
 		<a
 			href="https://github.com/retrobit"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="transition-colors hover:text-gray-400">© {currentYear} retrobit</a
+			class="transition-colors hover:text-(--magi-text)">© {currentYear} retrobit</a
 		>
 		·
 		<a
 			href="https://github.com/retrobit/magi/blob/main/LICENSE"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="transition-colors hover:text-gray-400">MIT</a
+			class="transition-colors hover:text-(--magi-text)">MIT</a
 		>
 	</footer>
 </div>

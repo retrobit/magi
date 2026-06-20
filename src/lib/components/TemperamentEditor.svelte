@@ -122,7 +122,7 @@
 						maxlength={MAX_TEMPERAMENT_LABEL}
 						placeholder={def.label}
 						aria-label="{labels[node]} temperament name"
-						class="magi-input w-full rounded-md px-3 py-1.5 text-sm focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-input w-full rounded-md px-3 py-1.5 text-sm focus:border-(--magi-ring) focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 					/>
 					<textarea
 						bind:value={draft[node].prompt}
@@ -130,7 +130,7 @@
 						maxlength={MAX_TEMPERAMENT_PROMPT}
 						placeholder={def.prompt}
 						aria-label="{labels[node]} persona"
-						class="magi-input w-full resize-y rounded-md px-3 py-2 text-sm leading-relaxed focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="magi-input w-full resize-y rounded-md px-3 py-2 text-sm leading-relaxed focus:border-(--magi-ring) focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 					></textarea>
 					<div class="text-right magi-meta text-(--magi-text-muted)">
 						{draft[node].prompt.length} / {MAX_TEMPERAMENT_PROMPT}

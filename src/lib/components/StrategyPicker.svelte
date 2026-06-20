@@ -180,7 +180,7 @@
 					bind:this={optionRefs[i]}
 					aria-selected={selected}
 					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-(--magi-surface-hover) {selected
-						? 'bg-(--magi-surface-hover)'
+						? 'bg-(--magi-toggle-on-bg) shadow-[inset_0_0_0_1px_var(--magi-toggle-on-ring)]'
 						: ''}"
 					onclick={() => select(s)}
 				>

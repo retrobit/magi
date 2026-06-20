@@ -135,7 +135,7 @@
 			<span class="magi-section-header text-(--magi-text-muted)">Status icons</span>
 			<div class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
 				<div class="flex items-center gap-2">
-					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+					<div class="h-2 w-2 rounded-full bg-(--magi-text-faint)"></div>
 					<span class="magi-meta">Idle — awaiting query</span>
 				</div>
 				<div class="flex items-center gap-2">

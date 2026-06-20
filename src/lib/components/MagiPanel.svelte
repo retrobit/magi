@@ -412,7 +412,7 @@
 	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
 		<CircleAlert size={24} class="magi-error" />
 		<p class="text-sm font-medium magi-error">Model unavailable</p>
-		<p class="text-xs text-gray-500">{message}</p>
+		<p class="text-xs text-(--magi-text-muted)">{message}</p>
 	</div>
 {/snippet}
 
@@ -541,7 +541,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center magi-numeric text-gray-500" use:tooltip={tokensTooltip}>
+					<span class="flex items-center magi-numeric text-(--magi-text-faint)" use:tooltip={tokensTooltip}>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
@@ -568,7 +568,7 @@
 				{:else if status === 'unknown'}
 					<CircleHelp size={14} class="magi-unknown" />
 				{:else}
-					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+					<div class="h-2 w-2 rounded-full bg-(--magi-text-faint)"></div>
 				{/if}
 			</div>
 		</div>
@@ -609,7 +609,7 @@
 					<div class="flex flex-1 flex-col gap-1.5">
 						<!-- Gateway / Provider selector -->
 						<select
-							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							class="magi-select w-full focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 							value={gateway}
 							onchange={handleGatewayChange}
 							{disabled}
@@ -625,9 +625,9 @@
 
 						<!-- Provider selector (always rendered for consistent height) -->
 						<select
-							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none {!gateway ||
+							class="magi-select w-full focus:ring-1 focus:ring-(--magi-ring) focus:outline-none {!gateway ||
 							!showRouterProvider
-								? 'text-gray-600'
+								? 'text-(--magi-text-faint)'
 								: ''}"
 							value={showRouterProvider ? provider : ''}
 							onchange={handleProviderChange}
@@ -649,7 +649,7 @@
 
 						<!-- Model selector -->
 						<select
-							class="magi-select w-full focus:ring-1 focus:ring-gray-500 focus:outline-none"
+							class="magi-select w-full focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 							value={modelId}
 							onchange={handleModelChange}
 							{disabled}
@@ -739,7 +739,7 @@
 								Stream ended before this node answered — aborted or connection lost.
 							</p>
 						{:else if status === 'success'}
-							<p class="text-sm text-gray-500">The model returned an empty response.</p>
+							<p class="text-sm text-(--magi-text-muted)">The model returned an empty response.</p>
 						{:else}
 							<p class="magi-loader-text">{loadingText}</p>
 						{/if}

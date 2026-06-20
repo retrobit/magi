@@ -648,7 +648,7 @@
 			{/if}
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center magi-numeric text-gray-500" use:tooltip={tokensTooltip}>
+					<span class="flex items-center magi-numeric text-(--magi-text-faint)" use:tooltip={tokensTooltip}>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
@@ -664,7 +664,7 @@
 					</span>
 				{/if}
 				{#if loading && !allModelsResponded}
-					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+					<div class="h-2 w-2 rounded-full bg-(--magi-text-faint)"></div>
 				{:else if loading}
 					<LoaderCircle size={14} class="animate-spin magi-pending" />
 				{:else if hasConsensus}
@@ -680,7 +680,7 @@
 						{/if}
 					</div>
 				{:else}
-					<div class="h-2 w-2 rounded-full bg-gray-600"></div>
+					<div class="h-2 w-2 rounded-full bg-(--magi-text-faint)"></div>
 				{/if}
 			</div>
 		</div>
@@ -699,21 +699,21 @@
 			>
 				{#if onstrategychange}
 					<div class="flex items-center gap-x-2">
-						<span class="text-xs text-gray-500 uppercase">Strategy</span>
+						<span class="text-xs text-(--magi-text-muted) uppercase">Strategy</span>
 						<StrategyPicker {strategy} {disabled} onchange={onstrategychange} />
 					</div>
-					<span class="hidden text-xs text-gray-700 sm:inline">·</span>
+					<span class="hidden text-xs text-(--magi-text-faint) sm:inline">·</span>
 					<!-- Rounds picker — the debate round ceiling. Debate-only; the debate
 					     may still converge before the limit, so it's a maximum. -->
 					{#if strategy === 'debate' && ondebateroundschange}
 						<div class="flex items-center gap-x-2">
 							<span
-								class="text-xs text-gray-500 uppercase"
+								class="text-xs text-(--magi-text-muted) uppercase"
 								use:tooltip={'Maximum debate rounds — the MAGI may converge and finish sooner'}
 								>Rounds</span
 							>
 							<select
-								class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
+								class="magi-select focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 								value={debateRounds}
 								onchange={handleRoundsChange}
 								{disabled}
@@ -723,19 +723,19 @@
 								{/each}
 							</select>
 						</div>
-						<span class="hidden text-xs text-gray-700 sm:inline">·</span>
+						<span class="hidden text-xs text-(--magi-text-faint) sm:inline">·</span>
 					{/if}
 				{/if}
 				{#if onconsensuschange || (synthesisLabel && consensusNodeApplies)}
 					<div class="flex w-full items-center gap-x-2 sm:contents">
 						{#if onconsensuschange}
 							<div class="flex shrink-0 items-center gap-x-2">
-								<span class="text-xs text-gray-500 uppercase" use:tooltip={consensusSeatTooltip}
+								<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={consensusSeatTooltip}
 									>{consensusSeatLabel}</span
 								>
 								{#if consensusNodeApplies}
 									<select
-										class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
+										class="magi-select focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 										value={consensusNode}
 										onchange={handleNodeChange}
 										{disabled}
@@ -751,7 +751,7 @@
 									     The original `consensusNode` state is kept so it returns
 									     when the user switches back to Synthesis. -->
 									<select
-										class="magi-select text-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+										class="magi-select text-(--magi-text-faint) focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 										disabled
 										title={consensusSkipped
 											? 'No consensus is computed in None mode — the three model responses stand on their own, so there is no node to assign.'
@@ -779,7 +779,7 @@
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 					{#if onconsensustemperamentchange}
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-gray-500 uppercase" use:tooltip={consensusTempTip}
+							<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={consensusTempTip}
 								>Temperament</span
 							>
 							<button
@@ -801,7 +801,7 @@
 					{/if}
 					{#if onawarenesschange}
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-gray-500 uppercase" use:tooltip={awarenessTip}
+							<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={awarenessTip}
 								>Awareness</span
 							>
 							<button
