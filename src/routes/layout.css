@@ -107,7 +107,12 @@
 }
 @utility magi-placeholder {
 	@apply text-sm;
-	color: var(--magi-text-faint);
+	/* Muted, not faint: this is real instructional copy (the first-load empty
+	   state, "Awaiting query…", "No response"), so it must clear WCAG AA on the
+	   opaque output surface. --magi-text-faint fails AA in both themes; muted
+	   passes (6.99:1 dark, 4.83:1 light). --magi-text-faint stays for genuinely
+	   decorative glyphs only. */
+	color: var(--magi-text-muted);
 }
 @utility magi-warn {
 	color: var(--magi-color-warn);

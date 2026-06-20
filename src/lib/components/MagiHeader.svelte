@@ -12,6 +12,7 @@
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
+	import { focusTrap } from '$lib/actions/focusTrap';
 	import type { NodeAssignment } from '$lib/magi/config';
 	import {
 		VISIBLE_PALETTES,
@@ -64,15 +65,6 @@
 	let openPanel = $state<HeaderPanel | null>(null);
 	const togglePanel = (panel: HeaderPanel) => (openPanel = openPanel === panel ? null : panel);
 
-	// Escape closes an open header popover, matching StrategyPicker and the modals.
-	// If a modal dialog is open on top (reset confirm, temperament editor), defer to
-	// it and leave the panel underneath alone — its own Escape handler runs first.
-	function onWindowKeydown(e: KeyboardEvent) {
-		if (e.key !== 'Escape' || openPanel === null) return;
-		if (document.querySelector('[role="dialog"]')) return;
-		openPanel = null;
-	}
-
 	let showResetConfirm = $state(false);
 
 	// Wipe every persisted slice — global settings + per-tier model snapshots
@@ -85,8 +77,6 @@
 		location.reload();
 	}
 </script>
-
-<svelte:window onkeydown={onWindowKeydown} />
 
 <header class="magi-header relative z-30 shrink-0 border-b">
 	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
@@ -163,7 +153,7 @@
 <!-- Shared scaffold for every header popover: the full-screen click-catcher
      backdrop and the right-aligned positioning wrapper. The body snippet
      renders the panel's own content (and its card chrome, where it has any). -->
-{#snippet panelShell(width: string, body: Snippet)}
+{#snippet panelShell(width: string, title: string, body: Snippet)}
 	<button
 		class="fixed inset-0 z-40 cursor-default"
 		onclick={() => (openPanel = null)}
@@ -175,15 +165,23 @@
 		<!-- Cap the panel to the space below the header. The wrapper no longer scrolls
 		     — each panel card is a flex column that keeps its header (and rounded top
 		     border) pinned and scrolls only its own body, so a tall panel never loses
-		     its header off the top on a short screen. -->
-		<div class="pointer-events-auto ml-auto flex {width} max-h-[calc(100dvh-4.5rem)] flex-col">
+		     its header off the top on a short screen. role="dialog" + focusTrap give
+		     every popover the same focus management as the modals: focus lands inside
+		     on open, Tab is trapped, Escape closes, and focus returns to the trigger. -->
+		<div
+			class="pointer-events-auto ml-auto flex {width} max-h-[calc(100dvh-4.5rem)] flex-col"
+			role="dialog"
+			aria-modal="true"
+			aria-label={title}
+			use:focusTrap={{ onescape: () => (openPanel = null) }}
+		>
 			{@render body()}
 		</div>
 	</div>
 {/snippet}
 
 {#if openPanel === 'menu'}
-	{@render panelShell('w-56', menuBody)}
+	{@render panelShell('w-56', 'Menu', menuBody)}
 {/if}
 {#snippet menuBody()}
 	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
@@ -234,7 +232,7 @@
 {/snippet}
 
 {#if openPanel === 'settings'}
-	{@render panelShell('w-48', settingsBody)}
+	{@render panelShell('w-48', 'Settings', settingsBody)}
 {/if}
 {#snippet settingsBody()}
 	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
@@ -391,7 +389,7 @@
 {/snippet}
 
 {#if openPanel === 'budget'}
-	{@render panelShell('w-64', budgetBody)}
+	{@render panelShell('w-64', 'Budget', budgetBody)}
 {/if}
 {#snippet budgetBody()}
 	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
@@ -415,7 +413,7 @@
 {/snippet}
 
 {#if openPanel === 'debug' && import.meta.env.DEV}
-	{@render panelShell('w-80 max-w-full', debugBody)}
+	{@render panelShell('w-80 max-w-full', 'Debug panel', debugBody)}
 {/if}
 {#snippet debugBody()}
 	<DebugPanel
@@ -430,7 +428,7 @@
 {/snippet}
 
 {#if openPanel === 'catalog' && import.meta.env.DEV}
-	{@render panelShell('w-[44rem] max-w-full', catalogBody)}
+	{@render panelShell('w-[44rem] max-w-full', 'States catalog', catalogBody)}
 {/if}
 {#snippet catalogBody()}
 	<StatesCatalog {genericLabels} onclose={() => (openPanel = null)} />
@@ -439,7 +437,7 @@
 {#if openPanel === 'stats'}
 	<!-- Wide enough to keep the strategy filter (incl. "Structured Voting" +
 	     "Multi-Round Debate") on a single line; max-w-full reins it in on mobile. -->
-	{@render panelShell('w-[30rem] max-w-full', statsBody)}
+	{@render panelShell('w-[30rem] max-w-full', 'Stats', statsBody)}
 {/if}
 {#snippet statsBody()}
 	<StatsPanel nonce={statsNonce} {genericLabels} onclose={() => (openPanel = null)} />
