@@ -1422,12 +1422,12 @@
 	/>
 
 	<!-- Control strip -->
-	<div class="magi-controls relative z-10 shrink-0 border-b border-gray-800 bg-gray-950/80">
+	<div class="magi-controls relative z-10 shrink-0 border-b">
 		<div
 			class="mx-auto flex max-w-[88rem] flex-col items-center gap-2 px-4 py-2 sm:flex-row sm:justify-between md:px-6"
 		>
 			<div class="flex items-center gap-2">
-				<span class="text-xs text-gray-500">TIER</span>
+				<span class="text-xs text-(--magi-chrome-label)">TIER</span>
 				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
 				<!-- Free-tier models are flaky; the note hangs off a caution icon so it
 				     stays out of the way until hovered/focused. Always rendered (only its
@@ -1449,13 +1449,16 @@
 			</div>
 			<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
 				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500">TEMPERAMENT</span>
+					<span
+						class="text-xs text-(--magi-chrome-label)"
+						use:tooltip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
+						>TEMPERAMENT</span
+					>
 					<button
 						type="button"
 						onclick={() => (temperaments = !temperaments)}
 						disabled={loading}
 						class="magi-toggle {temperaments ? 'magi-toggle-on' : ''}"
-						use:tooltip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
 					>
 						<Brain size={12} />
 						<span class="inline-block w-7 text-left">{temperaments ? 'ON' : 'OFF'}</span>
@@ -1464,42 +1467,48 @@
 						type="button"
 						onclick={() => (showTemperamentEditor = true)}
 						disabled={loading}
-						class="flex items-center justify-center rounded-lg bg-gray-800 p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:opacity-50"
+						class="flex items-center justify-center rounded-lg bg-(--magi-surface-bg) p-1.5 text-(--magi-text-muted) transition-colors hover:bg-(--magi-surface-hover) hover:text-(--magi-text) disabled:opacity-50"
 						aria-label="Edit temperaments"
 					>
 						<Pencil size={12} />
 					</button>
 				</div>
 				<div class="flex items-center gap-2">
-					<span class="text-xs text-gray-500">OPINIONATED</span>
+					<span
+						class="text-xs text-(--magi-chrome-label)"
+						use:tooltip={'Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options.'}
+						>OPINIONATED</span
+					>
 					<button
 						type="button"
 						onclick={() => (opinionated = !opinionated)}
 						disabled={loading}
 						class="magi-toggle {opinionated ? 'magi-toggle-on' : ''}"
-						use:tooltip={'Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options.'}
 					>
 						<Target size={12} />
 						<span class="inline-block w-7 text-left">{opinionated ? 'ON' : 'OFF'}</span>
 					</button>
 				</div>
 				<!-- Collaborative only does anything in Multi-Round Debate (the only
-				     strategy where models see each other), so it's shown only there. -->
-				{#if strategy === 'debate'}
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-gray-500">COLLABORATIVE</span>
-						<button
-							type="button"
-							onclick={() => (collaborative = !collaborative)}
-							disabled={loading}
-							class="magi-toggle {collaborative ? 'magi-toggle-on' : ''}"
-							use:tooltip={'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'}
-						>
-							<Handshake size={12} />
-							<span class="inline-block w-7 text-left">{collaborative ? 'ON' : 'OFF'}</span>
-						</button>
-					</div>
-				{/if}
+				     strategy where models see each other), so it's shown but disabled otherwise. -->
+				<div class="flex items-center gap-2">
+					<span
+						class="text-xs text-(--magi-chrome-label)"
+						use:tooltip={strategy === 'debate'
+							? 'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'
+							: 'Collaborative only applies to Multi-Round Debate — the only strategy where the MAGI see each other’s answers.'}
+						>COLLABORATIVE</span
+					>
+					<button
+						type="button"
+						onclick={() => (collaborative = !collaborative)}
+						disabled={loading || strategy !== 'debate'}
+						class="magi-toggle {collaborative ? 'magi-toggle-on' : ''}"
+					>
+						<Handshake size={12} />
+						<span class="inline-block w-7 text-left">{collaborative ? 'ON' : 'OFF'}</span>
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -1625,7 +1634,7 @@
 				</button>
 				<LayoutToggle focus={layoutFocus} auto={autoLayout} onchange={handleLayoutChoice} />
 			</div>
-			<div class="-mx-4 border-t border-gray-800 sm:hidden" aria-hidden="true"></div>
+			<div class="-mx-4 border-t border-(--magi-chrome-border) sm:hidden" aria-hidden="true"></div>
 			<div
 				class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-(--magi-text-muted) sm:justify-end"
 			>

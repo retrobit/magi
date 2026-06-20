@@ -616,7 +616,7 @@
 				</h3>
 				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded px-1.5 py-0.5 magi-chip"
 						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
 						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
 					>
@@ -707,13 +707,16 @@
 					     may still converge before the limit, so it's a maximum. -->
 					{#if strategy === 'debate' && ondebateroundschange}
 						<div class="flex items-center gap-x-2">
-							<span class="text-xs text-gray-500 uppercase">Rounds</span>
+							<span
+								class="text-xs text-gray-500 uppercase"
+								use:tooltip={'Maximum debate rounds — the MAGI may converge and finish sooner'}
+								>Rounds</span
+							>
 							<select
 								class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 								value={debateRounds}
 								onchange={handleRoundsChange}
 								{disabled}
-								use:tooltip={'Maximum debate rounds — the MAGI may converge and finish sooner'}
 							>
 								{#each DEBATE_ROUND_OPTIONS as n (n)}
 									<option value={n}>{n}</option>
@@ -727,13 +730,14 @@
 					<div class="flex w-full items-center gap-x-2 sm:contents">
 						{#if onconsensuschange}
 							<div class="flex shrink-0 items-center gap-x-2">
-								<span class="text-xs text-gray-500 uppercase">{consensusSeatLabel}</span>
+								<span class="text-xs text-gray-500 uppercase" use:tooltip={consensusSeatTooltip}
+									>{consensusSeatLabel}</span
+								>
 								{#if consensusNodeApplies}
 									<select
 										class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 										value={consensusNode}
 										onchange={handleNodeChange}
-										use:tooltip={consensusSeatTooltip}
 										{disabled}
 									>
 										{#each MAGI_NODE_NAMES as node (node)}

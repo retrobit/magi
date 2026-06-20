@@ -179,19 +179,11 @@
 					role="option"
 					bind:this={optionRefs[i]}
 					aria-selected={selected}
-					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 text-left transition-colors hover:bg-gray-800 {selected
+					class="relative flex w-full items-start gap-2 rounded py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-gray-800 {selected
 						? 'bg-gray-800'
-						: ''} {flagship ? 'pl-3.5' : 'pl-2'}"
+						: ''}"
 					onclick={() => select(s)}
 				>
-					{#if flagship}
-						<!-- Neutral strip marks the flagship without a hue — color is
-						     reserved for node identity elsewhere. -->
-						<span
-							class="absolute top-1.5 bottom-1.5 left-1 w-[3px] rounded-full bg-(--magi-text-faint)"
-							aria-hidden="true"
-						></span>
-					{/if}
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center justify-between gap-2">
 							<span

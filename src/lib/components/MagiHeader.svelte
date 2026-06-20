@@ -88,7 +88,7 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<header class="magi-header relative z-30 shrink-0 border-b border-gray-800 bg-gray-950">
+<header class="magi-header relative z-30 shrink-0 border-b">
 	<div class="relative mx-auto max-w-[88rem] px-4 py-4 md:px-6">
 		<h1 class="magi-headline text-center">
 			<button
@@ -108,7 +108,7 @@
 			<!-- Mobile: single hamburger that opens a menu listing every section -->
 			<button
 				type="button"
-				class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white sm:hidden"
+				class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-(--magi-chrome-btn-hover-text) sm:hidden"
 				onclick={() => togglePanel('menu')}
 				aria-label="Open menu"
 				aria-expanded={openPanel === 'menu'}
@@ -120,7 +120,7 @@
 				{#if import.meta.env.DEV}
 					<button
 						type="button"
-						class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-amber-400"
+						class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-amber-400"
 						onclick={() => togglePanel('debug')}
 						aria-label="Debug panel"
 						aria-expanded={openPanel === 'debug'}
@@ -130,7 +130,7 @@
 				{/if}
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-blue-400"
+					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-blue-400"
 					onclick={() => togglePanel('stats')}
 					aria-label="Stats"
 					aria-expanded={openPanel === 'stats'}
@@ -139,7 +139,7 @@
 				</button>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-green-400"
+					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-green-400"
 					onclick={() => togglePanel('budget')}
 					aria-label="Budget"
 					aria-expanded={openPanel === 'budget'}
@@ -148,7 +148,7 @@
 				</button>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-800 hover:text-white"
+					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-(--magi-chrome-btn-hover-text)"
 					onclick={() => togglePanel('settings')}
 					aria-label="Settings"
 					aria-expanded={openPanel === 'settings'}

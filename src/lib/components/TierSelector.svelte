@@ -69,11 +69,11 @@
 
 <div
 	bind:this={containerEl}
-	class="magi-tier-selector relative flex items-center rounded-lg bg-gray-800 p-1"
+	class="magi-tier-selector relative flex items-center rounded-lg bg-(--magi-surface-bg) p-1"
 >
 	<!-- Sliding active indicator -->
 	<div
-		class="tier-indicator pointer-events-none absolute top-1 bottom-1 rounded-md bg-gray-600"
+		class="tier-indicator pointer-events-none absolute top-1 bottom-1 rounded-md bg-(--magi-btn-bg)"
 		class:animate={ready}
 		style:left="{pill.left}px"
 		style:width="{pill.width}px"
@@ -88,7 +88,7 @@
 				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
 				tier
 					? 'text-white'
-					: 'text-gray-400 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
 				{disabled}
 				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}
@@ -100,7 +100,7 @@
 	</div>
 
 	<!-- Separator -->
-	<div class="relative z-10 mx-1 h-6 w-px bg-gray-600"></div>
+	<div class="relative z-10 mx-1 h-6 w-px bg-(--magi-control-border)"></div>
 
 	<!-- Paid tiers -->
 	<div class="flex gap-1">
@@ -110,7 +110,7 @@
 				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
 				tier
 					? 'text-white'
-					: 'text-gray-400 hover:text-white'}"
+					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
 				{disabled}
 				aria-pressed={value === tier}
 				onclick={() => onchange(tier)}

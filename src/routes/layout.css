@@ -219,6 +219,19 @@
 	--magi-toggle-on-ring: color-mix(in oklab, var(--color-gray-500) 50%, transparent);
 	--magi-token-split-color: var(--color-gray-500);
 	--magi-token-total-color: var(--color-gray-500);
+
+	/* Header bar + control strip chrome. Theme-aware so the chrome follows the
+	   theme (it used to be pinned dark in both). Dark values reproduce the old
+	   look exactly; the `.light` block swaps in a light surface + dark text. */
+	--magi-chrome-bg: var(--color-gray-950);
+	--magi-chrome-strip-bg: color-mix(in oklab, var(--color-gray-950) 80%, transparent);
+	--magi-chrome-border: var(--color-gray-800);
+	--magi-chrome-text: #fff;
+	--magi-chrome-label: var(--color-gray-400);
+	--magi-chrome-btn: var(--color-gray-500);
+	--magi-chrome-btn-hover-bg: var(--color-gray-800);
+	--magi-chrome-btn-hover-text: #fff;
+
 	/* Keyboard focus ring (:focus-visible only). Blue-400 reads on the dark page. */
 	--magi-ring: #60a5fa;
 
@@ -279,12 +292,19 @@
 		color: var(--magi-text);
 	}
 
-	/* Header + controls strip stay dark in both themes (their backgrounds are
-	   dark utilities at the call sites); pin light text so the page-level
-	   inherited color flipping dark in light mode can't reach them. */
-	.magi-header,
+	/* Header bar + control strip surfaces. Theme-aware via the --magi-chrome-*
+	   tokens (dark values reproduce the old pinned-dark look; light mode swaps in
+	   a light surface + dark text). Background/border move here off the call-site
+	   utilities so a single token flip re-themes the whole chrome. */
+	.magi-header {
+		background-color: var(--magi-chrome-bg);
+		border-color: var(--magi-chrome-border);
+		color: var(--magi-chrome-text);
+	}
 	.magi-controls {
-		color: #fff;
+		background-color: var(--magi-chrome-strip-bg);
+		border-color: var(--magi-chrome-border);
+		color: var(--magi-chrome-text);
 	}
 
 	.magi-panel {
@@ -421,30 +441,15 @@
 		cursor: not-allowed;
 	}
 
-	/* The control strip stays dark in both themes (see .magi-controls), so its
-	   toggles keep a fixed dark palette rather than the theme-aware surface tokens
-	   — a light pill with white text would vanish on the dark strip in light mode.
-	   Sizing/shape/active semantics still come from .magi-toggle, so these match
-	   the consensus-panel toggles exactly; only the surface colors are pinned. */
-	.magi-controls .magi-toggle {
-		background-color: var(--color-gray-800);
-		color: var(--color-gray-400);
-	}
-
-	.magi-controls
-		.magi-toggle:hover:not(:disabled):not([aria-disabled='true']):not(.magi-toggle-on) {
-		background-color: var(--color-gray-700);
-		color: var(--color-gray-300);
-	}
-
-	.magi-controls .magi-toggle-on {
-		background-color: color-mix(in oklab, var(--color-gray-600) 30%, transparent);
-		color: var(--color-gray-200);
-		box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-gray-500) 50%, transparent);
-	}
+	/* The control strip is now theme-aware (see .magi-controls), so its toggles use
+	   the same theme-aware .magi-toggle as the consensus panel — no dark-pinned
+	   override. This is what makes the strip and consensus on/off switches identical
+	   across every state (on / off / disabled) in both themes. */
 
 	.magi-temperament-badge {
 		color: var(--magi-text-secondary);
+		background-color: var(--magi-surface-hover);
+		box-shadow: inset 0 0 0 1px var(--magi-border);
 	}
 
 	/* Token counts — dark shows per-turn splits at the same weight as the
@@ -491,6 +496,15 @@
 	--magi-toggle-on-ring: color-mix(in oklab, #6b7280 55%, transparent);
 	--magi-token-split-color: #4b5563;
 	--magi-token-total-color: #9ca3af;
+	/* Light chrome: white header/strip on the gray page, dark text + muted icons. */
+	--magi-chrome-bg: #ffffff;
+	--magi-chrome-strip-bg: color-mix(in oklab, #ffffff 88%, transparent);
+	--magi-chrome-border: #d1d5db;
+	--magi-chrome-text: #111827;
+	--magi-chrome-label: #6b7280;
+	--magi-chrome-btn: #6b7280;
+	--magi-chrome-btn-hover-bg: #f3f4f6;
+	--magi-chrome-btn-hover-text: #111827;
 	--magi-popover-bg: #ffffff;
 	--magi-popover-border: #d1d5db;
 	--magi-color-error: #dc2626;

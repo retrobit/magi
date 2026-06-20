@@ -533,7 +533,7 @@
 				{/if}
 				{#if temperament}
 					<span
-						class="magi-temperament-badge rounded bg-gray-600/30 px-1.5 py-0.5 magi-chip ring-1 ring-gray-500/30"
+						class="magi-temperament-badge rounded px-1.5 py-0.5 magi-chip"
 						use:tooltip={temperamentDescription ?? TEMPERAMENT_TOOLTIPS[temperament]}
 						>{temperamentLabel ?? TEMPERAMENT_LABELS[temperament]}</span
 					>

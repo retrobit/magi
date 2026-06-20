@@ -242,8 +242,8 @@
 		font-size: 0.6875rem;
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
-		color: var(--magi-text-faint);
-		opacity: 0.6;
+		color: var(--magi-text-muted);
+		opacity: 0.8;
 	}
 
 	/* ── boot ── */
