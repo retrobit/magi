@@ -491,6 +491,11 @@ export const debateStrategy: ConsensusStrategy = {
 				// debater's own one-line NOTE for a quick overview of the round.
 				let block = `\n**Round ${round}**\n`;
 				let anyChanged = false;
+				// Did at least one debater actually answer this round? A round where
+				// every call failed carries no signal at all — treating its "no
+				// movement" as convergence would declare a false consensus over answers
+				// that were never reconciled (see the convergence guard below).
+				const anyFulfilled = runs.some((r) => r.status === 'fulfilled');
 				for (let i = 0; i < runs.length; i += 1) {
 					const node = responses[i].node;
 					const run = runs[i];
@@ -524,8 +529,12 @@ export const debateStrategy: ConsensusStrategy = {
 				}
 				yield emit(block);
 
-				// Converged — no debater moved this round.
-				if (!anyChanged) break;
+				// Converged — at least one debater answered and none moved this round.
+				// The `anyFulfilled` guard is essential: a round where every debater
+				// failed also has `anyChanged === false`, but that is silence, not
+				// agreement, so we let it fall through to a later round (or the
+				// round-limit → split path) rather than break as if it converged.
+				if (anyFulfilled && !anyChanged) break;
 			}
 
 			// Decide the verdict from the pairwise agreement graph, falling back to the

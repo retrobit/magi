@@ -316,6 +316,17 @@ describe('debateStrategy.execute', () => {
 		expect(completeText(events)).toContain('in agreement');
 	});
 
+	it('does not report consensus when every debater fails a round', async () => {
+		// Every debater call rejects, so no round produces any movement OR any
+		// agreement signal. A silent (all-failed) debate must never surface as
+		// "the MAGI are in agreement" — it falls through to the round-limit → split
+		// path instead. Regression guard for the false-consensus bug.
+		generateTextMock.mockRejectedValue(new Error('upstream unavailable'));
+		const events = await collect(debateStrategy.execute(context()));
+		expect(verdictOf(events)).not.toBe('consensus');
+		expect(verdictOf(events)).toBe('split');
+	});
+
 	it('appends the unified consensus-format contract when the debate converges', async () => {
 		generateTextMock.mockResolvedValue(
 			debaterReply('no', 'A revised answer', 'we align', undefined, 'yes') as never
