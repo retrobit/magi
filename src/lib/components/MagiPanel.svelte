@@ -495,9 +495,9 @@
 {/snippet}
 
 <div
-	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
+	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg lg:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72 md:min-h-0'} {pulse !== null ? 'pulse-glow' : ''}"
+		: 'min-h-72 lg:min-h-0'} {pulse !== null ? 'pulse-glow' : ''}"
 	style:--node-color={`var(${NODE_COLOR_VARS[name]})`}
 >
 	{#if pulse !== null}
@@ -541,7 +541,10 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center magi-numeric text-(--magi-text-faint)" use:tooltip={tokensTooltip}>
+					<span
+						class="flex items-center magi-numeric text-(--magi-text-faint)"
+						use:tooltip={tokensTooltip}
+					>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span

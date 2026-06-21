@@ -1705,16 +1705,22 @@
 			</div>
 		{/if}
 
-		<!-- Three MAGI panels -->
+		<!-- Three MAGI panels. The grid goes 3-across — and the height/scroll regime
+		     flips from page-scroll to fixed internal-scroll — at lg: (1024px), NOT the
+		     global md: (768px). Three panels share the row, so at 768px each was only
+		     ~230px and its header crowded (the status icon + copy dropdown vanished, the
+		     token gauge crunched the node name); lg: gives each ~300px. The swap cells
+		     and the MagiPanel height caps + the consensus zone below are gated on the
+		     same lg: so the whole two-zone layout flips together. -->
 		<div
 			bind:this={nodeZoneEl}
-			class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-1 {nodesCollapsed
+			class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:grid-rows-1 {nodesCollapsed
 				? 'shrink-0'
-				: 'flex-2 md:min-h-0 md:flex-1 md:overflow-hidden'}"
+				: 'flex-2 lg:min-h-0 lg:flex-1 lg:overflow-hidden'}"
 		>
 			{#each assignments as assignment, i (assignment.node)}
 				{#if i > 0}
-					<div class="hidden md:flex md:items-center">
+					<div class="hidden lg:flex lg:items-center">
 						<button
 							type="button"
 							onclick={() => handleSwap(i - 1, i)}
@@ -1767,7 +1773,7 @@
 		</div>
 
 		<!-- Consensus -->
-		<div bind:this={consensusZoneEl} class={consensusCollapsed ? 'shrink-0' : 'flex-1 md:min-h-0'}>
+		<div bind:this={consensusZoneEl} class={consensusCollapsed ? 'shrink-0' : 'flex-1 lg:min-h-0'}>
 			<ConsensusView
 				onexampleselect={requestExamplePrompt}
 				transcript={consensusTranscript}
