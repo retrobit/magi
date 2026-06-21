@@ -789,17 +789,22 @@
 							>
 							<button
 								type="button"
-								class="magi-toggle {consensusTemperament ? 'magi-toggle-on' : ''}"
+								class="magi-toggle {consensusTemperament && consensusTempApplies
+									? 'magi-toggle-on'
+									: ''}"
 								onclick={() =>
 									!disabled &&
 									consensusTempApplies &&
 									onconsensustemperamentchange(!consensusTemperament)}
-								aria-pressed={consensusTemperament}
+								aria-pressed={consensusTempApplies ? consensusTemperament : undefined}
 								aria-disabled={disabled || !consensusTempApplies}
-								aria-label="Consensus temperament {consensusTemperament ? 'on' : 'off'}"
+								aria-label={consensusTempApplies
+									? `Consensus temperament ${consensusTemperament ? 'on' : 'off'}`
+									: 'Consensus temperament — not applicable to this strategy'}
 							>
 								<Brain size={12} />
-								<span class="inline-block w-7 text-left">{consensusTemperament ? 'ON' : 'OFF'}</span
+								<span class="inline-block w-7 text-left"
+									>{consensusTempApplies ? (consensusTemperament ? 'ON' : 'OFF') : 'N/A'}</span
 								>
 							</button>
 						</div>
@@ -811,15 +816,20 @@
 							>
 							<button
 								type="button"
-								class="magi-toggle {temperamentAwareness ? 'magi-toggle-on' : ''}"
+								class="magi-toggle {temperamentAwareness && awarenessApplies
+									? 'magi-toggle-on'
+									: ''}"
 								onclick={() =>
 									!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
-								aria-pressed={temperamentAwareness}
+								aria-pressed={awarenessApplies ? temperamentAwareness : undefined}
 								aria-disabled={disabled || !awarenessApplies}
-								aria-label="Temperament awareness {temperamentAwareness ? 'on' : 'off'}"
+								aria-label={awarenessApplies
+									? `Temperament awareness ${temperamentAwareness ? 'on' : 'off'}`
+									: 'Temperament awareness — not applicable to this strategy'}
 							>
 								<Eye size={12} />
-								<span class="inline-block w-7 text-left">{temperamentAwareness ? 'ON' : 'OFF'}</span
+								<span class="inline-block w-7 text-left"
+									>{awarenessApplies ? (temperamentAwareness ? 'ON' : 'OFF') : 'N/A'}</span
 								>
 							</button>
 						</div>

@@ -1518,11 +1518,13 @@
 						type="button"
 						onclick={() => (collaborative = !collaborative)}
 						disabled={loading || strategy !== 'debate'}
-						aria-pressed={collaborative}
-						class="magi-toggle {collaborative ? 'magi-toggle-on' : ''}"
+						aria-pressed={strategy === 'debate' ? collaborative : undefined}
+						class="magi-toggle {collaborative && strategy === 'debate' ? 'magi-toggle-on' : ''}"
 					>
 						<Handshake size={12} />
-						<span class="inline-block w-7 text-left">{collaborative ? 'ON' : 'OFF'}</span>
+						<span class="inline-block w-7 text-left"
+							>{strategy !== 'debate' ? 'N/A' : collaborative ? 'ON' : 'OFF'}</span
+						>
 					</button>
 				</div>
 			</div>
