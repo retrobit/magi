@@ -4,6 +4,7 @@
 	// the node panels so a user can grab just the final response (default) or
 	// pull in the original query and/or every debate round.
 	import { Copy, Check, ChevronDown } from 'lucide-svelte';
+	import { onDestroy } from 'svelte';
 
 	export interface CopyScope {
 		/** Stable identifier — used to highlight the default in the menu. */
@@ -30,10 +31,17 @@
 	// alone is silent to a screen reader.
 	let liveMessage = $state('');
 
+	// Track the reset timer so it can be cancelled if the component unmounts inside
+	// the 1.5s window — otherwise the callback fires on a destroyed component.
+	let copiedTimer: ReturnType<typeof setTimeout> | null = null;
 	function flashCopied() {
 		copied = true;
-		setTimeout(() => (copied = false), 1500);
+		if (copiedTimer) clearTimeout(copiedTimer);
+		copiedTimer = setTimeout(() => (copied = false), 1500);
 	}
+	onDestroy(() => {
+		if (copiedTimer) clearTimeout(copiedTimer);
+	});
 
 	function copyScope(scope: CopyScope) {
 		if (!scope.content) return;

@@ -1573,12 +1573,12 @@
 				{#if query.trim()}
 					<button
 						type="button"
-						class="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 transition-colors hover:text-white"
+						class="absolute top-1/2 right-3 -translate-y-1/2 text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 						onclick={copyQuery}
 						use:tooltip={'Copy prompt'}
 					>
 						{#if copiedQuery}
-							<Check size={14} class="text-green-400" />
+							<Check size={14} class="magi-success" />
 						{:else}
 							<Copy size={14} />
 						{/if}
