@@ -26,17 +26,6 @@ function mulberry32(seed: number): () => number {
 	};
 }
 
-/** FNV-1a hash of a string → a 32-bit seed. Lets a stable string (e.g. a query)
- *  stand in as a reproducible seed when an explicit one isn't supplied. */
-export function seedFromString(s: string): number {
-	let h = 0x811c9dc5;
-	for (let i = 0; i < s.length; i += 1) {
-		h ^= s.charCodeAt(i);
-		h = Math.imul(h, 0x01000193);
-	}
-	return h >>> 0;
-}
-
 /** Fisher–Yates shuffle driven by a seeded PRNG. Returns a new array; the input
  *  is left untouched. Same seed + same input ⇒ same permutation. */
 export function seededShuffle<T>(items: readonly T[], seed: number): T[] {

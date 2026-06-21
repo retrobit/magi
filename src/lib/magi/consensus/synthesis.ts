@@ -6,7 +6,7 @@ import {
 	type ConsensusEvent,
 	SECTION_RULE
 } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName } from '../types';
+import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import { resolveNodeTemperament } from '../temperaments';
 import { markCacheBreakpoint } from '../prompt-cache';
 import { OPINIONATED_DIRECTIVE, missingClause } from './deliberation';
@@ -66,7 +66,7 @@ export const synthesisStrategy: ConsensusStrategy = {
 				? 'Three independent AI models have each responded'
 				: `${n} of three independent AI models responded`;
 
-		const consensusNode = nodeAssignments[consensusNodeIndex].node as MagiNodeName;
+		const consensusNode = assignment.node;
 		const consensusLens = consensusTemperament
 			? `${resolveNodeTemperament(consensusNode, customTemperaments).prompt}${SECTION_RULE}`
 			: '';

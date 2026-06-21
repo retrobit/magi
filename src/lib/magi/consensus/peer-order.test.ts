@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seedFromString, seededShuffle, makePeerOrderer } from './peer-order';
+import { seededShuffle, makePeerOrderer } from './peer-order';
 import type { MagiNodeName } from '../types';
 
 const NODES: { node: MagiNodeName }[] = [
@@ -38,23 +38,6 @@ describe('seededShuffle', () => {
 	it('handles trivial lengths without error', () => {
 		expect(seededShuffle([], 1)).toEqual([]);
 		expect(seededShuffle([42], 1)).toEqual([42]);
-	});
-});
-
-describe('seedFromString', () => {
-	it('is stable for the same string', () => {
-		expect(seedFromString('What is consciousness?')).toBe(seedFromString('What is consciousness?'));
-	});
-
-	it('varies across different strings', () => {
-		expect(seedFromString('alpha')).not.toBe(seedFromString('beta'));
-	});
-
-	it('returns a non-negative 32-bit integer', () => {
-		const seed = seedFromString('anything');
-		expect(Number.isInteger(seed)).toBe(true);
-		expect(seed).toBeGreaterThanOrEqual(0);
-		expect(seed).toBeLessThanOrEqual(0xffffffff);
 	});
 });
 

@@ -7,6 +7,7 @@
 		FLAGSHIP_STRATEGY,
 		type StrategyName
 	} from '$lib/magi/consensus';
+	import { NODE_COLOR_VARS, MAGI_NODE_NAMES } from '$lib/magi/types';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { Check } from 'lucide-svelte';
 
@@ -41,7 +42,7 @@
 	// The flagship strategy (Multi-Round Debate) has intensity 3, so its dot
 	// meter is full — those three dots are painted in the three-MAGI node colors
 	// (one dot per node) rather than neutral gray, tying the meter to the triad.
-	const NODE_DOT_COLORS = ['--magi-node-red', '--magi-node-green', '--magi-node-blue'] as const;
+	const NODE_DOT_COLORS = MAGI_NODE_NAMES.map((n) => NODE_COLOR_VARS[n]);
 
 	function measure() {
 		if (!triggerEl) return;

@@ -330,8 +330,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// config (never the client) so a prior answer can't be attributed to a spoofed
 	// origin. A node can't be both retried and prior — retried wins.
 	const retrying = retryNodes.length > 0;
-	const dispatchConfig: MagiConfig = retrying
-		? (config.filter((c) => retryNodes.includes(c.node)) as unknown as MagiConfig)
+	// A retry dispatches only the retried nodes, so this is honestly a 1–3 element
+	// array, not the 3-tuple MagiConfig — type it as such (every consumer iterates
+	// it) rather than casting away the arity lie.
+	const dispatchConfig: readonly NodeAssignment[] = retrying
+		? config.filter((c) => retryNodes.includes(c.node))
 		: config;
 	const priorMagi: MagiResponse[] = retrying
 		? config
