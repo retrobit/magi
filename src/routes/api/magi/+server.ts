@@ -154,6 +154,13 @@ function buildNodeMessages(
 	return messages;
 }
 
+// Vercel serverless function config for this route. The MAGI run streams SSE for
+// the whole debate/synthesis — on slow free-tier models that routinely exceeds
+// 60s — so request the maximum Hobby + Fluid-Compute streaming budget (300s).
+// Fluid Compute must be enabled in the Vercel dashboard for >60s to take effect.
+// See DEPLOY.md.
+export const config = { maxDuration: 300 };
+
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const requestTimer = startTimer();
 	// 8-hex correlation ID — stamped on every log line for this request and
