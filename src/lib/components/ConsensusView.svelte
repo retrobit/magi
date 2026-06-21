@@ -648,7 +648,10 @@
 			{/if}
 			<div class="flex items-center gap-2">
 				{#if showTokens || showContext}
-					<span class="flex items-center magi-numeric text-(--magi-text-faint)" use:tooltip={tokensTooltip}>
+					<span
+						class="flex items-center magi-numeric text-(--magi-text-faint)"
+						use:tooltip={tokensTooltip}
+					>
 						{#if showContext && contextWindow}
 							<span class={contextClass}
 								>{formatTokenCount(contextUsed)}/{formatTokenCount(contextWindow)}</span
@@ -730,8 +733,9 @@
 					<div class="flex w-full items-center gap-x-2 sm:contents">
 						{#if onconsensuschange}
 							<div class="flex shrink-0 items-center gap-x-2">
-								<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={consensusSeatTooltip}
-									>{consensusSeatLabel}</span
+								<span
+									class="text-xs text-(--magi-text-muted) uppercase"
+									use:tooltip={consensusSeatTooltip}>{consensusSeatLabel}</span
 								>
 								{#if consensusNodeApplies}
 									<select
@@ -779,8 +783,9 @@
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 					{#if onconsensustemperamentchange}
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={consensusTempTip}
-								>Temperament</span
+							<span
+								class="text-xs text-(--magi-text-muted) uppercase"
+								use:tooltip={consensusTempTip}>Temperament</span
 							>
 							<button
 								type="button"
