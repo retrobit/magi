@@ -10,7 +10,8 @@ import {
 	DEFAULT_TIER,
 	estimateTokens,
 	tokenUsageTooltip,
-	pickDiverseModels
+	pickDiverseModels,
+	getProviderLabel
 } from './types';
 import type { AvailableModel } from './types';
 
@@ -179,5 +180,15 @@ describe('pickDiverseModels', () => {
 	it('returns everything when the pool is smaller than `count`', () => {
 		const picked = pickDiverseModels([model('a/1', 'a'), model('b/1', 'b')], 3);
 		expect(picked).toHaveLength(2);
+	});
+});
+
+describe('getProviderLabel', () => {
+	it('returns the curated label for a known provider', () => {
+		expect(getProviderLabel('deepseek')).toBe('DeepSeek');
+	});
+
+	it('title-cases an unknown hyphenated provider slug', () => {
+		expect(getProviderLabel('some-new-provider')).toBe('Some New Provider');
 	});
 });
