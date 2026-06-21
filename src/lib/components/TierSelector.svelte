@@ -49,8 +49,8 @@
 	}
 
 	// Re-place when the active tier changes (await tick so a just-mounted button
-	// ref is available), and whenever the container resizes — the buttons grow
-	// at the `sm` breakpoint, which would otherwise leave the pill misaligned.
+	// ref is available), and whenever the container resizes — a late web-font swap
+	// or layout reflow shifts a button, which would otherwise strand the pill.
 	$effect(() => {
 		void value;
 		tick().then(() => {
@@ -85,7 +85,7 @@
 		{#each freeTiers as tier (tier)}
 			<button
 				bind:this={buttonEls[tier]}
-				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
+				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors {value ===
 				tier
 					? 'text-white'
 					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
@@ -107,7 +107,7 @@
 		{#each paidTiers as tier (tier)}
 			<button
 				bind:this={buttonEls[tier]}
-				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors sm:px-4 sm:py-2 sm:text-sm {value ===
+				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors {value ===
 				tier
 					? 'text-white'
 					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
