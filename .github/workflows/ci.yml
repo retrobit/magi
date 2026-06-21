@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Lint, type-check, and test
+    name: Lint, type-check, test, and build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,6 +33,12 @@ jobs:
 
       - name: Test (with coverage gate)
         run: bun run test:coverage
+
+      # Catches production-bundler/adapter failures that svelte-check and the
+      # Vitest source transform don't — e.g. an unresolved import or a build-only
+      # error that would otherwise only surface at deploy time.
+      - name: Build
+        run: bun run build
 
       # Knip and audit are informational at first — they surface dead code and
       # dependency advisories but don't fail the build until findings are triaged.
