@@ -180,6 +180,15 @@
 	// panels keep the full stack — picking models IS the idle activity.
 	const inConversation = $derived(transcript.length > 0 || !!liveQuery);
 	let configExpanded = $state(false);
+	// Reset the explicit re-expand when the panel returns to idle — a new
+	// conversation clears the transcript, flipping `inConversation` to false.
+	// Otherwise a node left expanded in a prior conversation stays expanded after
+	// the next prompt instead of collapsing to its chip like the others. While
+	// idle the full stack shows regardless, so this reset is invisible until the
+	// next conversation starts.
+	$effect(() => {
+		if (!inConversation) configExpanded = false;
+	});
 	const chipLabel = $derived.by(() => {
 		if (!gateway) return 'Not configured';
 		const parts: string[] = [GATEWAY_LABELS[gateway as GatewayName]];
