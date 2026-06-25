@@ -29,6 +29,7 @@
 		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { isControlClick } from '$lib/actions/click-guard';
 	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
@@ -77,6 +78,9 @@
 		onconsensuschange?: (node: MagiNodeName) => void;
 		onconsensustemperamentchange?: (value: boolean) => void;
 		onawarenesschange?: (value: boolean) => void;
+		/** Click (or Enter/Space) on the consensus header's bare surface — the page
+		 *  cycles the layout focus from it. Clicks on its controls are ignored. */
+		onheadercycle?: () => void;
 		/** Collapsed to just the header (focus accordion). */
 		collapsed?: boolean;
 	}
@@ -116,10 +120,26 @@
 		onconsensuschange,
 		onconsensustemperamentchange,
 		onawarenesschange,
+		onheadercycle,
 		collapsed = false
 	}: Props = $props();
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
+
+	// Header-click layout cycling: a click (or Enter/Space) on the header's bare
+	// surface fires `onheadercycle`; clicks landing on a control inside it are
+	// ignored so the existing buttons still work.
+	function onHeaderRowClick(e: MouseEvent) {
+		if (!onheadercycle || isControlClick(e)) return;
+		onheadercycle();
+	}
+	function onHeaderRowKeydown(e: KeyboardEvent) {
+		if (!onheadercycle || e.target !== e.currentTarget) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onheadercycle();
+		}
+	}
 
 	// Temperament awareness only shapes the Synthesis writer. Voting jurors already
 	// score through their own lens, and the Debate synthesizer is a neutral scribe
@@ -609,7 +629,16 @@
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<div class="relative flex items-center justify-between select-none">
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div
+			class="relative flex items-center justify-between select-none"
+			class:cursor-pointer={onheadercycle}
+			onclick={onHeaderRowClick}
+			onkeydown={onHeaderRowKeydown}
+			role={onheadercycle ? 'button' : undefined}
+			tabindex={onheadercycle ? 0 : undefined}
+			aria-label={onheadercycle ? 'Cycle layout focus' : undefined}
+		>
 			<div class="flex items-center gap-2">
 				<h3 class="magi-display text-base font-bold tracking-widest text-(--magi-text)">
 					MAGI CONSENSUS

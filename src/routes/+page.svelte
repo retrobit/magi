@@ -257,6 +257,19 @@
 		return base;
 	}
 
+	// Header-click layout cycling. A node header advances node→shared→consensus; the
+	// consensus header advances the reverse (consensus→shared→node) — both wrap.
+	// Routed through setLayoutFocus (not a raw assignment) so the FLIP runs AND the
+	// auto/manual split falls out for free: with auto on, the accordion keeps showing
+	// "Auto" and the next phase reclaims the focus (a temporary nudge); with auto off,
+	// the manual focus persists and the accordion reflects it.
+	const NODE_LAYOUT_CYCLE = ['nodes', 'balanced', 'consensus'] as const;
+	const CONSENSUS_LAYOUT_CYCLE = ['consensus', 'balanced', 'nodes'] as const;
+	function cycleLayoutFrom(order: readonly ('balanced' | 'nodes' | 'consensus')[]) {
+		const i = order.indexOf(layoutFocus);
+		setLayoutFocus(order[(i + 1) % order.length]);
+	}
+
 	// Auto-layout: when on, move the focus accordion as the run progresses. Only
 	// fires on a *phase change* (so a manual nudge between phases sticks until the
 	// next transition), and stays disarmed until the first real `thinking` phase so
@@ -1789,6 +1802,7 @@
 					onretry={() => retryNode(assignment.node)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={REVEAL_NODE_NAMES ? () => (genericLabels = !genericLabels) : undefined}
+					onheadercycle={() => cycleLayoutFrom(NODE_LAYOUT_CYCLE)}
 				/>
 			{/each}
 		</div>
@@ -1797,6 +1811,7 @@
 		<div bind:this={consensusZoneEl} class={consensusCollapsed ? 'shrink-0' : 'flex-1 lg:min-h-0'}>
 			<ConsensusView
 				onexampleselect={requestExamplePrompt}
+				onheadercycle={() => cycleLayoutFrom(CONSENSUS_LAYOUT_CYCLE)}
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}

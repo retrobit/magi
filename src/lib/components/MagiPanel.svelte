@@ -29,6 +29,7 @@
 		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { isControlClick } from '$lib/actions/click-guard';
 	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
@@ -87,6 +88,9 @@
 		canRetry?: boolean;
 		onchange?: (gateway: GatewayName, provider: string, modelId: string) => void;
 		onlabelclick?: () => void;
+		/** Click (or Enter/Space) on the header's bare surface — the page cycles the
+		 *  layout focus from it. Clicks on the header's controls are ignored. */
+		onheadercycle?: () => void;
 	}
 
 	let {
@@ -120,7 +124,8 @@
 		onretry,
 		canRetry = false,
 		onchange,
-		onlabelclick
+		onlabelclick,
+		onheadercycle
 	}: Props = $props();
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
@@ -129,6 +134,21 @@
 	// marooned in whitespace.
 	const labelName = $derived(displayLabel.split('•')[0].trim());
 	const labelUnit = $derived(displayLabel.split('•')[1]?.trim() ?? '');
+
+	// Header-click layout cycling: a click (or Enter/Space) on the header's bare
+	// surface fires `onheadercycle`; clicks that land on a control inside the
+	// header are ignored so the existing buttons still work.
+	function onHeaderRowClick(e: MouseEvent) {
+		if (!onheadercycle || isControlClick(e)) return;
+		onheadercycle();
+	}
+	function onHeaderRowKeydown(e: KeyboardEvent) {
+		if (!onheadercycle || e.target !== e.currentTarget) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onheadercycle();
+		}
+	}
 
 	// The latest entry that has actual content for this node. Used to fall back
 	// to the transcript after live state resets at turn commit.
@@ -534,7 +554,16 @@
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<div class="flex items-center justify-between select-none">
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div
+			class="flex items-center justify-between select-none"
+			class:cursor-pointer={onheadercycle}
+			onclick={onHeaderRowClick}
+			onkeydown={onHeaderRowKeydown}
+			role={onheadercycle ? 'button' : undefined}
+			tabindex={onheadercycle ? 0 : undefined}
+			aria-label={onheadercycle ? 'Cycle layout focus' : undefined}
+		>
 			<div class="flex items-center gap-2">
 				{#snippet labelContent()}
 					<span class="tracking-widest">{labelName}</span>{#if labelUnit}<span
