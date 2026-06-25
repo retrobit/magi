@@ -197,6 +197,20 @@
 		return parts.join(' · ');
 	});
 
+	// Full selected value for each dropdown, surfaced as a hover tooltip so a long
+	// gateway/provider/model name truncated inside the fixed-width <select> can be
+	// read without opening it. `touch: false` — tapping a native select opens its
+	// own picker, so the peek bubble shouldn't double up over it.
+	const gatewayTip = $derived(
+		gateway
+			? `${GATEWAY_LABELS[gateway as GatewayName]}${isRouter(gateway as GatewayName) ? ' (router)' : ''}`
+			: undefined
+	);
+	const providerTip = $derived.by(() =>
+		showRouterProvider && provider ? getProviderLabel(provider) : undefined
+	);
+	const modelTip = $derived(modelDisplayName || undefined);
+
 	// Cumulative tokens for this node: every completed turn plus the live turn.
 	const totalInput = $derived(transcript.reduce((sum, t) => sum + t.inputTokens, 0) + liveInput);
 	const totalOutput = $derived(transcript.reduce((sum, t) => sum + t.outputTokens, 0) + liveOutput);
@@ -624,6 +638,7 @@
 							class="magi-select w-full focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 							value={gateway}
 							onchange={handleGatewayChange}
+							use:tooltip={{ text: gatewayTip, touch: false }}
 							{disabled}
 						>
 							<option disabled value="">{topDropdownLabel}</option>
@@ -643,6 +658,7 @@
 								: ''}"
 							value={showRouterProvider ? provider : ''}
 							onchange={handleProviderChange}
+							use:tooltip={{ text: providerTip, touch: false }}
 							disabled={disabled || !showRouterProvider}
 							tabindex={showRouterProvider ? 0 : -1}
 						>
@@ -664,6 +680,7 @@
 							class="magi-select w-full focus:ring-1 focus:ring-(--magi-ring) focus:outline-none"
 							value={modelId}
 							onchange={handleModelChange}
+							use:tooltip={{ text: modelTip, touch: false }}
 							{disabled}
 						>
 							<option disabled value="">Model</option>
