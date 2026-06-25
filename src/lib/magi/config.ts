@@ -10,11 +10,32 @@ export interface NodeAssignment {
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
 
+/** The free tier's preferred default models, in seat order — reliable picks for
+ *  the public demo. buildDiverseConfig floats whichever are present in the live
+ *  pool to the front so they seat first; any that's temporarily missing (free
+ *  models flake) is backfilled by the usual diverse pick, never a dead node.
+ *  Keep these from distinct providers so all three can seat together. */
+export const PREFERRED_FREE_MODEL_IDS = [
+	'openai/gpt-oss-20b:free',
+	'google/gemma-4-26b-a4b-it:free',
+	'poolside/laguna-xs.2:free'
+];
+
 /** Seed a 3-node assignment from a model list, choosing maximally diverse
  *  providers. Shared by the client (free-tier defaults) and the server
- *  (free-tier request resolution) so both pick models the same way. */
+ *  (free-tier request resolution) so both pick models the same way. Preferred
+ *  free defaults (when present) seat first; see PREFERRED_FREE_MODEL_IDS. */
 export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
-	return pickDiverseModels(models, MAGI_NODE_NAMES.length).map((m, i) => ({
+	// Float the preferred defaults present in the pool to the front, in preference
+	// order; pickDiverseModels then seats them first (they're distinct providers)
+	// and fills any remaining slot from the rest.
+	const byId = new Map(models.map((m) => [m.id, m]));
+	const preferred = PREFERRED_FREE_MODEL_IDS.map((id) => byId.get(id)).filter(
+		(m): m is AvailableModel => m !== undefined
+	);
+	const preferredSet = new Set(preferred);
+	const ordered = [...preferred, ...models.filter((m) => !preferredSet.has(m))];
+	return pickDiverseModels(ordered, MAGI_NODE_NAMES.length).map((m, i) => ({
 		node: MAGI_NODE_NAMES[i],
 		gateway: m.gateway,
 		provider: m.provider,
@@ -28,19 +49,26 @@ export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
 ];
 
+// Static fallback when the live OpenRouter list can't be fetched — kept in sync
+// with PREFERRED_FREE_MODEL_IDS so the demo's reliable trio shows even offline.
 export const FREE_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MAGI_1', gateway: 'openrouter', provider: 'qwen', modelId: 'qwen/qwen3-coder:free' },
+	{
+		node: 'MAGI_1',
+		gateway: 'openrouter',
+		provider: 'openai',
+		modelId: 'openai/gpt-oss-20b:free'
+	},
 	{
 		node: 'MAGI_2',
 		gateway: 'openrouter',
-		provider: 'nvidia',
-		modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+		provider: 'google',
+		modelId: 'google/gemma-4-26b-a4b-it:free'
 	},
 	{
 		node: 'MAGI_3',
 		gateway: 'openrouter',
-		provider: 'meta-llama',
-		modelId: 'meta-llama/llama-3.3-70b-instruct:free'
+		provider: 'poolside',
+		modelId: 'poolside/laguna-xs.2:free'
 	}
 ];
 

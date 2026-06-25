@@ -4,7 +4,8 @@ import {
 	FREE_MAGI_CONFIG,
 	TIER_CONFIGS,
 	validateConfig,
-	buildDiverseConfig
+	buildDiverseConfig,
+	PREFERRED_FREE_MODEL_IDS
 } from './config';
 import type { MagiConfig } from './config';
 import type { AvailableModel } from './types';
@@ -59,6 +60,10 @@ describe('FREE_MAGI_CONFIG', () => {
 
 	it('passes validation', () => {
 		expect(() => validateConfig(FREE_MAGI_CONFIG)).not.toThrow();
+	});
+
+	it('stays in sync with the preferred free defaults', () => {
+		expect(FREE_MAGI_CONFIG.map((a) => a.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS);
 	});
 });
 
@@ -223,5 +228,29 @@ describe('buildDiverseConfig', () => {
 
 	it('returns fewer than three when the pool is too small (caller falls back)', () => {
 		expect(buildDiverseConfig([model('a/1', 'a'), model('b/1', 'b')])).toHaveLength(2);
+	});
+
+	it('seats the preferred free defaults first when present', () => {
+		const config = buildDiverseConfig([
+			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama'),
+			model('poolside/laguna-xs.2:free', 'poolside'),
+			model('openai/gpt-oss-20b:free', 'openai'),
+			model('google/gemma-4-26b-a4b-it:free', 'google')
+		]);
+		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS);
+	});
+
+	it('backfills a missing preferred default with a diverse pick', () => {
+		// laguna absent → seats gpt-oss + gemma, fills the third from the rest.
+		const config = buildDiverseConfig([
+			model('openai/gpt-oss-20b:free', 'openai'),
+			model('google/gemma-4-26b-a4b-it:free', 'google'),
+			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama')
+		]);
+		expect(config.map((c) => c.modelId)).toEqual([
+			'openai/gpt-oss-20b:free',
+			'google/gemma-4-26b-a4b-it:free',
+			'meta-llama/llama-3.3-70b-instruct:free'
+		]);
 	});
 });
