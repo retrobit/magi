@@ -248,6 +248,15 @@
 		done: 'consensus'
 	};
 
+	// None strategy produces no consensus, so auto-layout must never drift toward
+	// the (empty) consensus panel: keep the nodes expanded for every active phase
+	// instead of collapsing them at reviewing/done. Idle stays a no-op (null).
+	function autoFocusForPhase(phase: RunPhase): 'balanced' | 'nodes' | 'consensus' | null {
+		const base = PHASE_FOCUS[phase];
+		if (strategy === 'none' && base !== null) return 'nodes';
+		return base;
+	}
+
 	// Auto-layout: when on, move the focus accordion as the run progresses. Only
 	// fires on a *phase change* (so a manual nudge between phases sticks until the
 	// next transition), and stays disarmed until the first real `thinking` phase so
@@ -261,7 +270,7 @@
 		lastRunPhase = phase;
 		if (phase === 'thinking') autoLayoutArmed = true;
 		if (!autoLayout || !autoLayoutArmed || phase === prev) return;
-		const focus = PHASE_FOCUS[phase];
+		const focus = autoFocusForPhase(phase);
 		if (focus) setLayoutFocus(focus);
 	});
 
@@ -271,7 +280,7 @@
 		if (choice === 'auto') {
 			autoLayout = true;
 			autoLayoutArmed = true;
-			setLayoutFocus(PHASE_FOCUS[runPhase] ?? layoutFocus);
+			setLayoutFocus(autoFocusForPhase(runPhase) ?? layoutFocus);
 		} else {
 			autoLayout = false;
 			setLayoutFocus(choice);
