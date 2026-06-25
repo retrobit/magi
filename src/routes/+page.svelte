@@ -370,12 +370,22 @@
 		fillPrompt(prompt);
 	}
 
-	// Confirmed: clear the conversation, then drop the pending opener into the box.
+	// Took the suggestion: clear the conversation, then drop the opener into the box.
 	function confirmPendingPrompt() {
 		const prompt = pendingPrompt;
 		pendingPrompt = null;
 		if (prompt === null) return;
 		handleNewConversation();
+		fillPrompt(prompt);
+	}
+
+	// Declined the suggestion: keep the thread and drop the prompt in as a
+	// follow-up (no wipe). Also the escape/backdrop default — the non-destructive
+	// path — so dismissing still uses the prompt the user just rolled.
+	function keepPendingPrompt() {
+		const prompt = pendingPrompt;
+		pendingPrompt = null;
+		if (prompt === null) return;
 		fillPrompt(prompt);
 	}
 
@@ -1860,10 +1870,12 @@
 
 {#if pendingPrompt !== null}
 	<ConfirmModal
-		title="Start a new conversation?"
-		message="This clears the current conversation and starts fresh with the selected prompt."
-		confirmLabel="New conversation"
+		title="Start fresh for this prompt?"
+		message="Every turn sends the full conversation as context, and a topic switch usually lands best with entirely fresh context. Clear and start fresh with this prompt — or keep the thread and use it as a follow-up."
+		confirmLabel="Clear & start fresh"
+		cancelLabel="Keep context"
+		confirmVariant="primary"
 		onconfirm={confirmPendingPrompt}
-		oncancel={() => (pendingPrompt = null)}
+		oncancel={keepPendingPrompt}
 	/>
 {/if}

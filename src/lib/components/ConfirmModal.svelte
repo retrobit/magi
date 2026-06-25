@@ -9,6 +9,9 @@
 		message: string;
 		confirmLabel?: string;
 		cancelLabel?: string;
+		/** 'danger' (default) = red destructive confirm; 'primary' = neutral accent,
+		 *  for a *suggested* (non-alarming) confirm like "clear & start fresh". */
+		confirmVariant?: 'danger' | 'primary';
 		onconfirm: () => void;
 		oncancel: () => void;
 	}
@@ -18,6 +21,7 @@
 		message,
 		confirmLabel = 'Confirm',
 		cancelLabel = 'Cancel',
+		confirmVariant = 'danger',
 		onconfirm,
 		oncancel
 	}: Props = $props();
@@ -55,7 +59,10 @@
 			</button>
 			<button
 				type="button"
-				class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-500"
+				class="rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors {confirmVariant ===
+				'danger'
+					? 'bg-red-600 hover:bg-red-500'
+					: 'bg-(--magi-btn-bg) hover:bg-gray-500'}"
 				onclick={onconfirm}
 			>
 				{confirmLabel}
