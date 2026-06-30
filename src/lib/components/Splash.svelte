@@ -10,9 +10,11 @@
 	interface Props {
 		concept: 'boot' | 'decode' | 'convergence';
 		reduceMotion?: boolean;
+		/** Show the amber PREVIEW badge — set on the public demo. */
+		demo?: boolean;
 		ondone: () => void;
 	}
-	let { concept, reduceMotion = false, ondone }: Props = $props();
+	let { concept, reduceMotion = false, demo = false, ondone }: Props = $props();
 
 	let stageEl = $state<HTMLDivElement | null>(null);
 
@@ -195,6 +197,9 @@
 		</div>
 	{/if}
 
+	{#if demo}
+		<p class="preview-badge">Preview</p>
+	{/if}
 	<p class="hint">{coarse ? 'touch to skip' : 'click to skip'}</p>
 </div>
 
@@ -244,6 +249,22 @@
 		text-transform: uppercase;
 		color: var(--magi-text-muted);
 		opacity: 0.8;
+	}
+
+	/* Amber preview badge — only on the public demo (gated by the `demo` prop). */
+	.preview-badge {
+		position: absolute;
+		bottom: 3.4rem;
+		margin: 0;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: #f59e0b;
+		background: color-mix(in oklab, #f59e0b 14%, transparent);
+		border: 1px solid color-mix(in oklab, #f59e0b 45%, transparent);
+		border-radius: 4px;
+		padding: 0.15rem 0.55rem;
 	}
 
 	/* ── boot ── */

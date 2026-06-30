@@ -13,6 +13,8 @@
 	import { clearPrefs, clearConversations } from '$lib/magi/persistence';
 	import { clearRunStats } from '$lib/magi/run-stats';
 	import { focusTrap } from '$lib/actions/focusTrap';
+	import { tooltip } from '$lib/actions/tooltip';
+	import { DEMO_MODE } from '$lib/demo';
 	import type { NodeAssignment } from '$lib/magi/config';
 	import {
 		VISIBLE_PALETTES,
@@ -93,6 +95,13 @@
 					><span class="text-(--magi-node-blue)">▲</span></span
 				>
 			</button>
+			{#if DEMO_MODE}
+				<span
+					class="ml-3 inline-block rounded bg-amber-500/15 px-1.5 py-0.5 align-middle text-[0.625rem] font-semibold tracking-widest text-amber-500 ring-1 ring-amber-500/40 ring-inset"
+					use:tooltip={'Preview build — features subject to change. Only the free tier is available.'}
+					>PREVIEW</span
+				>
+			{/if}
 		</h1>
 		<div class="absolute top-1/2 right-4 -translate-y-1/2 md:right-6">
 			<!-- Mobile: single hamburger that opens a menu listing every section -->

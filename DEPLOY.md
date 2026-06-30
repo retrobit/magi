@@ -30,10 +30,11 @@ debate end-to-end.
 
 ### 2. Environment variables (Production **and** Preview)
 
-| Variable             | Value                                          | Notes                                                                                                                                                                                |
-| -------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OPENROUTER_API_KEY` | a **new, dedicated, revocable** OpenRouter key | Create at openrouter.ai → Keys, and **set a credit limit on it** in case the demo is abused. This is the only key the public demo needs.                                             |
-| `MAGI_API_KEY`       | **❌ do NOT set**                              | Inference (`POST /api/magi`) runs `checkApiKey`; setting this would lock out **visitors**, not just the budget endpoint. Leaving it unset is what enables the public-demo tier gate. |
+| Variable             | Value                                          | Notes                                                                                                                                                                                                                                                                                           |
+| -------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY` | a **new, dedicated, revocable** OpenRouter key | Create at openrouter.ai → Keys, and **set a credit limit on it** in case the demo is abused. This is the only key the public demo needs.                                                                                                                                                        |
+| `MAGI_API_KEY`       | **❌ do NOT set**                              | Inference (`POST /api/magi`) runs `checkApiKey`; setting this would lock out **visitors**, not just the budget endpoint. Leaving it unset is what enables the public-demo tier gate.                                                                                                            |
+| `PUBLIC_DEMO_MODE`   | `true`                                         | Turns on the preview branding — the header **PREVIEW** chip, the splash badge, and the friendly free-tier-only guard (shake + transient note) on the tier selector. Public runtime flag read via `$env/dynamic/public`; unset → no preview chrome (use that for a private full-feature deploy). |
 
 ### 3. Enable Fluid Compute (required for long streams)
 

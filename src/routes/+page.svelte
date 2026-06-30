@@ -7,6 +7,7 @@
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import MagiHeader from '$lib/components/MagiHeader.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+	import { DEMO_MODE } from '$lib/demo';
 	import Splash from '$lib/components/Splash.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
@@ -967,8 +968,27 @@
 		liveConsensusUsage = undefined;
 	}
 
+	// Public-demo tier guard: paid tiers are blocked server-side (403), so in the
+	// preview we reject the switch client-side with a head-shake + transient note
+	// rather than letting the user hit a raw error. Free still selects normally.
+	// The shake resets on a timer (not animationend) so reduced-motion — where the
+	// animation is suppressed and animationend never fires — still clears it.
+	let tierError = $state<string | null>(null);
+	let tierShaking = $state(false);
+	let tierErrorTimer: ReturnType<typeof setTimeout> | undefined;
+	let tierShakeTimer: ReturnType<typeof setTimeout> | undefined;
+
 	function handleTierChange(newTier: TierName) {
 		if (newTier === tier || loading) return;
+		if (DEMO_MODE && newTier !== 'free') {
+			tierError = 'Only the free tier is available in this preview.';
+			tierShaking = true;
+			clearTimeout(tierShakeTimer);
+			tierShakeTimer = setTimeout(() => (tierShaking = false), 500);
+			clearTimeout(tierErrorTimer);
+			tierErrorTimer = setTimeout(() => (tierError = null), 2500);
+			return;
+		}
 		saveTierSnapshot();
 		tier = newTier;
 		loadTierSnapshot(newTier);
@@ -1436,6 +1456,7 @@
 		<Splash
 			concept={splashConcept}
 			reduceMotion={motionMode === 'reduced'}
+			demo={DEMO_MODE}
 			ondone={() => (showSplash = false)}
 		/>
 	{/key}
@@ -1473,7 +1494,14 @@
 		>
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-(--magi-chrome-label)">TIER</span>
-				<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
+				<div class:magi-shake={tierShaking}>
+					<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
+				</div>
+				{#if tierError}
+					<span class="text-xs font-medium text-amber-500" role="status" aria-live="polite"
+						>{tierError}</span
+					>
+				{/if}
 				<!-- Free-tier models are flaky; the note hangs off a caution icon so it
 				     stays out of the way until hovered/focused. Always rendered (only its
 				     visibility toggles per tier) so its slot is reserved and switching
