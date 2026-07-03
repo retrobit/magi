@@ -28,7 +28,14 @@ debate end-to-end.
 - Framework preset: **SvelteKit** (auto-detected). Leave build/install commands at their
   defaults — Vercel sees `bun.lock` and uses `bun install` + the SvelteKit build.
 
-### 2. Environment variables (Production **and** Preview)
+### 2. Environment variables (Production is what matters)
+
+Set these for **Production**. Skip the Preview environment: Vercel's env-var UI wants
+Preview values scoped to a branch, and this project only deploys `main` — a preview
+deployment would merely render without the demo branding, which is harmless. Also note
+Vercel's "`PUBLIC_` exposes this value to the browser" warning is expected for
+`PUBLIC_DEMO_MODE` — exposing it is the point (it's a feature flag, value `true`); the
+secret key below has no `PUBLIC_` prefix and stays server-only.
 
 | Variable             | Value                                          | Notes                                                                                                                                                                                                                                                                                           |
 | -------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
