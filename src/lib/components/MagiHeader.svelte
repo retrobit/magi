@@ -41,9 +41,6 @@
 		loading: boolean;
 		debugScenario: DebugScenario;
 		statsNonce: number;
-		/** Bumps to glow the PREVIEW chip — the demo tier guard nudges it when a
-		 *  blocked paid tier is clicked. Only meaningful while DEMO_MODE renders it. */
-		previewPulse?: number;
 		/** Fires when the user picks a new debug scenario from the Debug panel —
 		 *  the parent owns the side effect of injecting it into live state. */
 		ondebugchange: (next: DebugScenario) => void;
@@ -63,7 +60,6 @@
 		loading,
 		debugScenario,
 		statsNonce,
-		previewPulse = 0,
 		ondebugchange,
 		onreplaysplash
 	}: Props = $props();
@@ -72,27 +68,6 @@
 	const togglePanel = (panel: HeaderPanel) => (openPanel = openPanel === panel ? null : panel);
 
 	let showResetConfirm = $state(false);
-
-	// The PREVIEW chip glows when `previewPulse` bumps — the demo tier guard uses
-	// it to draw the eye to the chip (whose tooltip explains the free-tier-only
-	// limit) rather than showing a separate inline note. WAAPI so a rapid re-click
-	// restarts it cleanly. A box-shadow bloom is a non-vestibular fade, so — unlike
-	// the pill's shake — it plays even under reduced-motion, since it's now the only
-	// visible cue (screen readers get the aria-live note in the control strip).
-	let previewChipEl = $state<HTMLSpanElement>();
-	let glowAnim: Animation | undefined;
-	$effect(() => {
-		if (previewPulse <= 0 || !previewChipEl) return;
-		glowAnim?.cancel();
-		glowAnim = previewChipEl.animate(
-			[
-				{ boxShadow: '0 0 0 0 rgba(245, 158, 11, 0)' },
-				{ boxShadow: '0 0 12px 3px rgba(245, 158, 11, 0.7)' },
-				{ boxShadow: '0 0 0 0 rgba(245, 158, 11, 0)' }
-			],
-			{ duration: 750, iterations: 2, easing: 'ease-in-out' }
-		);
-	});
 
 	// Wipe every persisted slice — global settings + per-tier model snapshots
 	// (prefs), conversation history, and run stats — then reload so in-memory
@@ -122,7 +97,6 @@
 			</button>
 			{#if DEMO_MODE}
 				<span
-					bind:this={previewChipEl}
 					class="ml-3 inline-block rounded bg-amber-500/15 px-1.5 py-0.5 align-middle text-[0.625rem] font-semibold tracking-widest text-amber-500 ring-1 ring-amber-500/40 ring-inset"
 					use:tooltip={'Preview build — features subject to change. Only the free tier is available.'}
 					>PREVIEW</span

@@ -969,11 +969,10 @@
 	}
 
 	// Public-demo tier guard: paid tiers are blocked server-side (403), so in the
-	// preview we reject the switch client-side — a slow head-shake on the Free pill
-	// plus a glow on the header PREVIEW chip — instead of letting the user hit a raw
-	// error. Free still selects normally. Bumping `tierNudge` drives both animations
-	// (WAAPI in TierSelector + MagiHeader); `tierError` feeds a visually-hidden
-	// aria-live note so the block is still announced to screen readers.
+	// preview we reject the switch client-side — a slow head-shake on the Free
+	// pill plus a transient note — instead of letting the user hit a raw error.
+	// Free still selects normally. Bumping `tierNudge` re-fires the pulse (WAAPI in
+	// TierSelector); the note clears on a timer.
 	let tierError = $state<string | null>(null);
 	let tierNudge = $state(0);
 	let tierErrorTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1478,7 +1477,6 @@
 		{loading}
 		{debugScenario}
 		{statsNonce}
-		previewPulse={tierNudge}
 		ondebugchange={(next) => {
 			debugScenario = next;
 			applyDebugScenario(next);
@@ -1499,9 +1497,11 @@
 					disabled={loading}
 					nudge={tierNudge}
 				/>
-				<!-- The visible cue is the shake + the PREVIEW chip glow; this hidden
-				     live region keeps the block announced to screen readers. -->
-				<span class="sr-only" role="status" aria-live="polite">{tierError ?? ''}</span>
+				{#if tierError}
+					<span class="text-xs font-medium text-amber-500" role="status" aria-live="polite"
+						>{tierError}</span
+					>
+				{/if}
 				<!-- Free-tier models are flaky; the note hangs off a caution icon so it
 				     stays out of the way until hovered/focused. Always rendered (only its
 				     visibility toggles per tier) so its slot is reserved and switching
