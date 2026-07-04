@@ -93,7 +93,7 @@
 				{ transform: 'translateX(4px)', offset: 0.9 },
 				{ transform: 'translateX(0)', offset: 1 }
 			],
-			{ duration: 1000, easing: 'ease' }
+			{ duration: 1500, easing: 'ease' }
 		);
 	});
 </script>
