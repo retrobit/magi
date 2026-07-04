@@ -70,24 +70,30 @@
 		return () => ro.disconnect();
 	});
 
-	// A slow amber highlight-pulse on the active pill each time `nudge` bumps —
-	// a gentle "this is your lane" cue toward Free, not a rejecting head-shake.
-	// WAAPI (not a CSS class) so a rapid re-click restarts it cleanly; amber ties
-	// it to the preview note beside it. Suppressed when motion is reduced.
-	let pulseAnim: Animation | undefined;
+	// Shake just the active pill (the Free highlight) each time `nudge` bumps — a
+	// slower head-shake scoped to the highlight rather than the whole control.
+	// WAAPI transform (independent of the pill's `left` positioning) restarts
+	// cleanly on a rapid re-click; suppressed when motion is reduced.
+	let nudgeAnim: Animation | undefined;
 	$effect(() => {
 		if (nudge <= 0 || !indicatorEl) return;
 		const reduced =
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 			document.documentElement.classList.contains('reduce-motion');
 		if (reduced) return;
-		pulseAnim?.cancel();
-		pulseAnim = indicatorEl.animate(
+		nudgeAnim?.cancel();
+		nudgeAnim = indicatorEl.animate(
 			[
-				{ boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.5)' },
-				{ boxShadow: '0 0 0 7px rgba(245, 158, 11, 0)' }
+				{ transform: 'translateX(0)', offset: 0 },
+				{ transform: 'translateX(-4px)', offset: 0.15 },
+				{ transform: 'translateX(4px)', offset: 0.3 },
+				{ transform: 'translateX(-3px)', offset: 0.45 },
+				{ transform: 'translateX(3px)', offset: 0.6 },
+				{ transform: 'translateX(-4px)', offset: 0.75 },
+				{ transform: 'translateX(4px)', offset: 0.9 },
+				{ transform: 'translateX(0)', offset: 1 }
 			],
-			{ duration: 700, iterations: 2, easing: 'ease-out' }
+			{ duration: 650, easing: 'ease' }
 		);
 	});
 </script>

@@ -969,7 +969,7 @@
 	}
 
 	// Public-demo tier guard: paid tiers are blocked server-side (403), so in the
-	// preview we reject the switch client-side — a slow highlight-pulse on the Free
+	// preview we reject the switch client-side — a slow head-shake on the Free
 	// pill plus a transient note — instead of letting the user hit a raw error.
 	// Free still selects normally. Bumping `tierNudge` re-fires the pulse (WAAPI in
 	// TierSelector); the note clears on a timer.
