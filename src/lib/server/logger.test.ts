@@ -5,7 +5,10 @@ import { logEvent, startTimer } from './logger';
 describe('logEvent', () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
-		delete env.MAGI_LOG_LEVEL;
+		// Cast to an index-signature view so `delete` type-checks whether or not
+		// MAGI_LOG_LEVEL is a known env key (it becomes a required `string` when
+		// present in a local .env, which would otherwise reject the delete).
+		delete (env as Record<string, string | undefined>).MAGI_LOG_LEVEL;
 	});
 
 	it('emits a line carrying the event name and every field', () => {
