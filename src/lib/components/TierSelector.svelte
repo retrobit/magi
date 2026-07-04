@@ -7,9 +7,12 @@
 		value: TierName;
 		onchange: (tier: TierName) => void;
 		disabled?: boolean;
+		/** Increment to pulse a slow highlight on the active pill — the demo tier
+		 *  guard uses it to draw the eye to Free instead of shaking the control. */
+		nudge?: number;
 	}
 
-	let { value, onchange, disabled = false }: Props = $props();
+	let { value, onchange, disabled = false, nudge = 0 }: Props = $props();
 
 	// Derived from TIER_NAMES (single source of truth in types.ts) so a new
 	// tier added there shows up here without manual array maintenance.
@@ -34,6 +37,7 @@
 	// A single pill slides to whichever tier is active — across the free/paid
 	// separator and all — instead of each button toggling its own background.
 	let containerEl = $state<HTMLDivElement>();
+	let indicatorEl = $state<HTMLDivElement>();
 	let buttonEls = $state<Partial<Record<TierName, HTMLButtonElement>>>({});
 	let pill = $state({ left: 0, width: 0 });
 	// Suppressed for the first paint so the pill appears in place rather than
@@ -65,6 +69,27 @@
 		ro.observe(containerEl);
 		return () => ro.disconnect();
 	});
+
+	// A slow amber highlight-pulse on the active pill each time `nudge` bumps —
+	// a gentle "this is your lane" cue toward Free, not a rejecting head-shake.
+	// WAAPI (not a CSS class) so a rapid re-click restarts it cleanly; amber ties
+	// it to the preview note beside it. Suppressed when motion is reduced.
+	let pulseAnim: Animation | undefined;
+	$effect(() => {
+		if (nudge <= 0 || !indicatorEl) return;
+		const reduced =
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+			document.documentElement.classList.contains('reduce-motion');
+		if (reduced) return;
+		pulseAnim?.cancel();
+		pulseAnim = indicatorEl.animate(
+			[
+				{ boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.5)' },
+				{ boxShadow: '0 0 0 7px rgba(245, 158, 11, 0)' }
+			],
+			{ duration: 700, iterations: 2, easing: 'ease-out' }
+		);
+	});
 </script>
 
 <div
@@ -73,6 +98,7 @@
 >
 	<!-- Sliding active indicator -->
 	<div
+		bind:this={indicatorEl}
 		class="tier-indicator pointer-events-none absolute top-1 bottom-1 rounded-md bg-(--magi-btn-bg)"
 		class:animate={ready}
 		style:left="{pill.left}px"

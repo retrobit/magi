@@ -969,22 +969,19 @@
 	}
 
 	// Public-demo tier guard: paid tiers are blocked server-side (403), so in the
-	// preview we reject the switch client-side with a head-shake + transient note
-	// rather than letting the user hit a raw error. Free still selects normally.
-	// The shake resets on a timer (not animationend) so reduced-motion — where the
-	// animation is suppressed and animationend never fires — still clears it.
+	// preview we reject the switch client-side — a slow highlight-pulse on the Free
+	// pill plus a transient note — instead of letting the user hit a raw error.
+	// Free still selects normally. Bumping `tierNudge` re-fires the pulse (WAAPI in
+	// TierSelector); the note clears on a timer.
 	let tierError = $state<string | null>(null);
-	let tierShaking = $state(false);
+	let tierNudge = $state(0);
 	let tierErrorTimer: ReturnType<typeof setTimeout> | undefined;
-	let tierShakeTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function handleTierChange(newTier: TierName) {
 		if (newTier === tier || loading) return;
 		if (DEMO_MODE && newTier !== 'free') {
 			tierError = 'Only the free tier is available in this preview.';
-			tierShaking = true;
-			clearTimeout(tierShakeTimer);
-			tierShakeTimer = setTimeout(() => (tierShaking = false), 500);
+			tierNudge += 1;
 			clearTimeout(tierErrorTimer);
 			tierErrorTimer = setTimeout(() => (tierError = null), 2500);
 			return;
@@ -1494,9 +1491,12 @@
 		>
 			<div class="flex items-center gap-2">
 				<span class="text-xs text-(--magi-chrome-label)">TIER</span>
-				<div class:magi-shake={tierShaking}>
-					<TierSelector value={tier} onchange={handleTierChange} disabled={loading} />
-				</div>
+				<TierSelector
+					value={tier}
+					onchange={handleTierChange}
+					disabled={loading}
+					nudge={tierNudge}
+				/>
 				{#if tierError}
 					<span class="text-xs font-medium text-amber-500" role="status" aria-live="polite"
 						>{tierError}</span
