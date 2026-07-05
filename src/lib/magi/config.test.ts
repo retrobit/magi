@@ -234,21 +234,21 @@ describe('buildDiverseConfig', () => {
 		const config = buildDiverseConfig([
 			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama'),
 			model('poolside/laguna-xs.2:free', 'poolside'),
-			model('openai/gpt-oss-20b:free', 'openai'),
+			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
 			model('google/gemma-4-26b-a4b-it:free', 'google')
 		]);
 		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS);
 	});
 
 	it('backfills a missing preferred default with a diverse pick', () => {
-		// laguna absent → seats gpt-oss + gemma, fills the third from the rest.
+		// laguna absent → seats nemotron + gemma, fills the third from the rest.
 		const config = buildDiverseConfig([
-			model('openai/gpt-oss-20b:free', 'openai'),
+			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
 			model('google/gemma-4-26b-a4b-it:free', 'google'),
 			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama')
 		]);
 		expect(config.map((c) => c.modelId)).toEqual([
-			'openai/gpt-oss-20b:free',
+			'nvidia/nemotron-3-super-120b-a12b:free',
 			'google/gemma-4-26b-a4b-it:free',
 			'meta-llama/llama-3.3-70b-instruct:free'
 		]);

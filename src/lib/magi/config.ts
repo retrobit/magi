@@ -16,7 +16,7 @@ export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignmen
  *  models flake) is backfilled by the usual diverse pick, never a dead node.
  *  Keep these from distinct providers so all three can seat together. */
 export const PREFERRED_FREE_MODEL_IDS = [
-	'openai/gpt-oss-20b:free',
+	'nvidia/nemotron-3-super-120b-a12b:free',
 	'google/gemma-4-26b-a4b-it:free',
 	'poolside/laguna-xs.2:free'
 ];
@@ -44,7 +44,7 @@ export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
 }
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-4-6' },
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-5' },
 	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
 	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
 ];
@@ -55,8 +55,8 @@ export const FREE_MAGI_CONFIG: MagiConfig = [
 	{
 		node: 'MAGI_1',
 		gateway: 'openrouter',
-		provider: 'openai',
-		modelId: 'openai/gpt-oss-20b:free'
+		provider: 'nvidia',
+		modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
 	},
 	{
 		node: 'MAGI_2',

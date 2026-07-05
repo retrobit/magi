@@ -22,11 +22,11 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		contextLength: 1_000_000
 	},
 	{
-		id: 'claude-sonnet-4-6',
+		id: 'claude-sonnet-5',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'balanced',
-		displayName: 'Claude Sonnet 4.6',
+		displayName: 'Claude Sonnet 5',
 		contextLength: 1_000_000
 	},
 	{
@@ -62,10 +62,10 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		displayName: 'GPT-5.4 Mini',
 		contextLength: 400_000
 	},
-	// Google (direct). NB: gemini-2.5-pro is the latest GA Pro — Gemini 3.x Pro is
-	// preview-only as of 2026-06 (gemini-3-pro-preview was shut down 2026-03-09,
-	// gemini-3.1-pro-preview is not yet GA), so the Flash line runs a generation
-	// ahead of the GA Pro. Bump frontier to a 3.x Pro once one reaches GA.
+	// Google (direct). NB: gemini-2.5-pro is still the latest GA Pro — Gemini 3.x Pro
+	// remains preview-only as re-verified 2026-07-05 (gemini-3-pro-preview and
+	// gemini-3.1-pro-preview are both live but non-GA), so the Flash line runs a
+	// generation ahead of the GA Pro. Bump frontier to a 3.x Pro once one reaches GA.
 	{
 		id: 'gemini-2.5-pro',
 		gateway: 'google',

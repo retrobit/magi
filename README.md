@@ -84,12 +84,12 @@ When enabled, two consensus controls appear (both **synthesis-only**, off by def
 
 Pick a tier to trade quality against cost:
 
-| Tier         | Anthropic         | OpenAI       | Google                |
-| ------------ | ----------------- | ------------ | --------------------- |
-| **Frontier** | Claude Opus 4.7   | GPT-5.5      | Gemini 2.5 Pro        |
-| **Balanced** | Claude Sonnet 4.6 | GPT-5.4      | Gemini 3.5 Flash      |
-| **Budget**   | Claude Haiku 4.5  | GPT-5.4 Mini | Gemini 3.1 Flash Lite |
-| **Free**     | \*                | \*           | \*                    |
+| Tier         | Anthropic        | OpenAI       | Google                |
+| ------------ | ---------------- | ------------ | --------------------- |
+| **Frontier** | Claude Opus 4.8  | GPT-5.5      | Gemini 2.5 Pro        |
+| **Balanced** | Claude Sonnet 5  | GPT-5.4      | Gemini 3.5 Flash      |
+| **Budget**   | Claude Haiku 4.5 | GPT-5.4 Mini | Gemini 3.1 Flash Lite |
+| **Free**     | \*               | \*           | \*                    |
 
 > The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai), fetching the currently-live model list dynamically and auto-selecting three from different providers. Set `OPENROUTER_API_KEY` to enable it.
 >
