@@ -4,7 +4,13 @@ import { env as _env } from '$env/dynamic/private';
 import { isRateLimited } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
-import { POST, _extractErrorMessage, _isAvailabilityError, _scrubErrorMessage } from './+server';
+import {
+	POST,
+	_extractErrorMessage,
+	_isAvailabilityError,
+	_isAuthError,
+	_scrubErrorMessage
+} from './+server';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -501,6 +507,84 @@ describe('_isAvailabilityError', () => {
 			false
 		);
 		expect(_isAvailabilityError('Rate limit exceeded: limit of 500 requests per day')).toBe(false);
+	});
+});
+
+describe('_isAuthError', () => {
+	it('detects a 401/403 status code on the raw error object', () => {
+		expect(_isAuthError({ statusCode: 401 })).toBe(true);
+		expect(_isAuthError({ statusCode: 403 })).toBe(true);
+		expect(_isAuthError({ statusCode: 500 })).toBe(false);
+	});
+
+	it('detects auth-shaped text in the response body or message', () => {
+		expect(
+			_isAuthError({ responseBody: '{"error":{"message":"User not found","code":401}}' })
+		).toBe(true);
+		expect(_isAuthError({ message: 'Unauthorized' })).toBe(true);
+		expect(_isAuthError({ message: 'invalid api key' })).toBe(true);
+		expect(_isAuthError({ message: 'No auth credentials found' })).toBe(true);
+	});
+
+	it('unwraps a nested cause — the AI SDK buries the APICallError there', () => {
+		expect(_isAuthError({ message: 'No output generated', cause: { statusCode: 401 } })).toBe(true);
+	});
+
+	it('returns false for non-auth failures and non-objects', () => {
+		expect(_isAuthError({ statusCode: 429, message: 'rate limit' })).toBe(false);
+		expect(_isAuthError(new Error('model not found'))).toBe(false);
+		expect(_isAuthError(null)).toBe(false);
+		// Strings aren't walked — the classifier needs the raw error object.
+		expect(_isAuthError('401 unauthorized')).toBe(false);
+	});
+
+	it('does not infinitely recurse on a cyclic cause chain', () => {
+		const cyclic: { cause?: unknown } = {};
+		cyclic.cause = cyclic;
+		expect(_isAuthError(cyclic)).toBe(false);
+	});
+});
+
+describe('POST /api/magi — all-nodes-failure messaging', () => {
+	it('sends an auth-specific error when every node is rejected with a 401', async () => {
+		const authErr = Object.assign(new Error('User not found'), {
+			statusCode: 401,
+			responseBody: '{"error":{"message":"User not found","code":401}}'
+		});
+		streamTextMock.mockImplementation(() => {
+			throw authErr;
+		});
+		const events = await readEvents(await callPost(validBody));
+		const error = events.find((e) => e.event === 'error');
+		expect(error?.data).toMatchObject({
+			message: expect.stringContaining('API key was rejected')
+		});
+	});
+
+	it('keeps the generic message when the failures are not auth-shaped', async () => {
+		streamTextMock.mockImplementation(() => {
+			throw new Error('503 upstream unavailable');
+		});
+		const events = await readEvents(await callPost(validBody));
+		const error = events.find((e) => e.event === 'error');
+		expect(error?.data).toMatchObject({ message: 'All models failed to respond' });
+	});
+
+	it('classifies auth via onError even when the caught error is generic', async () => {
+		// The real failure path: the stream fails, onError receives the raw 401, but
+		// the awaited result throws only a generic NoOutputGeneratedError (no status).
+		streamTextMock.mockImplementation((opts) => {
+			opts.onError?.({ error: Object.assign(new Error('User not found'), { statusCode: 401 }) });
+			return {
+				textStream: (async function* () {})(),
+				usage: Promise.reject(new Error('No output generated. Check the stream for errors.'))
+			} as never;
+		});
+		const events = await readEvents(await callPost(validBody));
+		const error = events.find((e) => e.event === 'error');
+		expect(error?.data).toMatchObject({
+			message: expect.stringContaining('API key was rejected')
+		});
 	});
 });
 

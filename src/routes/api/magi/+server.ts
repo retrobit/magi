@@ -80,6 +80,38 @@ export function _isAvailabilityError(message: string): boolean {
 	return true;
 }
 
+/** True when an error is an auth/config rejection (a 401/403 — missing, invalid,
+ *  or expired API key) rather than model flakiness. Walks the raw error tree
+ *  (status code + body + nested cause/lastError) because streamText hands the
+ *  caller a generic NoOutputGeneratedError while the real 401 only carries a
+ *  status code on the underlying APICallError. Used so an all-nodes-failed turn
+ *  caused by a dead key reads as a server config problem, not "models failed".
+ *  Takes the raw error object (not a message) so the status code is available. */
+export function _isAuthError(err: unknown, depth = 0, seen = new Set<unknown>()): boolean {
+	if (!err || typeof err !== 'object' || depth > 5 || seen.has(err)) return false;
+	seen.add(err);
+	const e = err as {
+		statusCode?: number;
+		responseBody?: string;
+		message?: string;
+		cause?: unknown;
+		lastError?: unknown;
+	};
+	if (e.statusCode === 401 || e.statusCode === 403) return true;
+	const text = `${e.responseBody ?? ''} ${e.message ?? ''}`.toLowerCase();
+	if (
+		/\b(401|403)\b/.test(text) ||
+		text.includes('unauthorized') ||
+		text.includes('forbidden') ||
+		text.includes('user not found') ||
+		text.includes('invalid api key') ||
+		text.includes('no auth credentials') ||
+		text.includes('authentication')
+	)
+		return true;
+	return _isAuthError(e.cause, depth + 1, seen) || _isAuthError(e.lastError, depth + 1, seen);
+}
+
 // Exported for unit testing — the nested unwrap is brittle enough to warrant
 // direct coverage of each error shape. SvelteKit reserves bare exports from
 // route files for handler names, so this is prefixed with `_` per its convention.
@@ -472,6 +504,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				});
 				const results = await Promise.allSettled(
 					healthyNodes.map(async ({ node, gateway, provider, modelId }) => {
+						// streamText only exposes the real provider error (status code + body) via
+						// its onError hook, which the catch reads — so declare it in the callback
+						// scope, not inside the try, or the catch can't see it.
+						let rawStreamError: unknown;
 						try {
 							const model = getModel(gateway, modelId);
 							const temperamentPrompt = useTemperaments
@@ -519,7 +555,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								model,
 								...(useSystem && { system: temperamentPrompt }),
 								messages,
-								abortSignal: abortController.signal
+								abortSignal: abortController.signal,
+								onError: ({ error }) => {
+									rawStreamError = error;
+								}
 							});
 							// Accumulate via array+join rather than `+=` — long responses
 							// otherwise pay O(n²) for repeated string reallocations.
@@ -572,7 +611,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							if (abortController.signal.aborted) {
 								throw err;
 							}
-							const message = _extractErrorMessage(err);
+							// Prefer the raw provider error captured by onError over the generic
+							// NoOutputGeneratedError the stream surfaces, so the log shows the true
+							// reason (e.g. a 401) and the rethrow lets the aggregate classify it.
+							const rootErr = rawStreamError ?? err;
+							const message = _extractErrorMessage(rootErr);
 							logEvent('error', 'node.failed', {
 								requestId,
 								node,
@@ -587,7 +630,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								markUnhealthy(modelId, message);
 							}
 							send('model-error', { node, gateway, provider, error: _scrubErrorMessage(message) });
-							throw err;
+							throw rootErr;
 						}
 					})
 				);
@@ -617,11 +660,24 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				});
 
 				if (responses.length === 0) {
+					// If every dispatched node was rejected for auth (a dead or expired key),
+					// say so plainly rather than let a config problem read as model flakiness.
+					// `results` holds this dispatch's settled outcomes; when `responses` is
+					// empty they are all rejections.
+					const allAuth =
+						results.length > 0 &&
+						results.every((r) => r.status === 'rejected' && _isAuthError(r.reason));
 					logEvent('error', 'request.aborted', {
 						requestId,
-						reason: 'all dispatched models failed'
+						reason: allAuth
+							? 'all dispatched models rejected auth (bad/expired key)'
+							: 'all dispatched models failed'
 					});
-					send('error', { message: 'All models failed to respond' });
+					send('error', {
+						message: allAuth
+							? "The server's API key was rejected — it's missing, invalid, or expired. This is a configuration issue, not a problem with your request."
+							: 'All models failed to respond'
+					});
 					close();
 					return;
 				}
