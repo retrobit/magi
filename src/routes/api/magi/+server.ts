@@ -191,6 +191,46 @@ function buildNodeMessages(
 // 60s — so request the maximum Hobby + Fluid-Compute streaming budget (300s).
 // Fluid Compute must be enabled in the Vercel dashboard for >60s to take effect.
 // See DEPLOY.md.
+// Per-call idle/stall timeouts. A hung free model can stream nothing and never
+// error, which would keep Promise.allSettled — and the whole turn — pending until
+// the maxDuration cap below. These bound a call that produces no output, turning a
+// hang into a clean failure the turn can route around. Nodes stream continuously so
+// 40s of silence means hung; consensus emits events sparsely between (non-streamed)
+// debate rounds, so it gets a longer window before we call it stalled.
+const NODE_STALL_TIMEOUT_MS = 40_000;
+const CONSENSUS_STALL_TIMEOUT_MS = 90_000;
+
+/** A child abort signal that fires when `parent` aborts OR when `reset()` hasn't
+ *  been called within `idleMs`. Call `reset()` on each streamed item and `cleanup()`
+ *  when the stream ends; `timedOut()` reports whether the idle timer (not the client)
+ *  tripped, so a stall can be labelled distinctly from a client teardown. The timer
+ *  self-clears whenever the signal aborts, so an idle fire needs no explicit cleanup.
+ *  Exported for unit tests; `_`-prefixed per the route's bare-export convention. */
+export function _createStallGuard(parent: AbortSignal, idleMs: number) {
+	const controller = new AbortController();
+	let timedOut = false;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const onParentAbort = () => controller.abort(parent.reason);
+	if (parent.aborted) controller.abort(parent.reason);
+	else parent.addEventListener('abort', onParentAbort, { once: true });
+	// Whatever aborts the call (idle fire or client), stop the pending timer.
+	controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+	const reset = () => {
+		if (controller.signal.aborted) return;
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			timedOut = true;
+			controller.abort(new Error(`Stalled — no output for ${Math.round(idleMs / 1000)}s`));
+		}, idleMs);
+	};
+	const cleanup = () => {
+		clearTimeout(timer);
+		parent.removeEventListener('abort', onParentAbort);
+	};
+	reset();
+	return { signal: controller.signal, reset, cleanup, timedOut: () => timedOut };
+}
+
 export const config = { maxDuration: 300 };
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
@@ -508,6 +548,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						// its onError hook, which the catch reads — so declare it in the callback
 						// scope, not inside the try, or the catch can't see it.
 						let rawStreamError: unknown;
+						// Abort THIS node if it emits no token for NODE_STALL_TIMEOUT_MS — a hung
+						// free model would otherwise keep the whole turn pending. A timed-out node
+						// fails cleanly and the turn proceeds with the survivors.
+						const stall = _createStallGuard(abortController.signal, NODE_STALL_TIMEOUT_MS);
 						try {
 							const model = getModel(gateway, modelId);
 							const temperamentPrompt = useTemperaments
@@ -555,7 +599,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								model,
 								...(useSystem && { system: temperamentPrompt }),
 								messages,
-								abortSignal: abortController.signal,
+								abortSignal: stall.signal,
 								onError: ({ error }) => {
 									rawStreamError = error;
 								}
@@ -564,6 +608,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// otherwise pay O(n²) for repeated string reallocations.
 							const chunks: string[] = [];
 							for await (const chunk of result.textStream) {
+								stall.reset();
 								ttftMs ??= nodeTimer();
 								chunks.push(chunk);
 								send('model-chunk', { node, text: chunk });
@@ -615,7 +660,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// NoOutputGeneratedError the stream surfaces, so the log shows the true
 							// reason (e.g. a 401) and the rethrow lets the aggregate classify it.
 							const rootErr = rawStreamError ?? err;
-							const message = _extractErrorMessage(rootErr);
+							const message = stall.timedOut()
+								? `The model stalled — no output for ${NODE_STALL_TIMEOUT_MS / 1000}s.`
+								: _extractErrorMessage(rootErr);
 							logEvent('error', 'node.failed', {
 								requestId,
 								node,
@@ -631,6 +678,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							}
 							send('model-error', { node, gateway, provider, error: _scrubErrorMessage(message) });
 							throw rootErr;
+						} finally {
+							stall.cleanup();
 						}
 					})
 				);
@@ -736,6 +785,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				}
 
 				const consensusSeat = config[effectiveConsensusIndex];
+				// Same stall guard for the consensus stream — a longer idle window, since
+				// debate emits events sparsely between its (non-streamed) rounds.
+				const consensusStall = _createStallGuard(
+					abortController.signal,
+					CONSENSUS_STALL_TIMEOUT_MS
+				);
 				const ctx: ConsensusContext = {
 					responses,
 					query,
@@ -750,7 +805,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					opinionated: useOpinionated ?? false,
 					collaborative: useCollaborative ?? false,
 					genericLabels: useGenericLabels ?? true,
-					signal: abortController.signal,
+					signal: consensusStall.signal,
 					tier,
 					// Fresh per-request seed so voting/debate rotate which peer sits in
 					// slot A/B each turn — keeps the consensus blind to node order and
@@ -769,6 +824,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const consensusTimer = startTimer();
 				let consensusTtftMs: number | null = null;
 				for await (const event of consensusStrategy.execute(ctx)) {
+					consensusStall.reset();
 					switch (event.type) {
 						case 'text-delta':
 							consensusTtftMs ??= consensusTimer();
@@ -846,6 +902,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							break;
 					}
 				}
+				consensusStall.cleanup();
 				logEvent('info', 'request.complete', { requestId, elapsedMs: requestTimer() });
 			} catch (err) {
 				logEvent('error', 'request.failed', {

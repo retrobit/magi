@@ -6,6 +6,7 @@ import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
 import {
 	POST,
+	_createStallGuard,
 	_extractErrorMessage,
 	_isAvailabilityError,
 	_isAuthError,
@@ -542,6 +543,57 @@ describe('_isAuthError', () => {
 		const cyclic: { cause?: unknown } = {};
 		cyclic.cause = cyclic;
 		expect(_isAuthError(cyclic)).toBe(false);
+	});
+});
+
+describe('_createStallGuard', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => vi.useRealTimers());
+
+	it('aborts after the idle window when reset is not called', () => {
+		const parent = new AbortController();
+		const guard = _createStallGuard(parent.signal, 1000);
+		expect(guard.signal.aborted).toBe(false);
+		vi.advanceTimersByTime(1000);
+		expect(guard.signal.aborted).toBe(true);
+		expect(guard.timedOut()).toBe(true);
+	});
+
+	it('stays open while reset keeps being called before the window elapses', () => {
+		const parent = new AbortController();
+		const guard = _createStallGuard(parent.signal, 1000);
+		vi.advanceTimersByTime(700);
+		guard.reset();
+		vi.advanceTimersByTime(700);
+		guard.reset();
+		vi.advanceTimersByTime(700);
+		expect(guard.signal.aborted).toBe(false);
+		guard.cleanup();
+	});
+
+	it('propagates a later client abort and does NOT flag it as a stall', () => {
+		const parent = new AbortController();
+		const guard = _createStallGuard(parent.signal, 10_000);
+		parent.abort();
+		expect(guard.signal.aborted).toBe(true);
+		expect(guard.timedOut()).toBe(false);
+		guard.cleanup();
+	});
+
+	it('is already aborted when the parent aborted first', () => {
+		const parent = new AbortController();
+		parent.abort();
+		const guard = _createStallGuard(parent.signal, 1000);
+		expect(guard.signal.aborted).toBe(true);
+		expect(guard.timedOut()).toBe(false);
+	});
+
+	it('cleanup() stops the timer from firing', () => {
+		const parent = new AbortController();
+		const guard = _createStallGuard(parent.signal, 1000);
+		guard.cleanup();
+		vi.advanceTimersByTime(2000);
+		expect(guard.signal.aborted).toBe(false);
 	});
 });
 
