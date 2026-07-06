@@ -73,18 +73,23 @@ yet**; finish Part B first.
 
 These are landing in follow-up commits; this section will be finalized as each ships.
 
-### Rate limiter → Upstash Redis
+### Rate limiter → Upstash Redis ✅ shipped
 
-The in-memory limiter ([src/lib/server/rate-limit.ts](src/lib/server/rate-limit.ts)) is
-per-instance and resets on cold start — useless across Vercel's fleet. It will be backed
-by Upstash Redis (durable sliding window), auto-detected via env:
+The limiter ([src/lib/server/rate-limit.ts](src/lib/server/rate-limit.ts)) uses
+`@upstash/ratelimit` (durable sliding window, **10 req / 60 s per IP**) backed by Upstash
+Redis across the serverless fleet, with automatic fallback to a per-instance in-memory
+limiter when Redis is absent **or momentarily unreachable** — so local dev and any
+unconfigured deploy still work, and a store outage degrades to best-effort rather than
+blocking every caller.
 
-1. Vercel → **Storage → Create → Upstash Redis** (or create at upstash.com and copy the
-   REST credentials). The Vercel integration sets these automatically:
-   - `UPSTASH_REDIS_REST_URL`
-   - `UPSTASH_REDIS_REST_TOKEN`
-2. When both are present, rate limiting uses the durable store; when absent (local dev), it
-   falls back to the in-memory limiter. No code change needed to switch.
+1. Vercel → **Storage → Create → Upstash Redis** (or upstash.com + connect the
+   integration). Vercel's Upstash integration injects **Vercel-KV-style** names
+   automatically — note these are NOT the `UPSTASH_REDIS_REST_*` names in the standalone
+   SDK docs:
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN` (the `KV_REST_API_READ_ONLY_TOKEN` it also adds is unused)
+2. When both are present the durable store is used; when absent, the in-memory fallback
+   kicks in. No code change to switch — it's auto-detected at runtime.
 
 ### Content-Security-Policy
 

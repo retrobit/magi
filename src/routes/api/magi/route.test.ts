@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
-import { isRateLimited } from '$lib/server/rate-limit';
+import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
 import {
@@ -31,8 +31,7 @@ vi.mock('$app/environment', () => ({
 	}
 }));
 vi.mock('$lib/server/rate-limit', () => ({
-	isRateLimited: vi.fn(() => false),
-	retryAfterSeconds: vi.fn(() => 30)
+	checkRateLimit: vi.fn(async () => ({ limited: false, retryAfterSeconds: 0 }))
 }));
 vi.mock('$lib/server/health', () => ({
 	markUnhealthy: vi.fn(),
@@ -116,7 +115,7 @@ beforeEach(() => {
 		text: 'CHANGED: no\nAGREE: yes\nNOTE: aligned\nANSWER:\nstable',
 		usage: { inputTokens: 1, outputTokens: 1, cachedInputTokens: 0 }
 	} as never);
-	vi.mocked(isRateLimited).mockReturnValue(false);
+	vi.mocked(checkRateLimit).mockResolvedValue({ limited: false, retryAfterSeconds: 0 });
 	vi.mocked(isModelHealthy).mockReturnValue(true);
 });
 
@@ -144,7 +143,7 @@ describe('POST /api/magi — request guards', () => {
 	});
 
 	it('returns 429 when the client is rate limited', async () => {
-		vi.mocked(isRateLimited).mockReturnValue(true);
+		vi.mocked(checkRateLimit).mockResolvedValue({ limited: true, retryAfterSeconds: 30 });
 		const res = await callPost(validBody);
 		expect(res.status).toBe(429);
 	});
@@ -765,15 +764,15 @@ describe('POST /api/magi — awareness→consensus remap', () => {
 
 describe('POST /api/magi — rate limit Retry-After', () => {
 	it('returns 429 with a Retry-After header when the client is rate limited', async () => {
-		vi.mocked(isRateLimited).mockReturnValue(true);
+		vi.mocked(checkRateLimit).mockResolvedValue({ limited: true, retryAfterSeconds: 30 });
 		const res = await callPost(validBody);
 		expect(res.status).toBe(429);
-		// The mock returns 30 seconds for retryAfterSeconds.
+		// The mock resolves retryAfterSeconds: 30 when limited.
 		expect(res.headers.get('Retry-After')).toBe('30');
 	});
 
 	it('includes X-Request-Id on the 429 response', async () => {
-		vi.mocked(isRateLimited).mockReturnValue(true);
+		vi.mocked(checkRateLimit).mockResolvedValue({ limited: true, retryAfterSeconds: 30 });
 		const res = await callPost(validBody);
 		expect(res.headers.get('X-Request-Id')).toBeTruthy();
 	});

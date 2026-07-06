@@ -22,7 +22,7 @@ import {
 import { resolveNodeTemperament } from '$lib/magi/temperaments';
 import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
 import { findModelEntry } from '$lib/magi/registry';
-import { isRateLimited, retryAfterSeconds } from '$lib/server/rate-limit';
+import { checkRateLimit } from '$lib/server/rate-limit';
 import {
 	markUnhealthy,
 	isModelHealthy,
@@ -253,10 +253,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		return authFail;
 	}
 
-	// Rate limiting (sliding window per IP)
-	if (isRateLimited(ip)) {
+	// Rate limiting (sliding window per IP) — durable via Upstash when configured,
+	// per-instance in-memory otherwise.
+	const rateLimit = await checkRateLimit(ip);
+	if (rateLimit.limited) {
 		logEvent('warn', 'request.rate_limited', { requestId, ip });
-		const retryAfter = retryAfterSeconds(ip);
 		return json(
 			{ error: 'Too many requests' },
 			{
@@ -265,7 +266,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					'X-Request-Id': requestId,
 					// Standard header so clients can surface a concrete wait time
 					// rather than showing a generic "slow down" message.
-					'Retry-After': String(retryAfter)
+					'Retry-After': String(rateLimit.retryAfterSeconds)
 				}
 			}
 		);
