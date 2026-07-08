@@ -19,7 +19,13 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const response = await resolve(event);
+	const response = await resolve(event, {
+		// Keep JS modulepreloads but drop CSS from the Link preload header: the
+		// ~1 KB SPA shell already carries its <link rel="stylesheet"> tags, so the
+		// preload buys nothing, and Firefox logs a spurious "preload was not used"
+		// warning for every header-preloaded stylesheet.
+		preload: ({ type }) => type === 'js'
+	});
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(name, value);
 	}
