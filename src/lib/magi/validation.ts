@@ -3,6 +3,13 @@ import { TIER_NAMES, MAGI_NODE_NAMES, GATEWAY_NAMES } from './types';
 import { STRATEGY_NAMES, MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS } from './consensus/types';
 import { MAX_TEMPERAMENT_LABEL, MAX_TEMPERAMENT_PROMPT } from './temperaments';
 
+// CSP: zod 4 probes `new Function('')` once to decide whether it may JIT-compile
+// parsers, and the blocked probe logs an eval violation in every visitor's
+// console under our strict script-src. jitless skips the probe entirely — same
+// behavior (the CSP already forced the jitless path), just without the noise.
+// persistence.ts imports this module, so one call here covers every zod user.
+z.config({ jitless: true });
+
 // A single per-node temperament override. Both fields are capped so a crafted
 // payload can't bloat the injected prompt; either may be blank (the server fills
 // in the built-in for an empty field).
