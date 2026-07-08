@@ -41,7 +41,15 @@
 		error = null;
 		try {
 			const res = await fetch(`/api/magi/budget${force ? '?force=1' : ''}`);
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			if (!res.ok) {
+				// 404 is the deliberate "endpoint disabled" response on a deploy with no
+				// MAGI_API_KEY (the public demo) — surface that, not a bare "HTTP 404".
+				throw new Error(
+					res.status === 404
+						? 'Budget tracking is disabled on this deployment.'
+						: `HTTP ${res.status}`
+				);
+			}
 			const body = (await res.json()) as { providers: ProviderBudget[] };
 			providers = body.providers;
 			loaded = true;
@@ -55,7 +63,10 @@
 	// Lazy: fire the first fetch the moment the settings panel opens. Don't
 	// auto-refresh on close/reopen — the user can hit ⟳ if they want fresher.
 	$effect(() => {
-		if (active && !loaded && !loading) {
+		// Gate on !error too: a failed fetch (e.g. the demo's intentional 404) leaves
+		// loaded=false, and the loading→false toggle would otherwise re-trigger this
+		// effect into an infinite retry loop hammering the endpoint.
+		if (active && !loaded && !loading && !error) {
 			void fetchBudgets();
 		}
 	});
@@ -81,7 +92,7 @@
 		type="button"
 		class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text) disabled:opacity-50"
 		onclick={() => fetchBudgets(true)}
-		disabled={loading || !loaded}
+		disabled={loading || (!loaded && !error)}
 		aria-label="Refresh budgets"
 		use:tooltip={'Refresh'}
 	>
