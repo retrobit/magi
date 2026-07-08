@@ -198,7 +198,7 @@
 	{/if}
 
 	{#if demo}
-		<p class="preview-badge">Preview</p>
+		<p class="demo-badge">Demo</p>
 	{/if}
 	<p class="hint">{coarse ? 'touch to skip' : 'click to skip'}</p>
 </div>
@@ -251,8 +251,8 @@
 		opacity: 0.8;
 	}
 
-	/* Amber preview badge — only on the public demo (gated by the `demo` prop). */
-	.preview-badge {
+	/* Amber demo badge — only on the public demo (gated by the `demo` prop). */
+	.demo-badge {
 		position: absolute;
 		bottom: 3.4rem;
 		margin: 0;

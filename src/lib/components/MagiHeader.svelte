@@ -98,8 +98,8 @@
 			{#if DEMO_MODE}
 				<span
 					class="ml-3 inline-block rounded bg-amber-500/15 px-1.5 py-0.5 align-middle text-[0.625rem] font-semibold tracking-widest text-amber-500 ring-1 ring-amber-500/40 ring-inset"
-					use:tooltip={'Preview build — features subject to change. Only the free tier is available.'}
-					>PREVIEW</span
+					use:tooltip={'Public demo — features subject to change. Only the free tier is available.'}
+					>DEMO</span
 				>
 			{/if}
 		</h1>
