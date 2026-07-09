@@ -394,11 +394,19 @@
 		void fullText;
 		if (scrollMode !== 'follow' || !pinned || !scrollEl) return;
 		const el = scrollEl;
-		requestAnimationFrame(() =>
-			requestAnimationFrame(() => {
+		// Capture the frame chain and cancel it on re-run/destroy (the effect fires
+		// per streamed chunk), mirroring the sibling snap effect — otherwise every
+		// chunk leaves an uncancelled double-rAF pending.
+		let inner = 0;
+		const outer = requestAnimationFrame(() => {
+			inner = requestAnimationFrame(() => {
 				if (scrollMode === 'follow' && pinned) el.scrollTop = el.scrollHeight;
-			})
-		);
+			});
+		});
+		return () => {
+			cancelAnimationFrame(outer);
+			cancelAnimationFrame(inner);
+		};
 	});
 
 	// Re-pin to the bottom when a turn COMMITS in follow mode. On commit the live

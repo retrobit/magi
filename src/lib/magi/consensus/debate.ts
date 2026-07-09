@@ -156,6 +156,10 @@ const SUMMARY_LINE_RE = /^[ \t]*[-*•>]?[ \t]*\**[ \t]*SUMMARY[ \t]*\**[ \t]*[:
 const SUMMARY_PREFIX_RE = /^[ \t]*[-*•>]?[ \t]*\**[ \t]*SUMMARY[ \t]*\**[ \t]*$/i;
 const isSummaryLine = (line: string) => SUMMARY_LINE_RE.test(line) || SUMMARY_PREFIX_RE.test(line);
 export function stripSummaryTail(text: string): string {
+	// Fast path: this runs on every streamed chunk (up to 4 panels, per debate
+	// round) upstream of Markdown's throttle. Both SUMMARY regexes require the
+	// literal token, so no token means nothing to strip — skip the split + walk.
+	if (!/SUMMARY/i.test(text)) return text;
 	const lines = text.split('\n');
 	let i = lines.length - 1;
 	let strippedAny = false;

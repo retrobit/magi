@@ -189,20 +189,26 @@
 		const before = zones.map((z) => z.getBoundingClientRect().height);
 		layoutFocus = focus;
 		void tick().then(() => {
-			zones.forEach((z, i) => {
-				const after = z.getBoundingClientRect().height;
-				if (Math.abs(after - before[i]) < 1) return;
+			// Pass 1: cancel any in-flight tween from a previous rapid change AND clear
+			// its leftover inline flex/height, so the after-heights measured next are
+			// the NEW layout's natural sizes — not a stale tween's target (which showed
+			// as a dead click followed by a snap).
+			for (const z of zones) {
 				z.getAnimations().forEach((a) => a.cancel());
-				// A `flex-1` zone ignores an animated `height` (flex-grow wins), so the
-				// tween only moved the zone that collapsed to a header — transitions
-				// INTO the balanced layout (both zones flex-1) didn't slide at all.
-				// Pin flex off + an explicit height for the tween so the keyframes
-				// drive the size, then hand back to flex on finish (which lands on the
-				// same height the fill is holding, so there's no end jump).
-				const prevFlex = z.style.flex;
+				z.style.flex = '';
+				z.style.height = '';
+			}
+			// Pass 2: measure the settled after-heights.
+			const after = zones.map((z) => z.getBoundingClientRect().height);
+			// Pass 3: tween each zone that actually changed. A `flex-1` zone ignores an
+			// animated `height` (flex-grow wins), so pin flex off + an explicit height
+			// for the tween, then hand back to flex on finish (lands on the same height
+			// the fill holds, so no end jump).
+			zones.forEach((z, i) => {
+				if (Math.abs(after[i] - before[i]) < 1) return;
 				z.style.flex = 'none';
 				z.style.height = `${before[i]}px`;
-				const anim = z.animate([{ height: `${before[i]}px` }, { height: `${after}px` }], {
+				const anim = z.animate([{ height: `${before[i]}px` }, { height: `${after[i]}px` }], {
 					duration: 280,
 					easing: 'ease',
 					fill: 'forwards'
@@ -212,7 +218,7 @@
 					if (cleaned) return;
 					cleaned = true;
 					anim.cancel();
-					z.style.flex = prevFlex;
+					z.style.flex = '';
 					z.style.height = '';
 				};
 				anim.onfinish = restore;
