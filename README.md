@@ -266,7 +266,7 @@ Streams results via Server-Sent Events.
 
 > Payload shapes above are abbreviated — see [`openapi.yaml`](openapi.yaml) for the full event taxonomy and field-level schemas.
 
-**Rate limiting:** 10 req/min per IP (in-memory; configure a trusted proxy / `ADDRESS_HEADER` so the server sees real client IPs). **Errors:** `400` bad request · `401` bad/missing key · `415` wrong Content-Type · `429` rate limited. Frame the SSE stream by splitting on `\n\n` and reading the `event:` / `data:` lines.
+**Rate limiting:** 10 req/min per IP — 30 for requests carrying a BYOK key (see below) — backed by Upstash Redis across the serverless fleet when configured, with an in-memory fallback. **BYOK:** on a deployment with `PUBLIC_BYOK_ENABLED=true`, an optional `x-magi-byok` header carries caller-supplied provider keys (a JSON object); see `openapi.yaml`. **Errors:** `400` bad request · `401` bad/missing key · `403` tier gate (paid/uncovered gateway on a keyless production deployment) · `415` wrong Content-Type · `429` rate limited. Frame the SSE stream by splitting on `\n\n` and reading the `event:` / `data:` lines.
 
 </details>
 
@@ -278,9 +278,9 @@ Streams results via Server-Sent Events.
 
 ## ☁️ Deployment
 
-Built with [`adapter-auto`](https://svelte.dev/docs/kit/adapter-auto) — works out of the box on [Vercel](https://vercel.com), [Netlify](https://netlify.com), and [Cloudflare Pages](https://pages.cloudflare.com); swap the adapter in `svelte.config.js` for anything else. Run `bun run build`, set your environment variables, and ship.
+Ships with [`adapter-vercel`](https://svelte.dev/docs/kit/adapter-vercel) pinned to `nodejs22.x` — the long SSE debate streams need Vercel Fluid Compute (see [DEPLOY.md](DEPLOY.md)). Swap the adapter in `svelte.config.js` for another host. Run `bun run build`, set your environment variables, and ship.
 
-> The in-memory rate limiter resets on deploy/restart — for production at scale, back it with Redis. Request logs are structured (`key=value` in dev, JSON per line in prod) for per-model latency and token metrics.
+> The rate limiter uses Upstash Redis across the serverless fleet when `KV_REST_API_URL`/`KV_REST_API_TOKEN` are set, falling back to a per-instance in-memory limiter otherwise. Request logs are structured (`key=value` in dev, JSON per line in prod) for per-model latency and token metrics.
 
 ## 🗺️ Roadmap & license
 

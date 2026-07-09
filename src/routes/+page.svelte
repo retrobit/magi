@@ -988,9 +988,9 @@
 		liveConsensusUsage = undefined;
 	}
 
-	// Public-demo tier guard: paid tiers are blocked server-side (403), so in the
-	// preview we reject the switch client-side — a slow head-shake on the Free
-	// pill plus a transient note — instead of letting the user hit a raw error.
+	// Public-demo tier guard: paid tiers are blocked server-side (403), so on the
+	// demo we reject the switch client-side — a slow head-shake on the Free pill
+	// plus a transient note — instead of letting the user hit a raw error.
 	// Free still selects normally. Bumping `tierNudge` re-fires the pulse (WAAPI in
 	// TierSelector); the note clears on a timer.
 	let tierError = $state<string | null>(null);
@@ -1000,7 +1000,7 @@
 	function handleTierChange(newTier: TierName) {
 		if (newTier === tier || loading) return;
 		if (DEMO_MODE && newTier !== 'free') {
-			tierError = 'Only the free tier is available in this preview.';
+			tierError = 'Only the free tier is available on the public demo.';
 			tierNudge += 1;
 			clearTimeout(tierErrorTimer);
 			tierErrorTimer = setTimeout(() => (tierError = null), 2500);

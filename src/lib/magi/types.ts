@@ -180,9 +180,6 @@ export const REVEAL_EXPERIMENTAL_UI = false;
 export const VISIBLE_PALETTES: readonly Palette[] = REVEAL_EXPERIMENTAL_UI
 	? PALETTES
 	: ['nebula', 'rgb'];
-export const VISIBLE_BG_VARIANTS: readonly BgVariant[] = REVEAL_EXPERIMENTAL_UI
-	? BG_VARIANTS
-	: ['off', 'hex'];
 
 /** Dev-only escape hatch for the MAGI node proper-names (MELCHIOR / BALTHASAR /
  *  CASPAR). When false (shipped default) the app shows only the neutral generic

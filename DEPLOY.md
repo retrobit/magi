@@ -37,12 +37,12 @@ Vercel's "`PUBLIC_` exposes this value to the browser" warning is expected for
 `PUBLIC_DEMO_MODE` — exposing it is the point (it's a feature flag, value `true`); the
 secret key below has no `PUBLIC_` prefix and stays server-only.
 
-| Variable              | Value                                          | Notes                                                                                                                                                                                                                                                                                                                                                                |
-| --------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPENROUTER_API_KEY`  | a **new, dedicated, revocable** OpenRouter key | Create at openrouter.ai → Keys, and **set a credit limit on it** in case the demo is abused. This is the only key the public demo needs.                                                                                                                                                                                                                             |
-| `MAGI_API_KEY`        | **❌ do NOT set**                              | Inference (`POST /api/magi`) runs `checkApiKey`; setting this would lock out **visitors**, not just the budget endpoint. Leaving it unset is what enables the public-demo tier gate.                                                                                                                                                                                 |
-| `PUBLIC_DEMO_MODE`    | `true`                                         | Turns on the demo branding — the header **DEMO** chip, the splash badge, and the friendly free-tier-only guard (shake + transient note) on the tier selector. Public runtime flag read via `$env/dynamic/public`; unset → no demo chrome (use that for a private full-feature deploy).                                                                               |
-| `PUBLIC_BYOK_ENABLED` | **❌ leave unset on the demo**                 | BYOK — accept visitor-supplied provider keys. `true` adds an "API keys" section to the settings panel and makes the server honor the `x-magi-byok` header: covered gateways run on the visitor's billing, keyed callers get a 30 req/min bucket, and tiers their keys cover unlock even without operator keys. Set it on the full-production instance, not the demo. |
+| Variable              | Value                                          | Notes                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`  | a **new, dedicated, revocable** OpenRouter key | Create at openrouter.ai → Keys, and **set a credit limit on it** in case the demo is abused. This is the only key the public demo needs.                                                                                                                                                                                                                              |
+| `MAGI_API_KEY`        | **❌ do NOT set**                              | Inference (`POST /api/magi`) runs `checkApiKey`; setting this would lock out **visitors**, not just the budget endpoint. Leaving it unset is what enables the public-demo tier gate.                                                                                                                                                                                  |
+| `PUBLIC_DEMO_MODE`    | `true`                                         | Turns on the demo branding — the header **DEMO** chip, the splash badge, and the friendly free-tier-only guard (shake + transient note) on the tier selector. Public runtime flag read via `$env/dynamic/public`; unset → no demo chrome (use that for a private full-feature deploy).                                                                                |
+| `PUBLIC_BYOK_ENABLED` | **❌ leave unset on the demo**                 | BYOK — accept visitor-supplied provider keys. `true` adds an API-keys popover to the header (key icon) and makes the server honor the `x-magi-byok` header: covered gateways run on the visitor's billing, keyed callers get a 30 req/min bucket, and tiers their keys cover unlock even without operator keys. Set it on the full-production instance, not the demo. |
 
 ### 3. Enable Fluid Compute (required for long streams)
 
@@ -95,7 +95,8 @@ blocking every caller.
 ### BYOK — bring-your-own-key ✅ shipped (opt-in)
 
 With `PUBLIC_BYOK_ENABLED=true`, visitors can paste their own provider API keys
-(OpenRouter / Anthropic / OpenAI / Google) into the settings panel. Keys live in the
+(OpenRouter / Anthropic / OpenAI / Google) into the API-keys popover in the header (key
+icon, left of the settings gear). Keys live in the
 visitor's browser (`localStorage`, separate from all other app state), ride along on
 each request in the `x-magi-byok` header, and are used in-flight only — never logged,
 never stored server-side. A request may use any tier whose gateways its keys cover, on
@@ -105,12 +106,16 @@ The flag is enforced on **both** sides: when unset, the settings section doesn't
 and the server ignores the header outright — so the public demo (which leaves it unset)
 is unaffected even by hand-crafted requests.
 
-### Content-Security-Policy
+### Content-Security-Policy ✅ shipped
 
-A full CSP (`script-src` / `style-src`) will be added via SvelteKit's `kit.csp`. Because a
-wrong policy can render the SPA **blank with no build error**, it must be **smoke-tested in
-a real browser on the preview** (a headless build can't catch it). The breakage-safe
-headers (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) already
+A strict CSP ships via SvelteKit's `kit.csp` in [svelte.config.js](svelte.config.js), in
+**hash mode** (SvelteKit hashes its own inline bootstrap script so a bare `script-src 'self'`
+doesn't blank the SPA). `script-src`/`connect-src` are `'self'` only — no `unsafe-eval`, no
+remote hosts; `style-src` keeps `'unsafe-inline'` for Svelte `style:`/Tailwind runtime
+styles; all other resources are same-origin (`img-src` also allows `data:`). It was
+browser-smoke-tested on a Vercel preview (a headless build can't catch a render-breaking
+policy), and `src/lib/csp.invariants.test.ts` pins every directive against loosening. The
+breakage-safe headers (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`)
 ship in [src/hooks.server.ts](src/hooks.server.ts).
 
 ### Client-IP verification

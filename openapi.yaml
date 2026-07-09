@@ -57,10 +57,11 @@ paths:
 
         The event order is: one `config`; then, interleaved, `model-chunk`/`model-response`/
         `model-error`/`model-usage` per node; then (unless `strategy: none`) optionally
-        `partial-consensus`, then `consensus-chunk` deltas, `consensus-complete`, and
-        `consensus-usage`. Voting and debate runs additionally emit one `run-stats`
-        event; debate runs interleave `node-round` events during the multi-round phase.
-        A fatal failure emits a single `error` event and closes the stream.
+        `partial-consensus`, one `consensus-seat` (the node that actually synthesizes),
+        then `consensus-chunk` deltas, `consensus-complete`, and `consensus-usage`.
+        Voting and debate runs additionally emit one `run-stats` event; debate runs
+        interleave `node-round` events during the multi-round phase. A fatal failure
+        emits a single `error` event and closes the stream.
       operationId: runMagi
       security:
         - bearerAuth: []
@@ -226,6 +227,14 @@ paths:
                       $ref: '#/components/schemas/ProviderBudget'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: |
+            Fails closed on a production deployment without `MAGI_API_KEY` — the
+            operator's billing telemetry stays private (this is what the live demo
+            returns). A 404 (not 403) hides the endpoint's existence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorBody' }
         '500':
           description: Upstream budget fetch failed.
           content:
@@ -389,6 +398,33 @@ components:
           type: boolean
           default: true
           description: Use `MAGI 1/2/3` rather than the optional code names in consensus prompts.
+        debateRounds:
+          type: integer
+          minimum: 2
+          maximum: 5
+          default: 3
+          description: |
+            Round ceiling for Multi-Round Debate (clamped into 2–5). Ignored by the
+            other strategies.
+        opinionated:
+          type: boolean
+          default: false
+          description: Nudge each model to commit to one answer on open-ended questions (all strategies).
+        collaborative:
+          type: boolean
+          default: false
+          description: Nudge debaters toward convergence (Multi-Round Debate only).
+        customTemperaments:
+          type: object
+          description: |
+            Sparse per-node persona overrides (only applied when `temperaments` is on).
+            Keyed by node name; each entry overrides the built-in label and/or prompt.
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            properties:
+              label: { type: string }
+              prompt: { type: string }
         history:
           type: array
           maxItems: 50
@@ -489,6 +525,7 @@ components:
         - $ref: '#/components/schemas/SseEvent_model-error'
         - $ref: '#/components/schemas/SseEvent_model-usage'
         - $ref: '#/components/schemas/SseEvent_partial-consensus'
+        - $ref: '#/components/schemas/SseEvent_consensus-seat'
         - $ref: '#/components/schemas/SseEvent_consensus-chunk'
         - $ref: '#/components/schemas/SseEvent_consensus-complete'
         - $ref: '#/components/schemas/SseEvent_consensus-usage'
@@ -558,6 +595,19 @@ components:
       properties:
         responded: { type: integer, minimum: 1 }
         total: { type: integer, minimum: 1 }
+
+    SseEvent_consensus-seat:
+      description: |
+        The node whose model ACTUALLY writes the consensus. Usually the requested
+        `consensusNode`, but the server reseats onto the first responding node when
+        the chosen seat failed phase 1 — so the client reads the seat from here to
+        label the synthesizer and size its context gauge against the right model.
+        Emitted once, before the consensus stream (not for `strategy: none`).
+      type: object
+      required: [node]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
 
     SseEvent_consensus-chunk:
       description: Streaming consensus text delta.

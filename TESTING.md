@@ -113,7 +113,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 ## 9. Responsive Layout
 
-- [ ] Desktop (>768px): three panels side-by-side with swap buttons between them
-- [ ] Narrow viewport: panels stack vertically, swap buttons hidden
+- [ ] Desktop (≥1024px): three panels side-by-side with swap buttons between them
+- [ ] Below 1024px: panels stack vertically, swap buttons hidden
 - [ ] Consensus section scrolls independently from panels
 - [ ] Long responses don't overflow panels — each panel scrolls internally

@@ -393,7 +393,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			return errResp(
 				{
 					error: byokEnabled
-						? `This deployment runs paid models on your own keys — add your ${uncovered.join(', ')} API key${uncovered.length > 1 ? 's' : ''} in Settings.`
+						? `This deployment runs paid models on your own keys — add your ${uncovered.join(', ')} API key${uncovered.length > 1 ? 's' : ''} in the API-keys menu.`
 						: 'Only the free tier is available on the public demo.'
 				},
 				403
