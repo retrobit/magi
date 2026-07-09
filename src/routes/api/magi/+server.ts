@@ -601,7 +601,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						requestId,
 						reason: 'all models unhealthy'
 					});
-					send('error', { message: 'All three models are unavailable' });
+					send('error', { message: 'All three models are unavailable.' });
 					close();
 					return;
 				}
@@ -810,7 +810,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					send('error', {
 						message: allAuth
 							? "The server's API key was rejected — it's missing, invalid, or expired. This is a configuration issue, not a problem with your request."
-							: 'All models failed to respond'
+							: 'All three models failed to respond.'
 					});
 					close();
 					return;

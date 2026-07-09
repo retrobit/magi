@@ -451,7 +451,7 @@ describe('POST /api/magi — streaming', () => {
 		const events = await readEvents(await callPost(validBody));
 		expect(names(events).filter((n) => n === 'model-error')).toHaveLength(3);
 		const fatal = events.find((e) => e.event === 'error');
-		expect(fatal?.data).toEqual({ message: 'All three models are unavailable' });
+		expect(fatal?.data).toEqual({ message: 'All three models are unavailable.' });
 		expect(names(events)).not.toContain('consensus-complete');
 	});
 
@@ -732,7 +732,7 @@ describe('POST /api/magi — all-nodes-failure messaging', () => {
 		});
 		const events = await readEvents(await callPost(validBody));
 		const error = events.find((e) => e.event === 'error');
-		expect(error?.data).toMatchObject({ message: 'All models failed to respond' });
+		expect(error?.data).toMatchObject({ message: 'All three models failed to respond.' });
 	});
 
 	it('classifies auth via onError even when the caught error is generic', async () => {

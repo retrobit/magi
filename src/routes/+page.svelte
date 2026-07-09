@@ -1256,8 +1256,14 @@
 		});
 	}
 
-	async function handleSubmit(e: SubmitEvent, opts: { forceRetry?: boolean } = {}) {
+	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
+		void submitTurn();
+	}
+
+	// The turn-submit lifecycle, callable without a DOM event — the banner Retry
+	// path drives it directly instead of fabricating a SubmitEvent.
+	async function submitTurn(opts: { forceRetry?: boolean } = {}) {
 		if (loading || !allConfigured) return;
 		debugScenario = freshDebugScenario();
 
@@ -1390,8 +1396,7 @@
 		const last = conversation[conversation.length - 1];
 		if (!last || loading) return;
 		query = last.query;
-		const fakeEvent = new Event('submit') as unknown as SubmitEvent;
-		void handleSubmit(fakeEvent, { forceRetry: true });
+		void submitTurn({ forceRetry: true });
 		// The Retry button unmounts as the banner clears — without an explicit
 		// hand-off, keyboard focus drops to <body>. The Abort button that
 		// replaces Execute is the action's natural continuation.
