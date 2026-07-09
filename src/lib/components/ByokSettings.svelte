@@ -24,8 +24,11 @@
 				type="password"
 				class="w-full rounded border border-(--magi-border-subtle) bg-(--magi-surface-bg) px-2 py-1 text-xs text-(--magi-text) placeholder:text-(--magi-text-faint) focus:ring-1 focus:ring-(--magi-text-faint) focus:outline-none"
 				placeholder={g.placeholder}
-				autocomplete="off"
+				autocomplete="new-password"
 				spellcheck="false"
+				data-1p-ignore
+				data-lpignore="true"
+				data-bwignore
 				value={keys[g.gateway]}
 				oninput={(e) => update(g.gateway, e.currentTarget.value)}
 			/>

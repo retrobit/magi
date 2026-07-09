@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { env } from '$env/dynamic/private';
 import { getModel } from './models';
@@ -71,5 +71,41 @@ describe('getModel with API keys', () => {
 		getModel('anthropic', 'claude-y');
 		getModel('anthropic', 'claude-z');
 		expect(createAnthropic).toHaveBeenCalledOnce();
+	});
+});
+
+describe('getModel with BYOK keys', () => {
+	beforeEach(() => {
+		vi.mocked(createAnthropic).mockClear();
+	});
+
+	it('prefers a visitor BYOK key over the operator env key', () => {
+		getModel('anthropic', 'claude-x', { anthropic: 'byok-anthropic-key' });
+		expect(createAnthropic).toHaveBeenCalledWith({ apiKey: 'byok-anthropic-key' });
+	});
+
+	it('builds a throwaway client per call — never caches a visitor key', () => {
+		// The key-isolation invariant: two calls with different visitor keys must
+		// each build their own client with their own key, so one caller's key can
+		// never bleed into another request served by the same warm instance.
+		getModel('anthropic', 'claude-x', { anthropic: 'key-visitor-1' });
+		getModel('anthropic', 'claude-x', { anthropic: 'key-visitor-2' });
+		expect(createAnthropic).toHaveBeenCalledTimes(2);
+		expect(createAnthropic).toHaveBeenNthCalledWith(1, { apiKey: 'key-visitor-1' });
+		expect(createAnthropic).toHaveBeenNthCalledWith(2, { apiKey: 'key-visitor-2' });
+	});
+
+	it('routes an OpenRouter BYOK key through the chat() builder', () => {
+		expect(getModel('openrouter', 'vendor/x', { openrouter: 'byok-or-key' })).toMatchObject({
+			kind: 'openai-chat',
+			id: 'vendor/x'
+		});
+	});
+
+	it('ignores a BYOK object that does not cover the requested gateway', () => {
+		// A BYOK openai key on an anthropic request → the env-keyed singleton is
+		// used (createAnthropic not re-invoked for a throwaway client).
+		getModel('anthropic', 'claude-x', { openai: 'byok-openai-only' });
+		expect(createAnthropic).not.toHaveBeenCalled();
 	});
 });

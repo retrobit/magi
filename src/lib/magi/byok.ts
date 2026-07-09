@@ -14,14 +14,16 @@ export const BYOK_HEADER = 'x-magi-byok';
 
 // Sanity bounds only — real validation is the provider accepting the key. The
 // cap keeps a hostile header from smuggling bulk payloads through the field.
-const keySchema = z.string().trim().min(8).max(256);
+// Exported so the client can validate a single stored key field-by-field
+// (tolerant load) rather than all-or-nothing.
+export const byokKeySchema = z.string().trim().min(8).max(256);
 
 /** One optional key per gateway; unknown fields are rejected outright. */
 export const byokKeysSchema = z.strictObject({
-	openrouter: keySchema.optional(),
-	anthropic: keySchema.optional(),
-	openai: keySchema.optional(),
-	google: keySchema.optional()
+	openrouter: byokKeySchema.optional(),
+	anthropic: byokKeySchema.optional(),
+	openai: byokKeySchema.optional(),
+	google: byokKeySchema.optional()
 });
 
 export type ByokKeys = z.infer<typeof byokKeysSchema>;

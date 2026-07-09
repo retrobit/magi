@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/public';
-import { byokKeysSchema, type ByokKeys } from '$lib/magi/byok';
+import { BYOK_GATEWAYS, byokKeySchema, type ByokKeys } from '$lib/magi/byok';
 
 /**
  * True on deployments that accept visitor-supplied provider keys
@@ -23,14 +23,25 @@ function storageAvailable(): boolean {
 	}
 }
 
-/** Read the saved keys; invalid or absent payloads resolve to an empty object. */
+/** Read the saved keys, tolerant of a single malformed field. */
 export function loadByokKeys(): ByokKeys {
 	if (!storageAvailable()) return {};
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return {};
-		const parsed = byokKeysSchema.safeParse(JSON.parse(raw));
-		return parsed.success ? parsed.data : {};
+		const obj: unknown = JSON.parse(raw);
+		if (!obj || typeof obj !== 'object') return {};
+		const record = obj as Record<string, unknown>;
+		// Validate FIELD BY FIELD, keeping each individually-valid key. An
+		// all-or-nothing schema parse would discard every saved key the moment one
+		// field was malformed (e.g. a too-short key from an older build) — the very
+		// keys the user relies on, silently gone on reload.
+		const out: ByokKeys = {};
+		for (const { gateway } of BYOK_GATEWAYS) {
+			const parsed = byokKeySchema.safeParse(record[gateway]);
+			if (parsed.success) out[gateway] = parsed.data;
+		}
+		return out;
 	} catch {
 		return {};
 	}
