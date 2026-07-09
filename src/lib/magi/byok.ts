@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import type { GatewayName } from './types';
 
 /**
@@ -16,14 +16,14 @@ export const BYOK_HEADER = 'x-magi-byok';
 // cap keeps a hostile header from smuggling bulk payloads through the field.
 // Exported so the client can validate a single stored key field-by-field
 // (tolerant load) rather than all-or-nothing.
-export const byokKeySchema = z.string().trim().min(8).max(256);
+export const byokKeySchema = z.string().check(z.trim(), z.minLength(8), z.maxLength(256));
 
 /** One optional key per gateway; unknown fields are rejected outright. */
 export const byokKeysSchema = z.strictObject({
-	openrouter: byokKeySchema.optional(),
-	anthropic: byokKeySchema.optional(),
-	openai: byokKeySchema.optional(),
-	google: byokKeySchema.optional()
+	openrouter: z.optional(byokKeySchema),
+	anthropic: z.optional(byokKeySchema),
+	openai: z.optional(byokKeySchema),
+	google: z.optional(byokKeySchema)
 });
 
 export type ByokKeys = z.infer<typeof byokKeysSchema>;

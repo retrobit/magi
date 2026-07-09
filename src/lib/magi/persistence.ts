@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import { nodeAssignmentSchema } from './validation';
 import {
 	TIER_NAMES,
@@ -90,7 +90,7 @@ export interface MagiPrefs {
 const turnUsageSchema = z.object({
 	inputTokens: z.number(),
 	outputTokens: z.number(),
-	cachedTokens: z.number().optional()
+	cachedTokens: z.optional(z.number())
 });
 
 // Per-node maps use string keys, not `z.enum`: a `z.record` keyed by an enum
@@ -106,30 +106,32 @@ const persistedSnapshotSchema = z.object({
 
 const persistedSettingsSchema = z.object({
 	strategy: z.enum(STRATEGY_NAMES),
-	debateRounds: z.number().int().min(MIN_DEBATE_ROUNDS).max(MAX_DEBATE_ROUNDS).optional(),
+	debateRounds: z.optional(
+		z.number().check(z.int(), z.gte(MIN_DEBATE_ROUNDS), z.lte(MAX_DEBATE_ROUNDS))
+	),
 	temperaments: z.boolean(),
 	consensusTemperament: z.boolean(),
 	temperamentAwareness: z.boolean(),
-	customTemperaments: z
-		.partialRecord(
+	customTemperaments: z.optional(
+		z.partialRecord(
 			z.enum(MAGI_NODE_NAMES),
 			z.object({
-				label: z.string().max(MAX_TEMPERAMENT_LABEL),
-				prompt: z.string().max(MAX_TEMPERAMENT_PROMPT)
+				label: z.string().check(z.maxLength(MAX_TEMPERAMENT_LABEL)),
+				prompt: z.string().check(z.maxLength(MAX_TEMPERAMENT_PROMPT))
 			})
 		)
-		.optional(),
-	opinionated: z.boolean().optional(),
-	collaborative: z.boolean().optional(),
+	),
+	opinionated: z.optional(z.boolean()),
+	collaborative: z.optional(z.boolean()),
 	genericLabels: z.boolean(),
 	theme: z.enum(['dark', 'light']),
 	bgVariant: z.enum(BG_VARIANTS),
-	palette: z.enum(PALETTES).optional(),
+	palette: z.optional(z.enum(PALETTES)),
 	scrollMode: z.enum(['off', 'follow', 'snap']),
-	layoutFocus: z.enum(['balanced', 'nodes', 'consensus']).optional(),
-	autoLayout: z.boolean().optional(),
-	motionMode: z.enum(MOTION_MODES).optional(),
-	reduceMotion: z.boolean().optional()
+	layoutFocus: z.optional(z.enum(['balanced', 'nodes', 'consensus'])),
+	autoLayout: z.optional(z.boolean()),
+	motionMode: z.optional(z.enum(MOTION_MODES)),
+	reduceMotion: z.optional(z.boolean())
 });
 
 const debateRoundSchema = z.object({
@@ -145,14 +147,14 @@ const conversationTurnSchema = z.object({
 	consensus: z.string(),
 	consensusNode: z.enum(MAGI_NODE_NAMES),
 	nodeUsage: z.record(z.string(), turnUsageSchema),
-	consensusUsage: turnUsageSchema.optional(),
-	strategy: z.string().optional(),
-	debateVerdict: z.enum(['consensus', 'split', 'walkover']).optional(),
-	debateSummary: z.string().optional(),
-	debateRounds: z.record(z.string(), z.array(debateRoundSchema)).optional(),
-	error: z.string().optional(),
-	consensusWarning: z.string().optional(),
-	aborted: z.boolean().optional()
+	consensusUsage: z.optional(turnUsageSchema),
+	strategy: z.optional(z.string()),
+	debateVerdict: z.optional(z.enum(['consensus', 'split', 'walkover'])),
+	debateSummary: z.optional(z.string()),
+	debateRounds: z.optional(z.record(z.string(), z.array(debateRoundSchema))),
+	error: z.optional(z.string()),
+	consensusWarning: z.optional(z.string()),
+	aborted: z.optional(z.boolean())
 });
 
 // One-time node-identifier migration. The three MAGI seats were renamed from
