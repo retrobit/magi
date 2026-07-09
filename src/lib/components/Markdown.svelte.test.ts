@@ -27,6 +27,14 @@ describe('Markdown sanitization', () => {
 		expect(container.querySelector('[onerror]')).toBeNull();
 	});
 
+	it('strips the style attribute so model HTML cannot position/overlay the app', async () => {
+		const container = await renderSource(
+			'<div style="position:fixed;inset:0;z-index:9999">overlay</div>'
+		);
+		expect(container.querySelector('[style]')).toBeNull();
+		expect(container.textContent).toContain('overlay');
+	});
+
 	it('does not revive escaped markup that sits next to an emoji (XSS regression)', async () => {
 		// Inline code renders the payload as TEXT (`&lt;img …&gt;` in the HTML).
 		// The emoji in the same text node used to route it through innerHTML,

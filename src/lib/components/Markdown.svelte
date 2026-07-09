@@ -72,7 +72,12 @@
 
 	function render(src: string): string {
 		const raw = marked.parse(src, { async: false, breaks: true, gfm: true }) as string;
-		return wrapEmojisInTextNodes(DOMPurify.sanitize(raw));
+		// Sanitize LAST so no DOM transform runs after it (the emoji wrap re-parses
+		// and re-serializes, so doing it first keeps DOMPurify the final word — no
+		// mXSS re-open). FORBID_ATTR style: untrusted model HTML can't smuggle an
+		// inline style to position/overlay the app. Pure markdown + hljs (class-
+		// based) never emit inline styles, so nothing legitimate is lost.
+		return DOMPurify.sanitize(wrapEmojisInTextNodes(raw), { FORBID_ATTR: ['style'] });
 	}
 
 	// A streamed `source` grows one chunk at a time; re-parsing the whole string on
