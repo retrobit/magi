@@ -75,3 +75,31 @@ describe('checkRateLimit (in-memory fallback)', () => {
 		expect((await checkRateLimit(ip)).limited).toBe(false);
 	});
 });
+
+describe('checkRateLimit — keyed (BYOK) bucket', () => {
+	it('allows up to 30 keyed requests inside the window', async () => {
+		const ip = freshIp();
+		for (let i = 0; i < 30; i++) {
+			expect((await checkRateLimit(ip, { keyed: true })).limited).toBe(false);
+		}
+	});
+
+	it('blocks the 31st keyed request inside the window', async () => {
+		const ip = freshIp();
+		for (let i = 0; i < 30; i++) await checkRateLimit(ip, { keyed: true });
+		expect((await checkRateLimit(ip, { keyed: true })).limited).toBe(true);
+	});
+
+	it('counts keyed and unkeyed traffic in separate buckets', async () => {
+		const ip = freshIp();
+		// Exhaust the unkeyed bucket…
+		for (let i = 0; i < 10; i++) await checkRateLimit(ip);
+		expect((await checkRateLimit(ip)).limited).toBe(true);
+		// …the keyed bucket for the same IP is untouched, and vice versa.
+		expect((await checkRateLimit(ip, { keyed: true })).limited).toBe(false);
+		for (let i = 0; i < 29; i++) await checkRateLimit(ip, { keyed: true });
+		expect((await checkRateLimit(ip, { keyed: true })).limited).toBe(true);
+		vi.advanceTimersByTime(60_001);
+		expect((await checkRateLimit(ip)).limited).toBe(false);
+	});
+});

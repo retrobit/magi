@@ -6,6 +6,8 @@
 	import type { Snippet } from 'svelte';
 	import { Settings, Bug, BarChart3, Wallet, X, Menu, RotateCcw } from 'lucide-svelte';
 	import BudgetReadout from './BudgetReadout.svelte';
+	import ByokSettings from './ByokSettings.svelte';
+	import { BYOK_ENABLED } from '$lib/byok';
 	import StatsPanel from './StatsPanel.svelte';
 	import DebugPanel, { type DebugScenario } from './DebugPanel.svelte';
 	import StatesCatalog from './StatesCatalog.svelte';
@@ -241,7 +243,7 @@
 {/snippet}
 
 {#if openPanel === 'settings'}
-	{@render panelShell('w-48', 'Settings', settingsBody)}
+	{@render panelShell(BYOK_ENABLED ? 'w-64' : 'w-48', 'Settings', settingsBody)}
 {/if}
 {#snippet settingsBody()}
 	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
@@ -381,6 +383,10 @@
 					Off
 				</button>
 			</div>
+			{#if BYOK_ENABLED}
+				<span class="mt-3 magi-section-header text-(--magi-text-muted)">API KEYS</span>
+				<ByokSettings />
+			{/if}
 			<div class="mt-3 border-t border-(--magi-border-subtle) pt-3">
 				<button
 					type="button"

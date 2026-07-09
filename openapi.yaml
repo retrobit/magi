@@ -65,6 +65,28 @@ paths:
       security:
         - bearerAuth: []
         - {}
+      parameters:
+        - name: x-magi-byok
+          in: header
+          required: false
+          description: |
+            BYOK (bring-your-own-key): a JSON object of caller-supplied provider API
+            keys. Honored only on deployments that set `PUBLIC_BYOK_ENABLED=true`;
+            elsewhere the header is ignored. Requests carrying keys run the covered
+            gateways on the caller's billing, land in a larger rate-limit bucket
+            (30 req/min vs 10), and — on keyless public deployments — unlock tiers
+            whose gateways the keys cover. Keys are used in-flight only: never
+            logged, never stored server-side.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  openrouter: { type: string, minLength: 8, maxLength: 256 }
+                  anthropic: { type: string, minLength: 8, maxLength: 256 }
+                  openai: { type: string, minLength: 8, maxLength: 256 }
+                  google: { type: string, minLength: 8, maxLength: 256 }
       requestBody:
         required: true
         content:
@@ -122,6 +144,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
@@ -228,13 +252,24 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorBody' }
+    Forbidden:
+      description: |
+        Tier gate on a keyless production deployment: the request touches gateways the
+        operator won't fund (a paid tier, a non-openrouter assignment, or a non-`:free`
+        OpenRouter model) and no BYOK key covers them. On BYOK-enabled deployments the
+        message names the missing keys.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorBody' }
     UnsupportedMediaType:
       description: '`Content-Type` is not `application/json`.'
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorBody' }
     RateLimited:
-      description: Sliding-window rate limit exceeded (10 req/min per IP by default).
+      description: |
+        Sliding-window rate limit exceeded — 10 req/min per IP by default, 30 for
+        requests carrying BYOK keys (see the `x-magi-byok` header).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorBody' }

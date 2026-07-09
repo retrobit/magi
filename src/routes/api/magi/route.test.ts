@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
+import { env as _publicEnv } from '$env/dynamic/public';
+import { getModel } from '$lib/magi/models';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
@@ -19,8 +21,15 @@ interface MutableEnv {
 
 const env = _env as unknown as MutableEnv;
 
+interface MutablePublicEnv {
+	PUBLIC_BYOK_ENABLED?: string;
+}
+
+const publicEnv = _publicEnv as unknown as MutablePublicEnv;
+
 vi.mock('ai', () => ({ streamText: vi.fn(), generateText: vi.fn() }));
 vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
+vi.mock('$env/dynamic/public', () => ({ env: {} as MutablePublicEnv }));
 // `dev` is a primitive import, so back it with a mutable holder exposed through a
 // getter — tests flip `appEnvState.dev` to simulate a production build (the
 // public-demo tier gate only engages when !dev && !MAGI_API_KEY).
@@ -121,6 +130,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	delete env.MAGI_API_KEY;
+	delete publicEnv.PUBLIC_BYOK_ENABLED;
 	appEnvState.dev = true;
 });
 
@@ -182,6 +192,125 @@ describe('POST /api/magi — public-demo tier gate', () => {
 	it('allows paid tiers in dev (operator convenience)', async () => {
 		// appEnvState.dev defaults to true → gate is skipped.
 		const res = await callPost(validBody);
+		expect(res.status).toBe(200);
+	});
+});
+
+describe('POST /api/magi — BYOK', () => {
+	const byokHeader = (keys: Record<string, string>) => ({ 'x-magi-byok': JSON.stringify(keys) });
+	const fullCoverage = {
+		anthropic: 'sk-ant-test-1234567890',
+		openai: 'sk-test-1234567890',
+		google: 'AIza-test-1234567890'
+	};
+
+	it('rejects a malformed BYOK header with 400 when the flag is on', async () => {
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		const res = await callPost(validBody, { headers: { 'x-magi-byok': 'not json' } });
+		expect(res.status).toBe(400);
+		expect((await res.json()).error).toMatch(/x-magi-byok/);
+	});
+
+	it('rejects unknown fields and too-short keys', async () => {
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		const unknownField = await callPost(validBody, {
+			headers: byokHeader({ mystery: 'aaaaaaaaaa' })
+		});
+		expect(unknownField.status).toBe(400);
+		const shortKey = await callPost(validBody, { headers: byokHeader({ anthropic: 'short' }) });
+		expect(shortKey.status).toBe(400);
+	});
+
+	it('ignores the header entirely when the flag is off', async () => {
+		appEnvState.dev = false; // prod + keyless → tier gate active
+		const res = await callPost(validBody, { headers: byokHeader(fullCoverage) });
+		expect(res.status).toBe(403);
+		expect((await res.json()).error).toMatch(/free tier/i);
+	});
+
+	it('unlocks a paid tier in keyless production when the keys cover its gateways', async () => {
+		appEnvState.dev = false;
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		const res = await callPost(validBody, { headers: byokHeader(fullCoverage) });
+		expect(res.status).toBe(200);
+	});
+
+	it('403s naming the missing gateways when coverage is partial', async () => {
+		appEnvState.dev = false;
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		const res = await callPost(validBody, {
+			headers: byokHeader({ anthropic: fullCoverage.anthropic })
+		});
+		expect(res.status).toBe(403);
+		const message = (await res.json()).error as string;
+		expect(message).toMatch(/openai/);
+		expect(message).toMatch(/google/);
+		expect(message).not.toMatch(/anthropic/);
+	});
+
+	it('passes the keys through to getModel', async () => {
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		vi.mocked(getModel).mockClear();
+		const res = await callPost(validBody, { headers: byokHeader(fullCoverage) });
+		expect(res.status).toBe(200);
+		await readEvents(res);
+		expect(vi.mocked(getModel)).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.any(String),
+			expect.objectContaining({ anthropic: fullCoverage.anthropic })
+		);
+	});
+
+	it('selects the keyed rate-limit bucket if and only if keys are present', async () => {
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		await callPost(validBody, { headers: byokHeader(fullCoverage) });
+		expect(vi.mocked(checkRateLimit)).toHaveBeenLastCalledWith('127.0.0.1', { keyed: true });
+		await callPost(validBody);
+		expect(vi.mocked(checkRateLimit)).toHaveBeenLastCalledWith('127.0.0.1', { keyed: false });
+	});
+});
+
+describe('POST /api/magi — free-tier OpenRouter model gate', () => {
+	const freeAssignments = (m1: string) => [
+		{ node: 'MAGI_1', gateway: 'openrouter', provider: 'alpha', modelId: m1 },
+		{ node: 'MAGI_2', gateway: 'openrouter', provider: 'beta', modelId: 'beta/two:free' },
+		{ node: 'MAGI_3', gateway: 'openrouter', provider: 'gamma', modelId: 'gamma/three:free' }
+	];
+
+	it('rejects a non-:free OpenRouter model pinned on the public demo', async () => {
+		appEnvState.dev = false;
+		const res = await callPost({
+			query: 'hi',
+			tier: 'free',
+			strategy: 'synthesis',
+			assignments: freeAssignments('alpha/one')
+		});
+		expect(res.status).toBe(403);
+	});
+
+	it('allows :free OpenRouter models pinned on the public demo', async () => {
+		appEnvState.dev = false;
+		const res = await callPost({
+			query: 'hi',
+			tier: 'free',
+			strategy: 'synthesis',
+			assignments: freeAssignments('alpha/one:free')
+		});
+		expect(res.status).toBe(200);
+	});
+
+	it('allows a non-:free OpenRouter model when a BYOK OpenRouter key covers it', async () => {
+		appEnvState.dev = false;
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		const res = await callPost(
+			{
+				query: 'hi',
+				tier: 'free',
+				strategy: 'synthesis',
+				assignments: freeAssignments('alpha/one')
+			},
+			{ headers: { 'x-magi-byok': JSON.stringify({ openrouter: 'sk-or-test-1234567890' }) } }
+		);
 		expect(res.status).toBe(200);
 	});
 });

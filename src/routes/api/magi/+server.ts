@@ -12,7 +12,8 @@ import {
 	type MagiConfig,
 	type NodeAssignment
 } from '$lib/magi/config';
-import type { MagiResponse, MagiNodeName } from '$lib/magi/types';
+import type { MagiResponse, MagiNodeName, GatewayName } from '$lib/magi/types';
+import { byokKeysSchema, BYOK_HEADER, type ByokKeys } from '$lib/magi/byok';
 import { magiRequestSchema, type HistoryTurn } from '$lib/magi/validation';
 import {
 	encodeStreamEvent,
@@ -36,6 +37,7 @@ import { logEvent, startTimer } from '$lib/server/logger';
 import { checkApiKey } from '$lib/server/auth';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 // Validate hardcoded configs once at module load
 validateConfig(DEFAULT_MAGI_CONFIG);
@@ -246,6 +248,29 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const errResp = (body: object, status: number): Response =>
 		json(body, { status, headers: { 'X-Request-Id': requestId } });
 
+	// BYOK: visitor-supplied provider keys (feature-flagged via PUBLIC_BYOK_ENABLED).
+	// Parsed before the rate limit so keyed callers land in the larger bucket. When
+	// the flag is off the header is ignored outright — the feature is inert on
+	// deployments that haven't opted in (including the public demo). The raw header
+	// value is never logged; only which gateways it covers.
+	const byokEnabled = publicEnv.PUBLIC_BYOK_ENABLED === 'true';
+	let byok: ByokKeys | undefined;
+	const byokRaw = request.headers.get(BYOK_HEADER);
+	if (byokEnabled && byokRaw) {
+		let byokJson: unknown;
+		try {
+			byokJson = JSON.parse(byokRaw);
+		} catch {
+			byokJson = null;
+		}
+		const byokParsed = byokKeysSchema.safeParse(byokJson);
+		if (!byokParsed.success) {
+			logEvent('warn', 'request.invalid_byok', { requestId, ip });
+			return errResp({ error: `Invalid ${BYOK_HEADER} header` }, 400);
+		}
+		byok = Object.keys(byokParsed.data).length > 0 ? byokParsed.data : undefined;
+	}
+
 	// API key auth (opt-in: enforced when MAGI_API_KEY is set in env)
 	const authFail = checkApiKey(request);
 	if (authFail) {
@@ -255,7 +280,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	// Rate limiting (sliding window per IP) — durable via Upstash when configured,
 	// per-instance in-memory otherwise.
-	const rateLimit = await checkRateLimit(ip);
+	const rateLimit = await checkRateLimit(ip, { keyed: !!byok });
 	if (rateLimit.limited) {
 		logEvent('warn', 'request.rate_limited', { requestId, ip });
 		return json(
@@ -322,7 +347,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		tier,
 		strategy: strategyName,
 		temperaments: useTemperaments ?? false,
-		priorTurns: history.length
+		priorTurns: history.length,
+		// Gateway names only — the key material itself must never reach a log line.
+		...(byok ? { byok: Object.keys(byok).join(',') } : {})
 	});
 
 	// Public-demo guard. Inference is intentionally left open when MAGI_API_KEY is
@@ -333,11 +360,41 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	// Mirrors the budget endpoint's prod-lock: dev and authenticated operators
 	// (MAGI_API_KEY set → checkApiKey already gated above) stay unrestricted.
 	if (!dev && !env.MAGI_API_KEY) {
-		const usesPaidGateway =
-			tier !== 'free' || (clientAssignments?.some((a) => a.gateway !== 'openrouter') ?? false);
-		if (usesPaidGateway) {
-			logEvent('warn', 'request.tier_forbidden', { requestId, ip, tier });
-			return errResp({ error: 'Only the free tier is available on the public demo.' }, 403);
+		// Gateways this request will touch: the explicit assignments when present,
+		// otherwise the tier preset the request would resolve to.
+		const gateways: GatewayName[] = clientAssignments
+			? [...new Set(clientAssignments.map((a) => a.gateway))]
+			: tier === 'free'
+				? ['openrouter']
+				: [...new Set(TIER_CONFIGS[tier].map((a) => a.gateway))];
+		// A non-openrouter gateway spends the operator's provider keys unless the
+		// caller covered it with a BYOK key of their own.
+		const uncovered = gateways.filter((g) => g !== 'openrouter' && !byok?.[g]);
+		// OpenRouter itself is only free for `:free` variants — exactly the set the
+		// free catalog serves. A pinned non-free slug bills the operator's OpenRouter
+		// key just like a paid gateway would, so it too needs BYOK coverage.
+		if (
+			!byok?.openrouter &&
+			(clientAssignments?.some((a) => a.gateway === 'openrouter' && !a.modelId.endsWith(':free')) ??
+				false)
+		) {
+			uncovered.push('openrouter');
+		}
+		if (uncovered.length > 0) {
+			logEvent('warn', 'request.tier_forbidden', {
+				requestId,
+				ip,
+				tier,
+				uncovered: uncovered.join(',')
+			});
+			return errResp(
+				{
+					error: byokEnabled
+						? `This deployment runs paid models on your own keys — add your ${uncovered.join(', ')} API key${uncovered.length > 1 ? 's' : ''} in Settings.`
+						: 'Only the free tier is available on the public demo.'
+				},
+				403
+			);
 		}
 	}
 
@@ -554,7 +611,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						// fails cleanly and the turn proceeds with the survivors.
 						const stall = _createStallGuard(abortController.signal, NODE_STALL_TIMEOUT_MS);
 						try {
-							const model = getModel(gateway, modelId);
+							const model = getModel(gateway, modelId, byok);
 							const temperamentPrompt = useTemperaments
 								? resolveNodeTemperament(node, customTemperaments).prompt
 								: undefined;
@@ -796,7 +853,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					responses,
 					query,
 					history: history.map((t) => ({ query: t.query, consensus: t.consensus })),
-					getModel,
+					// Curried so BYOK keys ride along into every strategy's model calls
+					// without widening the ConsensusContext signature.
+					getModel: (gateway, modelId) => getModel(gateway, modelId, byok),
 					nodeAssignments: config,
 					consensusNodeIndex: effectiveConsensusIndex,
 					consensusTemperament: useConsensusTemperament ?? false,

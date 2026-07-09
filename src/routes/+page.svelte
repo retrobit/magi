@@ -8,6 +8,8 @@
 	import MagiHeader from '$lib/components/MagiHeader.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 	import { DEMO_MODE } from '$lib/demo';
+	import { BYOK_ENABLED, loadByokKeys } from '$lib/byok';
+	import { BYOK_HEADER } from '$lib/magi/byok';
 	import Splash from '$lib/components/Splash.svelte';
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
@@ -1261,9 +1263,16 @@
 	// surrounding lifecycle (loading flag, live hydration, finalizeTurn).
 	async function streamRequest(body: string) {
 		try {
+			const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+			// BYOK: attach the visitor's saved keys so covered gateways run on their
+			// billing. Read fresh per request — edits in settings apply immediately.
+			if (BYOK_ENABLED) {
+				const byokKeys = loadByokKeys();
+				if (Object.keys(byokKeys).length > 0) headers[BYOK_HEADER] = JSON.stringify(byokKeys);
+			}
 			const res = await fetch('/api/magi', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers,
 				body,
 				signal: abortController!.signal
 			});

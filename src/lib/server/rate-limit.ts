@@ -7,6 +7,9 @@ import { logEvent } from './logger';
 // the '60 s' literal drives the Upstash sliding window.
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 10;
+// BYOK callers pay for their own tokens, so the limiter only guards our
+// serverless compute — a much larger bucket is safe.
+const KEYED_MAX_REQUESTS = 30;
 const CLEANUP_INTERVAL_MS = 5 * 60_000;
 
 export interface RateLimitResult {
@@ -19,35 +22,50 @@ export interface RateLimitResult {
 // ---- Durable limiter (Upstash Redis, when configured) ----------------------
 
 // `undefined` = not yet resolved; `null` = resolved to "no durable store".
-let redisLimiter: Ratelimit | null | undefined;
+// Standard and keyed (BYOK) traffic get separate limiters — different caps,
+// different Redis prefixes — so a caller can't stretch one bucket with the other.
+let redisLimiters: { standard: Ratelimit; keyed: Ratelimit } | null | undefined;
 
-function getRedisLimiter(): Ratelimit | null {
-	if (redisLimiter !== undefined) return redisLimiter;
+function getRedisLimiter(keyed: boolean): Ratelimit | null {
+	if (redisLimiters !== undefined) {
+		return redisLimiters === null ? null : redisLimiters[keyed ? 'keyed' : 'standard'];
+	}
 	// Vercel's Upstash integration injects the KV_REST_API_* names (the Vercel-KV
 	// flavor), NOT the UPSTASH_REDIS_REST_* ones the standalone SDK docs show.
 	const url = env.KV_REST_API_URL;
 	const token = env.KV_REST_API_TOKEN;
 	if (!url || !token) {
-		redisLimiter = null;
+		redisLimiters = null;
 		return null;
 	}
-	redisLimiter = new Ratelimit({
-		redis: new Redis({ url, token }),
-		limiter: Ratelimit.slidingWindow(MAX_REQUESTS, '60 s'),
-		prefix: 'magi:rl'
-	});
-	return redisLimiter;
+	const redis = new Redis({ url, token });
+	redisLimiters = {
+		standard: new Ratelimit({
+			redis,
+			limiter: Ratelimit.slidingWindow(MAX_REQUESTS, '60 s'),
+			prefix: 'magi:rl'
+		}),
+		keyed: new Ratelimit({
+			redis,
+			limiter: Ratelimit.slidingWindow(KEYED_MAX_REQUESTS, '60 s'),
+			prefix: 'magi:rlk'
+		})
+	};
+	return redisLimiters[keyed ? 'keyed' : 'standard'];
 }
 
 // ---- In-memory limiter (fallback: local dev, or an unconfigured deploy) -----
 
 const requests = new Map<string, number[]>();
 
-function checkInMemory(ip: string): RateLimitResult {
+function checkInMemory(ip: string, keyed: boolean): RateLimitResult {
+	// Bucket key mirrors the Redis prefix split: keyed traffic counts separately.
+	const bucket = keyed ? `k:${ip}` : ip;
+	const max = keyed ? KEYED_MAX_REQUESTS : MAX_REQUESTS;
 	const now = Date.now();
-	const timestamps = (requests.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-	if (timestamps.length >= MAX_REQUESTS) {
-		requests.set(ip, timestamps);
+	const timestamps = (requests.get(bucket) ?? []).filter((t) => now - t < WINDOW_MS);
+	if (timestamps.length >= max) {
+		requests.set(bucket, timestamps);
 		// The oldest timestamp exits the window first — once it's gone the count
 		// drops below the limit and the next request is allowed.
 		const oldest = timestamps[0];
@@ -57,19 +75,25 @@ function checkInMemory(ip: string): RateLimitResult {
 		};
 	}
 	timestamps.push(now);
-	requests.set(ip, timestamps);
+	requests.set(bucket, timestamps);
 	return { limited: false, retryAfterSeconds: 0 };
 }
 
 // ---- Public API -------------------------------------------------------------
 
-/** Sliding-window per-IP rate limit (10 requests / 60s). Uses the durable Upstash
- *  store across the serverless fleet when configured (KV_REST_API_URL +
- *  KV_REST_API_TOKEN); otherwise — including if Redis is momentarily unreachable —
- *  falls back to a per-instance in-memory limiter, so a limiter outage degrades to
- *  best-effort rather than blocking every caller or failing fully open. */
-export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
-	const limiter = getRedisLimiter();
+/** Sliding-window per-IP rate limit — 10 requests / 60s, or 30 for callers whose
+ *  request carries their own BYOK provider keys (`keyed`: their token spend, our
+ *  compute). Uses the durable Upstash store across the serverless fleet when
+ *  configured (KV_REST_API_URL + KV_REST_API_TOKEN); otherwise — including if
+ *  Redis is momentarily unreachable — falls back to a per-instance in-memory
+ *  limiter, so a limiter outage degrades to best-effort rather than blocking
+ *  every caller or failing fully open. */
+export async function checkRateLimit(
+	ip: string,
+	opts: { keyed?: boolean } = {}
+): Promise<RateLimitResult> {
+	const keyed = opts.keyed ?? false;
+	const limiter = getRedisLimiter(keyed);
 	if (limiter) {
 		try {
 			const { success, reset } = await limiter.limit(ip);
@@ -81,10 +105,10 @@ export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
 			logEvent('warn', 'ratelimit.redis_unreachable', {
 				error: err instanceof Error ? err.message : String(err)
 			});
-			return checkInMemory(ip);
+			return checkInMemory(ip, keyed);
 		}
 	}
-	return checkInMemory(ip);
+	return checkInMemory(ip, keyed);
 }
 
 // Periodically sweep stale in-memory entries to prevent unbounded growth. Costs
