@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
-	import hljs from 'highlight.js/lib/common';
+	import { highlighter } from '$lib/highlight-loader.svelte';
 	import DOMPurify from 'dompurify';
 
 	// Escape the HTML specials so an untagged code block renders literally (and can
@@ -18,13 +18,14 @@
 			emptyLangClass: 'hljs',
 			langPrefix: 'hljs language-',
 			highlight(code, lang) {
-				// Only highlight when the fence names a language hljs recognizes. The
-				// old fallback called hljs.highlightAuto, which probes ~36 languages and
-				// ran on EVERY throttled re-parse of the growing stream across up to 4
-				// panels (and again per debate round) — by far the heaviest op on the
-				// render path. Untagged blocks now render as plain escaped code, which
-				// is cheap; auto-detection was frequently wrong on short snippets anyway.
-				return lang && hljs.getLanguage(lang)
+				// The highlighter is lazy-loaded (see highlight-loader) — null until it
+				// resolves, so early fences render as plain escaped code and re-highlight
+				// once it's ready (reading highlighter() inside the render effect wires
+				// that up). Only highlight fences naming a language it recognizes; untagged
+				// blocks stay plain escaped code (cheap, and auto-detect was often wrong on
+				// short snippets anyway).
+				const hljs = highlighter();
+				return hljs && lang && hljs.getLanguage(lang)
 					? hljs.highlight(code, { language: lang }).value
 					: escapeHtml(code);
 			}
@@ -89,6 +90,10 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { onDestroy } from 'svelte';
+	import { ensureHighlighter } from '$lib/highlight-loader.svelte';
+
+	// Start the one-time highlighter load (after the shell is interactive). Idempotent.
+	ensureHighlighter();
 
 	interface Props {
 		source: string;
