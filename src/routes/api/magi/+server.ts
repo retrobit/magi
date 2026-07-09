@@ -155,6 +155,9 @@ export function _scrubErrorMessage(message: string): string {
 	const scrubbed = message
 		// API keys / bearer tokens — long opaque secrets that must never surface.
 		.replace(/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{8,}/g, '[redacted-key]')
+		// Google AI Studio keys (AIza…) — a BYOK gateway, so a key could surface in
+		// an upstream error body; the sk-/rk-/pk- rule above doesn't cover them.
+		.replace(/\bAIza[0-9A-Za-z_-]{10,}/g, '[redacted-key]')
 		.replace(/\bBearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
 		// URLs — provider endpoints can carry keys in query strings or path.
 		.replace(/https?:\/\/\S+/gi, '[url]')
@@ -478,7 +481,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				.filter((c) => !retryNodes.includes(c.node))
 				.flatMap((c) => {
 					const prior = priorResponses.find((p) => p.node === c.node);
-					return prior
+					// A blank prior means the node failed phase 1 on the original turn;
+					// forwarding empty text would seed consensus with a phantom stance —
+					// the exact thing phase 1 excludes. Treat blank as absent.
+					return prior && prior.text.trim()
 						? [{ node: c.node, gateway: c.gateway, provider: c.provider, text: prior.text }]
 						: [];
 				})
@@ -546,6 +552,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					}
 					if (
 						gateway === 'openrouter' &&
+						// The catalog only lists `:free` variants, so only free slugs can be
+						// membership-checked against it. A paid OpenRouter slug (BYOK, or a
+						// dev/operator run) isn't in the list and must fall through to fail
+						// loudly at call time — not get rejected here as "no longer available".
+						modelId.endsWith(':free') &&
 						orModels.length > 0 &&
 						!orModels.some((m) => m.id === modelId)
 					) {
@@ -731,7 +742,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// context-length overflows, auth rejections, and rate-limits are
 							// per-request, so marking the model unhealthy would block every
 							// subsequent turn for 2 minutes for no reason.
-							if (_isAvailabilityError(message)) {
+							// Also gate on the raw error: _isAvailabilityError only excludes auth
+							// failures whose MESSAGE shows 401/403, but an opaque body like "User
+							// not found." slips through and would wrongly poison health for 2 min —
+							// burying the auth message on every following turn.
+							if (!_isAuthError(rootErr) && _isAvailabilityError(message)) {
 								markUnhealthy(modelId, message);
 							}
 							send('model-error', { node, gateway, provider, error: _scrubErrorMessage(message) });
@@ -767,6 +782,18 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				});
 
 				if (responses.length === 0) {
+					// A client abort (Stop / navigation) tears every node down at once and
+					// lands here with nothing responded — a routine cancellation, not an
+					// outage. Log info and close quietly, no error event.
+					if (abortController.signal.aborted) {
+						logEvent('info', 'request.cancelled', {
+							requestId,
+							reason: 'aborted before any node responded',
+							elapsedMs: requestTimer()
+						});
+						close();
+						return;
+					}
 					// If every dispatched node was rejected for auth (a dead or expired key),
 					// say so plainly rather than let a config problem read as model flakiness.
 					// `results` holds this dispatch's settled outcomes; when `responses` is
@@ -883,96 +910,121 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 				const consensusTimer = startTimer();
 				let consensusTtftMs: number | null = null;
-				for await (const event of consensusStrategy.execute(ctx)) {
-					consensusStall.reset();
-					switch (event.type) {
-						case 'text-delta':
-							consensusTtftMs ??= consensusTimer();
-							send('consensus-chunk', { text: event.text });
-							break;
-						case 'complete':
-							send('consensus-complete', {
-								text: event.fullText,
-								debateVerdict: event.debateVerdict,
-								debateSummary: event.debateSummary
-							});
-							break;
-						case 'usage':
-							logEvent('info', 'consensus.complete', {
-								requestId,
-								strategy: strategyName,
-								node: consensusSeat.node,
-								model: consensusSeat.modelId,
-								ttftMs: consensusTtftMs ?? consensusTimer(),
-								totalMs: consensusTimer(),
-								inputTokens: event.inputTokens,
-								outputTokens: event.outputTokens,
-								cachedTokens: event.cachedInputTokens
-							});
-							send('consensus-usage', {
-								inputTokens: event.inputTokens,
-								outputTokens: event.outputTokens,
-								cachedInputTokens: event.cachedInputTokens
-							});
-							break;
-						case 'run-stats': {
-							const s = event.stats;
-							const v = s.voting;
-							// Only voting runs carry the rich winner/juror metrics worth a
-							// dedicated log line — synthesis already logged consensus.complete.
-							if (v) {
-								// Flatten the nested per-juror grid into greppable key=value
-								// lines (`MAGI_1_A=MAGI_2:7`) so a tail of dev logs reads
-								// cleanly without needing a JSON parser.
-								const jurorPairs = v.jurors.flatMap((j) => {
-									const out: string[] = [];
-									out.push(`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`);
-									if (j.candidateB) {
-										out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
-									}
-									return out;
+				// Wrap the stream so the stall guard is always torn down (finally) and a
+				// genuine consensus stall gets an honest label — a raw AI-SDK abort error
+				// is opaque. Client aborts propagate untouched for the outer catch.
+				try {
+					for await (const event of consensusStrategy.execute(ctx)) {
+						consensusStall.reset();
+						switch (event.type) {
+							case 'text-delta':
+								consensusTtftMs ??= consensusTimer();
+								send('consensus-chunk', { text: event.text });
+								break;
+							case 'complete':
+								send('consensus-complete', {
+									text: event.fullText,
+									debateVerdict: event.debateVerdict,
+									debateSummary: event.debateSummary
 								});
-								logEvent('info', 'vote.complete', {
+								break;
+							case 'usage':
+								logEvent('info', 'consensus.complete', {
 									requestId,
-									strategy: s.strategy,
-									tier: s.tier,
-									synthesizerAwareness: s.synthesizerAwareness,
-									consensusTemperament: s.consensusTemperament,
-									winner: v.winner,
-									winnerModel: v.winnerModel,
-									winnerTotal: v.winnerTotal,
-									tiebreak: v.tiebreak,
-									totals: Object.entries(v.totals)
-										.map(([n, t]) => `${n}:${t}`)
-										.join(','),
-									lengths: Object.entries(v.lengths)
-										.map(([n, l]) => `${n}:${l}`)
-										.join(','),
-									avgA: v.positionBias.avgA.toFixed(2),
-									avgB: v.positionBias.avgB.toFixed(2),
-									biasN: v.positionBias.n,
-									jurors: jurorPairs.join(',')
+									strategy: strategyName,
+									node: consensusSeat.node,
+									model: consensusSeat.modelId,
+									ttftMs: consensusTtftMs ?? consensusTimer(),
+									totalMs: consensusTimer(),
+									inputTokens: event.inputTokens,
+									outputTokens: event.outputTokens,
+									cachedTokens: event.cachedInputTokens
 								});
+								send('consensus-usage', {
+									inputTokens: event.inputTokens,
+									outputTokens: event.outputTokens,
+									cachedInputTokens: event.cachedInputTokens
+								});
+								break;
+							case 'run-stats': {
+								const s = event.stats;
+								const v = s.voting;
+								// Only voting runs carry the rich winner/juror metrics worth a
+								// dedicated log line — synthesis already logged consensus.complete.
+								if (v) {
+									// Flatten the nested per-juror grid into greppable key=value
+									// lines (`MAGI_1_A=MAGI_2:7`) so a tail of dev logs reads
+									// cleanly without needing a JSON parser.
+									const jurorPairs = v.jurors.flatMap((j) => {
+										const out: string[] = [];
+										out.push(`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`);
+										if (j.candidateB) {
+											out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
+										}
+										return out;
+									});
+									logEvent('info', 'vote.complete', {
+										requestId,
+										strategy: s.strategy,
+										tier: s.tier,
+										synthesizerAwareness: s.synthesizerAwareness,
+										consensusTemperament: s.consensusTemperament,
+										winner: v.winner,
+										winnerModel: v.winnerModel,
+										winnerTotal: v.winnerTotal,
+										tiebreak: v.tiebreak,
+										totals: Object.entries(v.totals)
+											.map(([n, t]) => `${n}:${t}`)
+											.join(','),
+										lengths: Object.entries(v.lengths)
+											.map(([n, l]) => `${n}:${l}`)
+											.join(','),
+										avgA: v.positionBias.avgA.toFixed(2),
+										avgB: v.positionBias.avgB.toFixed(2),
+										biasN: v.positionBias.n,
+										jurors: jurorPairs.join(',')
+									});
+								}
+								send('run-stats', s);
+								break;
 							}
-							send('run-stats', s);
-							break;
+							case 'node-round':
+								send('node-round', { node: event.node, entry: event.entry });
+								break;
 						}
-						case 'node-round':
-							send('node-round', { node: event.node, entry: event.entry });
-							break;
 					}
+				} catch (err) {
+					// Relabel a real consensus stall (the AI-SDK abort is opaque) so the
+					// outer catch surfaces the honest reason; client aborts and other
+					// errors propagate unchanged for the outer catch to classify.
+					if (!abortController.signal.aborted && consensusStall.timedOut()) {
+						throw new Error(
+							`The consensus stalled — no output for ${CONSENSUS_STALL_TIMEOUT_MS / 1000}s.`
+						);
+					}
+					throw err;
+				} finally {
+					consensusStall.cleanup();
 				}
-				consensusStall.cleanup();
 				logEvent('info', 'request.complete', { requestId, elapsedMs: requestTimer() });
 			} catch (err) {
-				logEvent('error', 'request.failed', {
-					requestId,
-					error: err instanceof Error ? err.message : String(err),
-					elapsedMs: requestTimer()
-				});
-				send('error', {
-					message: _scrubErrorMessage(err instanceof Error ? err.message : 'Internal server error')
-				});
+				// A client abort (Stop / disconnect) surfaces here as a throw — a routine
+				// cancellation, not a failure. Log info and stay quiet (the client already
+				// tore down; no error event needed).
+				if (abortController.signal.aborted) {
+					logEvent('info', 'request.cancelled', { requestId, elapsedMs: requestTimer() });
+				} else {
+					logEvent('error', 'request.failed', {
+						requestId,
+						error: err instanceof Error ? err.message : String(err),
+						elapsedMs: requestTimer()
+					});
+					send('error', {
+						message: _scrubErrorMessage(
+							err instanceof Error ? err.message : 'Internal server error'
+						)
+					});
+				}
 			}
 
 			close();

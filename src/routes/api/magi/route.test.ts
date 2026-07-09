@@ -796,6 +796,22 @@ describe('POST /api/magi — health cache & forceRetry', () => {
 		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
 	});
 
+	it('does not poison health for an auth error whose message is opaque (statusCode only)', async () => {
+		// The 2026-07-05 incident: OpenRouter's expired-key 401 body is just "User
+		// not found." — no 401 digits in the MESSAGE, so _isAvailabilityError alone
+		// would poison the cache and bury the auth message on every following turn.
+		// The status-code gate (_isAuthError on the raw error) is what prevents it.
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw Object.assign(new Error('User not found.'), {
+				statusCode: 401,
+				responseBody: '{"error":{"message":"User not found.","code":401}}'
+			});
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+	});
+
 	it('still calls markUnhealthy for a 500-class error', async () => {
 		vi.mocked(markUnhealthy).mockClear();
 		streamTextMock.mockImplementationOnce(() => {
