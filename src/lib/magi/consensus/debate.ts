@@ -10,14 +10,8 @@ import {
 	MIN_DEBATE_ROUNDS,
 	MAX_DEBATE_ROUNDS
 } from './types';
-import {
-	NODE_LABELS,
-	NODE_LABELS_GENERIC,
-	NODE_TEMPERAMENTS,
-	type MagiNodeName,
-	type DebateVerdict
-} from '../types';
-import { TEMPERAMENT_SYSTEM_PROMPTS } from '../temperaments';
+import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName, type DebateVerdict } from '../types';
+import { resolveNodeTemperament } from '../temperaments';
 import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE, missingClause } from './deliberation';
 import { consensusFormat } from './format';
 import { markCacheBreakpoint } from '../prompt-cache';
@@ -228,10 +222,17 @@ function parsePeerAgreement(agreeLine: string, peerCount: number): (boolean | nu
 			out[i] = m[1].toLowerCase() === 'yes';
 		}
 	}
-	// No per-peer tokens but a lone yes/no → apply it across the board.
+	// No per-peer tokens: apply a bare stance across the board ONLY when every
+	// yes/no on the line agrees (or there's exactly one). A mixed "yes … no" with
+	// no "Peer X" labels is ambiguous — leave it null rather than pin one stance
+	// (previously the first token was applied to every peer, inverting one).
 	if (!sawPeer) {
-		const bare = agreeLine.match(/\b(yes|no)\b/i);
-		if (bare) out.fill(bare[1].toLowerCase() === 'yes');
+		const tokens = agreeLine.match(/\b(yes|no)\b/gi);
+		if (tokens && tokens.length > 0) {
+			const allYes = tokens.every((t) => t.toLowerCase() === 'yes');
+			const allNo = tokens.every((t) => t.toLowerCase() === 'no');
+			if (allYes || allNo) out.fill(allYes);
+		}
 	}
 	return out;
 }
@@ -239,14 +240,33 @@ function parsePeerAgreement(agreeLine: string, peerCount: number): (boolean | nu
 // Pull the CHANGED flag, per-peer AGREE stances, and revised ANSWER out of a
 // debater's reply. Plain-text parsing (not structured output) so it works on
 // every model, including free-tier ones. Tolerant of bold markers and ':'/'-'.
-function parseDebaterReply(text: string, fallbackAnswer: string, peerCount: number): DebaterReply {
-	const answerMatch = text.match(/ANSWER\s*[:-]?\s*\n?([\s\S]*)$/i);
+export function parseDebaterReply(
+	text: string,
+	fallbackAnswer: string,
+	peerCount: number
+): DebaterReply {
+	// Anchor every label to line start (optional bullet/bold), mirroring
+	// SUMMARY_LINE_RE. Without the anchor these match the FIRST occurrence of the
+	// word ANYWHERE — so prose like "I'll answer now" would capture the reply
+	// scaffolding as the answer, and a stray "changed"/"agree" in the note would
+	// invert the flags.
+	const LABEL = String.raw`(?:^|\n)[ \t]*[-*•>]?[ \t]*\**[ \t]*`;
+	const answerMatch = text.match(
+		new RegExp(`${LABEL}ANSWER[ \\t]*\\**[ \\t]*[:\\-–—]?[ \\t]*\\n?([\\s\\S]*)$`, 'i')
+	);
 	const parsed = answerMatch?.[1]?.trim();
 	const hasNewAnswer = !!parsed && parsed.length > 0;
 
-	const changedMatch = text.match(/CHANGED\s*[:-]?\s*\*{0,2}(yes|no)/i);
-	const agreeLine = text.match(/AGREE\s*[:-]?\s*(.+?)(?:\r?\n|$)/i)?.[1] ?? '';
-	const noteMatch = text.match(/NOTE\s*[:-]?\s*\*{0,2}(.+?)(?:\r?\n|$)/i);
+	const changedMatch = text.match(
+		new RegExp(`${LABEL}CHANGED[ \\t]*\\**[ \\t]*[:\\-–—]?[ \\t]*\\**(yes|no)`, 'i')
+	);
+	const agreeLine =
+		text.match(
+			new RegExp(`${LABEL}AGREE[ \\t]*\\**[ \\t]*[:\\-–—]?[ \\t]*(.+?)(?:\\r?\\n|$)`, 'i')
+		)?.[1] ?? '';
+	const noteMatch = text.match(
+		new RegExp(`${LABEL}NOTE[ \\t]*\\**[ \\t]*[:\\-–—]?[ \\t]*\\**(.+?)(?:\\r?\\n|$)`, 'i')
+	);
 
 	return {
 		// No usable revision → the answer didn't change. Otherwise trust the flag,
@@ -321,6 +341,7 @@ export const debateStrategy: ConsensusStrategy = {
 			consensusTemperament,
 			synthesizerAwareness,
 			nodeTemperaments,
+			customTemperaments,
 			genericLabels,
 			signal,
 			tier,
@@ -471,7 +492,7 @@ export const debateStrategy: ConsensusStrategy = {
 						// they ARE the nodes continuing to think. (The synthesizer, by
 						// contrast, stays a neutral scribe.)
 						const lens = nodeTemperaments
-							? TEMPERAMENT_SYSTEM_PROMPTS[NODE_TEMPERAMENTS[r.node]]
+							? resolveNodeTemperament(r.node, customTemperaments).prompt
 							: undefined;
 						const { text, usage: u } = await generateText({
 							model: getModel(assignment.gateway, assignment.modelId),

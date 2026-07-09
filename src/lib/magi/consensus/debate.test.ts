@@ -1,12 +1,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText, streamText } from 'ai';
-import { debateStrategy, extractInitialSummary, stripSummaryTail } from './debate';
+import {
+	debateStrategy,
+	extractInitialSummary,
+	stripSummaryTail,
+	parseDebaterReply
+} from './debate';
 import { seededShuffle } from './peer-order';
 import type { ConsensusContext, ConsensusEvent } from './types';
 import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
 
 vi.mock('ai', () => ({ generateText: vi.fn(), streamText: vi.fn() }));
+
+describe('parseDebaterReply', () => {
+	const clean = 'CHANGED: no\nAGREE: yes\nNOTE: aligned\nANSWER:\nMy final answer.';
+
+	it('parses a well-formed reply', () => {
+		const r = parseDebaterReply(clean, 'prior', 1);
+		expect(r.changed).toBe(false);
+		expect(r.answer).toBe('My final answer.');
+		expect(r.agree).toEqual([true]);
+		expect(r.note).toBe('aligned');
+	});
+
+	it('does not capture reply scaffolding when prose contains the label words mid-line', () => {
+		// The labels are anchored to line start; an unanchored regex would match
+		// "answer" in the prose and swallow CHANGED/AGREE/NOTE as the answer.
+		const text =
+			"Let me answer this and I've changed my view.\nCHANGED: yes\nAGREE: no\nNOTE: I reconsidered the answer\nANSWER:\n42 is correct.";
+		const r = parseDebaterReply(text, 'prior', 1);
+		expect(r.answer).toBe('42 is correct.');
+		expect(r.changed).toBe(true);
+		expect(r.agree).toEqual([false]);
+	});
+
+	it('leaves a mixed unlabelled stance ambiguous rather than pinning one answer to all peers', () => {
+		// "A: yes, B: no" without the word "Peer" → per-peer parse misses; the bare
+		// fallback must NOT apply the first token to every peer.
+		const r = parseDebaterReply('CHANGED: no\nAGREE: A yes, B no\nANSWER:\nx', 'prior', 2);
+		expect(r.agree).toEqual([null, null]);
+	});
+
+	it('applies a uniform unlabelled stance across all peers', () => {
+		const r = parseDebaterReply('CHANGED: no\nAGREE: yes\nANSWER:\nx', 'prior', 2);
+		expect(r.agree).toEqual([true, true]);
+	});
+});
 
 const generateTextMock = vi.mocked(generateText);
 const streamTextMock = vi.mocked(streamText);
