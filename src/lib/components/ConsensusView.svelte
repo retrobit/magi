@@ -6,6 +6,7 @@
 		DebateVerdict,
 		ScrollMode
 	} from '$lib/magi/types';
+	import { SECTION_RULE } from '$lib/magi/consensus/types';
 	import {
 		MAGI_NODE_NAMES,
 		GATEWAY_LABELS,
@@ -221,7 +222,10 @@
 	// synthesized answer. While the rounds are still running (no divider yet) the
 	// ledger sits static between rounds — so we keep the pulsating verb beneath it
 	// to signal the debate is still deliberating, not stalled.
-	const DEBATE_DIVIDER = '\n\n---\n\n';
+	// Alias the shared wire constant rather than re-typing the literal — the
+	// client parses the consensus format against this boundary, so it must never
+	// drift from the server's SECTION_RULE.
+	const DEBATE_DIVIDER = SECTION_RULE;
 	const debateRounding = $derived(
 		strategy === 'debate' && loading && text !== '' && !text.includes(DEBATE_DIVIDER)
 	);

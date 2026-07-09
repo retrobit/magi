@@ -3,6 +3,7 @@ import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { env as _publicEnv } from '$env/dynamic/public';
 import { getModel } from '$lib/magi/models';
+import { decodeStreamEvents } from '$lib/magi/stream-events';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
@@ -86,27 +87,11 @@ interface StreamEvent {
 	data: unknown;
 }
 
+// Reuse the app's own SSE decoder so the test harness can't drift from the
+// parser that ships (the two used to be separate hand-rolled copies).
 async function readEvents(res: Response): Promise<StreamEvent[]> {
 	const events: StreamEvent[] = [];
-	const reader = res.body!.getReader();
-	const decoder = new TextDecoder();
-	let buffer = '';
-	for (;;) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		buffer += decoder.decode(value, { stream: true });
-		const parts = buffer.split('\n\n');
-		buffer = parts.pop() ?? '';
-		for (const part of parts) {
-			let event = '';
-			let data = '';
-			for (const line of part.split('\n')) {
-				if (line.startsWith('event: ')) event = line.slice(7);
-				else if (line.startsWith('data: ')) data = line.slice(6);
-			}
-			if (event) events.push({ event, data: data ? JSON.parse(data) : null });
-		}
-	}
+	for await (const e of decodeStreamEvents(res.body!)) events.push(e);
 	return events;
 }
 

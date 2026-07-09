@@ -51,6 +51,8 @@
 	import { resolveNodeTemperament, type CustomTemperaments } from '$lib/magi/temperaments';
 	import TemperamentEditor from '$lib/components/TemperamentEditor.svelte';
 	import { DEFAULT_STRATEGY, DEFAULT_DEBATE_ROUNDS, type StrategyName } from '$lib/magi/consensus';
+	import { SECTION_RULE } from '$lib/magi/consensus/types';
+	import { decodeStreamEvents } from '$lib/magi/stream-events';
 	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
 		loadPrefs,
@@ -688,7 +690,8 @@
 	// the debate, so they're excluded via `responseMap`. The debater is generating
 	// until the consensus streams the `---` divider that separates the round ledger
 	// from the synthesis.
-	const DEBATE_DIVIDER = '\n\n---\n\n';
+	// Shared wire constant, not a re-typed literal (must not drift from the server).
+	const DEBATE_DIVIDER = SECTION_RULE;
 	function nodeDebating(node: MagiNodeName): boolean {
 		return (
 			effectiveLoading &&
@@ -1307,33 +1310,8 @@
 					live.error = data.error ?? `Request failed (${res.status})`;
 				}
 			} else {
-				const reader = res.body!.getReader();
-				const decoder = new TextDecoder();
-				let buffer = '';
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-
-					buffer += decoder.decode(value, { stream: true });
-					const parts = buffer.split('\n\n');
-					buffer = parts.pop() ?? '';
-
-					for (const part of parts) {
-						let event = '';
-						let data = '';
-						for (const line of part.split('\n')) {
-							if (line.startsWith('event: ')) event = line.slice(7);
-							else if (line.startsWith('data: ')) data = line.slice(6);
-						}
-						if (event && data) {
-							try {
-								handleEvent(event, JSON.parse(data));
-							} catch {
-								// Malformed SSE data — skip silently
-							}
-						}
-					}
+				for await (const { event, data } of decodeStreamEvents(res.body!)) {
+					handleEvent(event, data);
 				}
 			}
 		} catch (err) {

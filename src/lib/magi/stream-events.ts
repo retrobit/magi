@@ -51,3 +51,38 @@ export function encodeStreamEvent<E extends StreamEventName>(
 ): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+
+/** Decode an SSE byte stream into `{ event, data }` frames — the exact inverse
+ *  of `encodeStreamEvent`, and the single client-side parser for the wire format
+ *  (the app and the route tests both consume it, so there's no divergent copy to
+ *  drift). Frames split on the blank-line terminator; a trailing partial frame is
+ *  held in the buffer until its rest arrives. Frames missing an `event:`/`data:`
+ *  line, or with unparseable JSON, are skipped. */
+export async function* decodeStreamEvents(
+	body: ReadableStream<Uint8Array>
+): AsyncGenerator<{ event: string; data: unknown }> {
+	const reader = body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = '';
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		buffer += decoder.decode(value, { stream: true });
+		const parts = buffer.split('\n\n');
+		buffer = parts.pop() ?? '';
+		for (const part of parts) {
+			let event = '';
+			let data = '';
+			for (const line of part.split('\n')) {
+				if (line.startsWith('event: ')) event = line.slice(7);
+				else if (line.startsWith('data: ')) data = line.slice(6);
+			}
+			if (!event || !data) continue;
+			try {
+				yield { event, data: JSON.parse(data) };
+			} catch {
+				// Malformed SSE data — skip silently.
+			}
+		}
+	}
+}
