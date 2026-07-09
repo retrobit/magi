@@ -101,7 +101,10 @@ async function fetchOpenRouterBudget(): Promise<ProviderBudget> {
 	}
 
 	const res = await fetch('https://openrouter.ai/api/v1/key', {
-		headers: { Authorization: `Bearer ${key}` }
+		headers: { Authorization: `Bearer ${key}` },
+		// One hung provider would otherwise pin GET /api/magi/budget until the
+		// platform's function cap; the TimeoutError lands in the per-provider catch.
+		signal: AbortSignal.timeout(10_000)
 	});
 	if (!res.ok) {
 		return {
@@ -201,7 +204,8 @@ async function fetchAnthropicBudget(): Promise<ProviderBudget> {
 		headers: {
 			'x-api-key': key,
 			'anthropic-version': '2023-06-01'
-		}
+		},
+		signal: AbortSignal.timeout(10_000)
 	});
 
 	if (!res.ok) {
@@ -259,7 +263,8 @@ async function fetchOpenAIBudget(): Promise<ProviderBudget> {
 	url.searchParams.set('limit', '1');
 
 	const res = await fetch(url, {
-		headers: { Authorization: `Bearer ${key}` }
+		headers: { Authorization: `Bearer ${key}` },
+		signal: AbortSignal.timeout(10_000)
 	});
 
 	if (!res.ok) {

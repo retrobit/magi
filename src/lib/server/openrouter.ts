@@ -27,7 +27,13 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 	}
 
 	try {
-		const res = await fetch('https://openrouter.ai/api/v1/models');
+		// Cap the catalog fetch: on a cache miss this is on the free-tier hot path
+		// (it resolves the node lineup before dispatch), so a hung OpenRouter would
+		// otherwise pin time-to-first-byte. A timeout lands in the catch below,
+		// which degrades to the cached list (or empty).
+		const res = await fetch('https://openrouter.ai/api/v1/models', {
+			signal: AbortSignal.timeout(5_000)
+		});
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		const data = (await res.json()) as { data: OpenRouterApiModel[] };
 

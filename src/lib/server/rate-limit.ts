@@ -43,11 +43,16 @@ function getRedisLimiter(keyed: boolean): Ratelimit | null {
 		standard: new Ratelimit({
 			redis,
 			limiter: Ratelimit.slidingWindow(MAX_REQUESTS, '60 s'),
+			// Fail open fast: without this, a degraded Upstash makes limit() hang up
+			// to the SDK's default before resolving, adding that latency to EVERY
+			// request. 1s cap → a slow store degrades to best-effort, as intended.
+			timeout: 1000,
 			prefix: 'magi:rl'
 		}),
 		keyed: new Ratelimit({
 			redis,
 			limiter: Ratelimit.slidingWindow(KEYED_MAX_REQUESTS, '60 s'),
+			timeout: 1000,
 			prefix: 'magi:rlk'
 		})
 	};
