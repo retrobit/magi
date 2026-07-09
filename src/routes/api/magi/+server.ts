@@ -999,7 +999,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					// errors propagate unchanged for the outer catch to classify.
 					if (!abortController.signal.aborted && consensusStall.timedOut()) {
 						throw new Error(
-							`The consensus stalled — no output for ${CONSENSUS_STALL_TIMEOUT_MS / 1000}s.`
+							`The consensus stalled — no output for ${CONSENSUS_STALL_TIMEOUT_MS / 1000}s.`,
+							{ cause: err }
 						);
 					}
 					throw err;
