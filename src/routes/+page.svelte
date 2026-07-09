@@ -797,6 +797,10 @@
 			if (t === 'free') {
 				const res = await fetch(`/api/magi/models?tier=${t}`);
 				const data = (await res.json()) as { models: AvailableModel[] };
+				// A tier switch during the await abandons this response: writing it now
+				// would clobber the now-current tier's models and config with a stale
+				// tier's. Bail — the switch already kicked off a fresh fetch.
+				if (t !== tier) return;
 				availableModels = data.models;
 			} else {
 				availableModels = getStaticModels(t);
@@ -813,11 +817,13 @@
 				}
 			}
 		} catch {
-			if (t !== 'free') {
+			if (t !== 'free' && t === tier) {
 				availableModels = getStaticModels(t);
 			}
+		} finally {
+			// Only the currently-selected tier's fetch owns the loading flag.
+			if (t === tier) modelsLoading = false;
 		}
-		modelsLoading = false;
 	}
 
 	// Intro splash. Auto-plays on every page load; the header MAGI mark replays
@@ -966,6 +972,9 @@
 			conversation = conversationsByTier[t] ?? [];
 		}
 		activeTurnQuery = '';
+		// A server-reseat override belongs to one run on the previous tier — drop it
+		// so it can't leak into this tier's seat picker.
+		effectiveConsensusNode = null;
 		liveNodeUsage = {};
 		liveConsensusUsage = undefined;
 	}
@@ -1196,6 +1205,7 @@
 		if (loading) return;
 		conversation = [];
 		activeTurnQuery = '';
+		effectiveConsensusNode = null;
 		debugScenario = freshDebugScenario();
 		resetLiveState();
 		// Back to a clean slate: when auto-layout is on, return the focus accordion
@@ -1220,8 +1230,11 @@
 			consensusNode,
 			assignments,
 			temperaments,
-			consensusTemperament,
-			temperamentAwareness,
+			// The dependent lens flags only make sense under the master Temperaments
+			// switch: with it off the nodes answered neutrally, so telling the
+			// synthesizer about lenses (awareness) or giving the seat one is incoherent.
+			consensusTemperament: temperaments && consensusTemperament,
+			temperamentAwareness: temperaments && temperamentAwareness,
 			opinionated,
 			collaborative,
 			genericLabels,
@@ -1365,6 +1378,22 @@
 		await streamRequest(
 			buildRequestBody({ turnQuery: last.query, retryNodes: [node], priorResponses })
 		);
+
+		// If the retry stream produced no outcome for the node (network drop, our
+		// 429, abort before any event), restore the original committed turn intact
+		// rather than finalizing a version stripped of its consensus and node error.
+		const retriedGotOutcome =
+			live.responses.some((r) => r.node === node) || live.modelErrors.some((e) => e.node === node);
+		if (!retriedGotOutcome) {
+			const pendingError = live.error;
+			conversation = [...conversation, last];
+			activeTurnQuery = '';
+			turnAborted = false;
+			loading = false;
+			resetLiveState();
+			live.error = pendingError;
+			return;
+		}
 
 		live.streamDone = true;
 		loading = false;
@@ -1764,7 +1793,7 @@
 			>
 				<CircleAlert size={16} class="shrink-0" />
 				<span class="flex-1">{displayedError}</span>
-				{#if !loading && conversation.at(-1)?.nodeErrors && Object.keys(conversation.at(-1)!.nodeErrors).length > 0}
+				{#if !loading && !live.error && conversation.at(-1)?.nodeErrors && Object.keys(conversation.at(-1)!.nodeErrors).length > 0}
 					<button
 						type="button"
 						class="ml-2 shrink-0 rounded border border-(--magi-color-error)/40 px-2 py-0.5 text-xs magi-error transition-colors hover:bg-(--magi-color-error)/10"
@@ -1880,7 +1909,12 @@
 				collapsed={consensusCollapsed}
 				onstrategychange={(s) => (strategy = s)}
 				ondebateroundschange={(n) => (debateRounds = n)}
-				onconsensuschange={(node) => (consensusNode = node)}
+				onconsensuschange={(node) => {
+					consensusNode = node;
+					// The user's pick wins now — drop any server-reseat override so the
+					// picker can't snap back to a prior run's fallback seat.
+					effectiveConsensusNode = null;
+				}}
 				onconsensustemperamentchange={temperaments ? (v) => (consensusTemperament = v) : undefined}
 				onawarenesschange={temperaments ? (v) => (temperamentAwareness = v) : undefined}
 			/>
