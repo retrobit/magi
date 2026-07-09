@@ -8,10 +8,12 @@ Planned features, improvements, and known items for the MAGI project.
 - **Auto-layout** ✅ **shipped 2026-06-14** — The layout focus control gained a leading **Auto** segment (🪄, now the default). In Auto mode the layout follows the run lifecycle: node panels expand while generating → snaps to Balanced when the consensus streams alongside still-working nodes (debate rounds) → snaps to Consensus-expanded as soon as every MAGI is done, even while the consensus is still streaming. Any manual segment disarms Auto; clicking Auto re-enables it. Persisted; stays disarmed on page load so a restored conversation doesn't yank the layout; New conversation resets to Balanced. Respects reduced-motion.
 - **Default auto-scroll changed to Follow** ✅ **shipped 2026-06-14** — Follow (keep latest streamed content in view; manual scroll-up pauses until bottom is reached) is now the first option and the default, replacing Snap to top. Order in settings: Follow → Snap to top → Off.
 - **Toggle-label width fix** ✅ **shipped 2026-06-14** — ON/OFF toggle labels (Temperament / Opinionated / Collaborative) are now fixed-width so the control row doesn't reflow when they flip.
+- **Touch-target / WCAG 2.5.8 sizing pass** ⏸️ _deferred — post-1.0_ — Several interactive controls (config chips, toggles, layout segments) sit below the 24×24 CSS-px minimum target size. A full 40px pass was built and reverted (2026-06-20) as a visual-density regression; the right approach is likely invisible hit-area expansion (padding / `::after` extension) rather than growing the controls. Explicitly parked until after v1.0.0 (decision 2026-07-08) — noted here so it isn't lost, not a release blocker.
 
 ## Infrastructure
 
-- **Redis-backed rate limiter** — Replace the in-memory sliding-window rate limiter with a Redis-backed version that survives server restarts and works across multiple instances behind a load balancer.
+- **Redis-backed rate limiter** ✅ **shipped 2026-07-06** — `@upstash/ratelimit` sliding window on Upstash Redis (Vercel-KV env names), durable across the serverless fleet, with automatic per-instance in-memory fallback when the store is absent or unreachable.
+- **BYOK — bring-your-own-key** ✅ **shipped 2026-07-08** — Behind `PUBLIC_BYOK_ENABLED` (unset on the demo): visitors paste their own provider keys in settings; tiers unlock for the gateways their keys cover, on their own billing, with a larger rate-limit bucket. Keys are browser-local, sent per-request, never logged or stored server-side.
 
 ## Model Management
 
