@@ -4,7 +4,7 @@
 	// is ever open at a time — that's a UI invariant the parent doesn't need to
 	// know about.
 	import type { Snippet } from 'svelte';
-	import { Settings, Bug, BarChart3, Wallet, X, Menu, RotateCcw } from 'lucide-svelte';
+	import { Settings, Bug, BarChart3, Wallet, X, Menu, RotateCcw, KeyRound } from 'lucide-svelte';
 	import BudgetReadout from './BudgetReadout.svelte';
 	import ByokSettings from './ByokSettings.svelte';
 	import { BYOK_ENABLED } from '$lib/byok';
@@ -30,7 +30,7 @@
 		type MotionMode
 	} from '$lib/magi/types';
 
-	type HeaderPanel = 'debug' | 'catalog' | 'stats' | 'budget' | 'settings' | 'menu';
+	type HeaderPanel = 'debug' | 'catalog' | 'stats' | 'budget' | 'keys' | 'settings' | 'menu';
 
 	interface Props {
 		theme: 'dark' | 'light';
@@ -147,6 +147,17 @@
 				>
 					<Wallet size={16} />
 				</button>
+				{#if BYOK_ENABLED}
+					<button
+						type="button"
+						class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-violet-400"
+						onclick={() => togglePanel('keys')}
+						aria-label="API keys"
+						aria-expanded={openPanel === 'keys'}
+					>
+						<KeyRound size={16} />
+					</button>
+				{/if}
 				<button
 					type="button"
 					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-(--magi-chrome-btn-hover-text)"
@@ -231,6 +242,15 @@
 			>
 				<Wallet size={14} /> Budget
 			</button>
+			{#if BYOK_ENABLED}
+				<button
+					type="button"
+					class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-violet-400"
+					onclick={() => (openPanel = 'keys')}
+				>
+					<KeyRound size={14} /> API keys
+				</button>
+			{/if}
 			<button
 				type="button"
 				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-(--magi-text)"
@@ -243,7 +263,7 @@
 {/snippet}
 
 {#if openPanel === 'settings'}
-	{@render panelShell(BYOK_ENABLED ? 'w-64' : 'w-48', 'Settings', settingsBody)}
+	{@render panelShell('w-48', 'Settings', settingsBody)}
 {/if}
 {#snippet settingsBody()}
 	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
@@ -383,10 +403,6 @@
 					Off
 				</button>
 			</div>
-			{#if BYOK_ENABLED}
-				<span class="mt-3 magi-section-header text-(--magi-text-muted)">API KEYS</span>
-				<ByokSettings />
-			{/if}
 			<div class="mt-3 border-t border-(--magi-border-subtle) pt-3">
 				<button
 					type="button"
@@ -399,6 +415,30 @@
 					<RotateCcw size={13} /> Reset to defaults
 				</button>
 			</div>
+		</div>
+	</div>
+{/snippet}
+
+{#if openPanel === 'keys'}
+	{@render panelShell('w-64', 'API keys', keysBody)}
+{/if}
+{#snippet keysBody()}
+	<div class="flex min-h-0 flex-col overflow-hidden magi-popover">
+		<div class="flex shrink-0 items-center justify-between px-3 pt-3 pb-2">
+			<span class="flex items-center gap-1.5 magi-section-header text-(--magi-text-muted)">
+				<KeyRound size={13} /> API KEYS
+			</span>
+			<button
+				type="button"
+				class="text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
+				onclick={() => (openPanel = null)}
+				aria-label="Close API keys"
+			>
+				<X size={14} />
+			</button>
+		</div>
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
+			<ByokSettings />
 		</div>
 	</div>
 {/snippet}
