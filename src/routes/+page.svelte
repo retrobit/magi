@@ -1525,7 +1525,7 @@
 					nudge={tierNudge}
 				/>
 				{#if tierError}
-					<span class="text-xs font-medium text-amber-500" role="status" aria-live="polite"
+					<span class="text-xs font-medium magi-warn" role="status" aria-live="polite"
 						>{tierError}</span
 					>
 				{/if}

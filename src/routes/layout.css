@@ -222,6 +222,7 @@
 	--magi-input-bg: var(--color-gray-900);
 	--magi-input-border: var(--color-gray-700);
 	--magi-btn-bg: var(--color-gray-600);
+	--magi-btn-hover-bg: var(--color-gray-500);
 	/* Active on/off-toggle look. Subtle: a faint tint + a thin ring + brighter
 	   text, so the on-state reads from the ring and label rather than shouting.
 	   Token-driven so the intensity is a change here, not per-control. */
@@ -412,6 +413,12 @@
 		background-color: var(--magi-btn-bg);
 		color: #fff;
 	}
+	/* Default hover, owned by the recipe so a button that sets no hover of its own
+	   (e.g. the temperament editor's) still gets one. Call sites can override with a
+	   Tailwind `hover:` utility — those win from the later utilities layer. */
+	.magi-btn:hover:not(:disabled) {
+		background-color: var(--magi-btn-hover-bg);
+	}
 
 	/* Unified on/off (and segmented) toggle — one height, one bold active state,
 	   one disabled treatment. Replaces the two former implementations (the consensus
@@ -531,6 +538,7 @@
 	--magi-input-bg: #ffffff;
 	--magi-input-border: #d1d5db;
 	--magi-btn-bg: #4b5563;
+	--magi-btn-hover-bg: #6b7280;
 	/* Subtle active: a faint gray tint + thin ring + dark text on the light surface. */
 	--magi-toggle-on-bg: color-mix(in oklab, #4b5563 16%, transparent);
 	--magi-toggle-on-text: var(--magi-text);

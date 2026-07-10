@@ -99,7 +99,7 @@
 			</button>
 			{#if DEMO_MODE}
 				<span
-					class="ml-3 inline-block rounded bg-amber-500/15 px-1.5 py-0.5 align-middle text-[0.625rem] font-semibold tracking-widest text-amber-500 ring-1 ring-amber-500/40 ring-inset"
+					class="ml-3 inline-block rounded bg-(--magi-color-warn)/15 px-1.5 py-0.5 align-middle text-[0.625rem] font-semibold tracking-widest magi-warn ring-1 ring-(--magi-color-warn)/40 ring-inset"
 					use:tooltip={'Public demo — features subject to change. Only the free tier is available.'}
 					>DEMO</span
 				>

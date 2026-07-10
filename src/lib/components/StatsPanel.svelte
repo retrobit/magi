@@ -532,7 +532,7 @@
 							<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
 							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 								<div
-									class="h-full bg-amber-500/70"
+									class="h-full bg-(--magi-color-warn)/70"
 									style="width: {(r.rate * 100).toFixed(1)}%"
 								></div>
 							</div>
