@@ -31,6 +31,7 @@
 	import { tooltip } from '$lib/actions/tooltip';
 	import { isControlClick } from '$lib/actions/click-guard';
 	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
+	import { createFollowScroll } from '$lib/scroll.svelte';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -251,62 +252,18 @@
 	// stale height and never reached the bottom.
 	let scrollEl = $state<HTMLDivElement>();
 	let contentEl = $state<HTMLDivElement>();
-	let pinned = $state(true);
 	// Scroll-viewport height — used to give the latest turn block a min-height in
 	// snap mode so its prompt can always reach the top, even when the response is
 	// shorter than the panel.
 	let viewportH = $state(0);
 	const snapMinHeight = $derived(scrollMode === 'snap' ? `${viewportH}px` : undefined);
 
-	function onScroll() {
-		if (!scrollEl) return;
-		pinned = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 24;
-	}
-
-	$effect(() => {
-		if (!scrollEl || !contentEl) return;
-		const observer = new ResizeObserver(() => {
-			if (scrollMode === 'follow' && pinned && scrollEl) {
-				scrollEl.scrollTop = scrollEl.scrollHeight;
-			}
-		});
-		observer.observe(contentEl);
-		return () => observer.disconnect();
-	});
-
-	// Re-pin when the VIEWPORT's own height changes — e.g. the layout accordion
-	// expanding this panel's zone. The content ResizeObserver above only watches
-	// content height, so a viewport-only growth would otherwise let the browser
-	// clamp scrollTop toward the top. Reading viewportH keeps follow glued to bottom.
-	$effect(() => {
-		void viewportH;
-		if (scrollMode === 'follow' && pinned && scrollEl) {
-			scrollEl.scrollTop = scrollEl.scrollHeight;
-		}
-	});
-
-	// Re-pin to the bottom when a turn COMMITS in follow mode — same fix as the
-	// consensus panel. The live block is torn down and the finished turn re-mounts
-	// as a transcript entry Markdown renders in full at once, so the body can settle
-	// at the SAME net height it streamed at and the content ResizeObserver never
-	// fires — leaving an earlier shorter-content re-pin as the final position (a pop
-	// toward the top on completion). Chase the bottom across a couple of frames plus
-	// one past Markdown's ~100 ms throttle. The `-1` sentinel makes the first run
-	// only seed the watermark, so a restored conversation never yanks on mount.
-	let prevTranscriptLen = -1;
-	$effect(() => {
-		const len = transcript.length;
-		const prev = prevTranscriptLen;
-		prevTranscriptLen = len;
-		if (prev < 0 || len <= prev || scrollMode !== 'follow' || !scrollEl) return;
-		pinned = true;
-		const el = scrollEl;
-		const toBottom = () => {
-			if (scrollMode === 'follow' && pinned) el.scrollTop = el.scrollHeight;
-		};
-		requestAnimationFrame(() => requestAnimationFrame(toBottom));
-		const t = setTimeout(toBottom, 140);
-		return () => clearTimeout(t);
+	const follow = createFollowScroll({
+		scrollMode: () => scrollMode,
+		scrollEl: () => scrollEl,
+		contentEl: () => contentEl,
+		viewportH: () => viewportH,
+		committedCount: () => transcript.length
 	});
 
 	// Snap mode: the moment a new turn is submitted (liveQuery appears), jump so
@@ -742,7 +699,7 @@
 		class:hidden={collapsed}
 		bind:this={scrollEl}
 		bind:clientHeight={viewportH}
-		onscroll={onScroll}
+		onscroll={follow.onScroll}
 	>
 		<div class="flex flex-col gap-3 p-4" bind:this={contentEl}>
 			{#if transcript.length === 0 && !liveQuery}
