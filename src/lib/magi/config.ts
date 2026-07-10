@@ -10,15 +10,20 @@ export interface NodeAssignment {
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
 
-/** The free tier's preferred default models, in seat order — reliable picks for
- *  the public demo. buildDiverseConfig floats whichever are present in the live
- *  pool to the front so they seat first; any that's temporarily missing (free
- *  models flake) is backfilled by the usual diverse pick, never a dead node.
- *  Keep these from distinct providers so all three can seat together. */
+/** Ranked short-list of reliable, coherent, distinct-provider free models — more
+ *  than the three seats on purpose, so the demo's seats are always drawn from
+ *  known-good models in rank order, not the flaky long tail (poolside/tencent
+ *  return empty, cohere/north-mini-code is code-only, the popular general models
+ *  429 under load). buildDiverseConfig floats whichever are present+healthy to the
+ *  front; pickDiverseModels seats the top distinct providers and the usual diverse
+ *  pick backfills any that flake — never a dead node. Re-probe live when refreshing
+ *  this list: catalog presence != a coherent reply. */
 export const PREFERRED_FREE_MODEL_IDS = [
 	'nvidia/nemotron-3-super-120b-a12b:free',
 	'google/gemma-4-26b-a4b-it:free',
-	'poolside/laguna-xs.2:free'
+	'meta-llama/llama-3.3-70b-instruct:free',
+	'openai/gpt-oss-120b:free',
+	'qwen/qwen3-next-80b-a3b-instruct:free'
 ];
 
 /** Seed a 3-node assignment from a model list, choosing maximally diverse
@@ -67,8 +72,8 @@ export const FREE_MAGI_CONFIG: MagiConfig = [
 	{
 		node: 'MAGI_3',
 		gateway: 'openrouter',
-		provider: 'poolside',
-		modelId: 'poolside/laguna-xs.2:free'
+		provider: 'meta-llama',
+		modelId: 'meta-llama/llama-3.3-70b-instruct:free'
 	}
 ];
 

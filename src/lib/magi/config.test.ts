@@ -63,7 +63,8 @@ describe('FREE_MAGI_CONFIG', () => {
 	});
 
 	it('stays in sync with the preferred free defaults', () => {
-		expect(FREE_MAGI_CONFIG.map((a) => a.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS);
+		// The offline fallback mirrors the top three of the ranked preferred list.
+		expect(FREE_MAGI_CONFIG.map((a) => a.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
 	});
 });
 
@@ -232,25 +233,27 @@ describe('buildDiverseConfig', () => {
 
 	it('seats the preferred free defaults first when present', () => {
 		const config = buildDiverseConfig([
-			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama'),
-			model('poolside/laguna-xs.2:free', 'poolside'),
-			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
-			model('google/gemma-4-26b-a4b-it:free', 'google')
-		]);
-		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS);
-	});
-
-	it('backfills a missing preferred default with a diverse pick', () => {
-		// laguna absent → seats nemotron + gemma, fills the third from the rest.
-		const config = buildDiverseConfig([
+			model('cohere/north-mini-code:free', 'cohere'), // present but not preferred
 			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
 			model('google/gemma-4-26b-a4b-it:free', 'google'),
 			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama')
 		]);
+		// The three top-ranked preferred seat ahead of the present non-preferred model.
+		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
+	});
+
+	it('backfills a missing preferred default with a diverse pick', () => {
+		// Only two preferred present (the rest of the ranked list absent) → seats
+		// nemotron + gemma, then fills the third from a non-preferred pool model.
+		const config = buildDiverseConfig([
+			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
+			model('google/gemma-4-26b-a4b-it:free', 'google'),
+			model('cohere/north-mini-code:free', 'cohere')
+		]);
 		expect(config.map((c) => c.modelId)).toEqual([
 			'nvidia/nemotron-3-super-120b-a12b:free',
 			'google/gemma-4-26b-a4b-it:free',
-			'meta-llama/llama-3.3-70b-instruct:free'
+			'cohere/north-mini-code:free'
 		]);
 	});
 });
