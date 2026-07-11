@@ -4,9 +4,7 @@
 	let { children } = $props();
 </script>
 
-<svelte:head>
-	<title>MAGI</title>
-	<meta name="description" content="Three AI models. One consensus." />
-</svelte:head>
-
+<!-- Title/description/OG metadata live in app.html: with ssr=false a
+     <svelte:head> only renders in the browser, which link-preview crawlers
+     never execute — and at runtime it would only duplicate the static tags. -->
 {@render children()}

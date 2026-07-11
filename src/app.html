@@ -6,6 +6,33 @@
 		     with the all-red mark via <svelte:head> so dev tabs stand out. -->
 		<link rel="icon" href="%sveltekit.assets%/favicons/triangles-nebula.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Head metadata lives HERE, not in <svelte:head>: with ssr=false the
+		     components only render in the browser, so link-preview crawlers
+		     (iMessage, Slack, X — none run JS) would otherwise see a bare head. -->
+		<title>MAGI</title>
+		<meta name="description" content="Three AI models. One consensus." />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="MAGI" />
+		<meta property="og:title" content="MAGI — Three AI models. One consensus." />
+		<meta
+			property="og:description"
+			content="Ask once, query three frontier models in parallel, and watch them synthesize, vote, or debate their way to a single answer."
+		/>
+		<meta property="og:url" content="https://magi-consensus.vercel.app" />
+		<meta property="og:image" content="https://magi-consensus.vercel.app/og.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="The MAGI interface: three AI model panels debating in parallel above a consensus panel."
+		/>
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="MAGI — Three AI models. One consensus." />
+		<meta
+			name="twitter:description"
+			content="Ask once, query three frontier models in parallel, and watch them synthesize, vote, or debate their way to a single answer."
+		/>
+		<meta name="twitter:image" content="https://magi-consensus.vercel.app/og.png" />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
