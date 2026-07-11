@@ -507,6 +507,14 @@
 	}
 }
 
+/* The page background belongs on <html> too, not just the app shell: iOS shows
+   the html background in overscroll and in the safe areas viewport-fit=cover
+   opens up (notch, home indicator) — an unset html renders those as white bands.
+   Theme-correct in both modes: .light lives on <html>, so the token override wins. */
+html {
+	background-color: var(--magi-page-bg);
+}
+
 /* ── Light mode ──
    A variable override block, nothing more. Custom-property declarations
    don't fight Tailwind utilities, so this stays un-layered safely. */

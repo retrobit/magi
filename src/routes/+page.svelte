@@ -1486,7 +1486,13 @@
 	{/key}
 {/if}
 
-<div class="magi-bg flex h-screen flex-col overflow-hidden">
+<!-- h-dvh (not h-screen/100vh): iOS's 100vh is the toolbar-collapsed height, which
+     pushes the footer behind Safari's bottom bar. The env() paddings keep the header
+     and footer clear of the notch / home indicator now that viewport-fit=cover lets
+     the page extend under them (they're 0 everywhere else). -->
+<div
+	class="magi-bg flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
+>
 	<MagiBackground variant={bgVariant} bgStill={motionMode !== 'full'} />
 
 	{#if import.meta.env.DEV}
