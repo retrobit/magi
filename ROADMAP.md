@@ -13,11 +13,13 @@ Planned features, improvements, and known items for the MAGI project.
 ## Infrastructure
 
 - **Redis-backed rate limiter** ✅ **shipped 2026-07-06** — `@upstash/ratelimit` sliding window on Upstash Redis (Vercel-KV env names), durable across the serverless fleet, with automatic per-instance in-memory fallback when the store is absent or unreachable.
+- **Strict CSP + security headers** ✅ **shipped 2026-07-07** — Hash-based Content-Security-Policy (`kit.csp`, `default-src 'self'`) with `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy` set in `hooks.server.ts`. Browser-verified on the live demo (render, export, copy all work under the policy).
 - **BYOK — bring-your-own-key** ✅ **shipped 2026-07-08** — Behind `PUBLIC_BYOK_ENABLED` (unset on the demo): visitors paste their own provider keys in settings; tiers unlock for the gateways their keys cover, on their own billing, with a larger rate-limit bucket. Keys are browser-local, sent per-request, never logged or stored server-side.
 
 ## Model Management
 
-- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-06-05 (internal consistency only — re-synced TIER_CONFIGS to match the post-2026-05-23 Gemini upgrades in the registry; full external re-check vs current provider docs still due).
+- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-07-05 against each provider's live `/v1/models` (balanced → Claude Sonnet 5; README/openapi frontier synced to Opus 4.8).
+- **Free-tier preferred defaults** — `PREFERRED_FREE_MODEL_IDS` (config.ts) is a ranked good-list of distinct-provider models that seat first on the free tier. Refresh it by **probing candidates live** (catalog presence isn't enough — some models return empty 200s or only handle code) and keep providers distinct. Last refreshed 2026-07-10 (dropped dead `poolside/laguna-xs.2`, expanded trio → ranked five).
 
 ## Temperaments
 

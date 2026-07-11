@@ -9,6 +9,8 @@
 
 **Three AI models. One consensus.**
 
+🔴 **[Try the live demo →](https://magi-consensus.vercel.app)** — free tier, no keys needed.
+
 <p align="center">
   <a href="docs/media/magi-demo.mp4">
     <img src="docs/media/magi-demo.gif" alt="MAGI — three AI models answer in parallel, then debate to a consensus" width="100%">
@@ -59,10 +61,11 @@ The consensus engine is pluggable:
 - **Multi-turn conversations** — per-node transcripts, persisted per tier in `localStorage`; each node replays only its own thread.
 - **Live streaming UI** — answers and consensus stream token-by-token, with a "N / 3 responded" progress count and an auto-layout that follows the run (nodes → balanced → consensus).
 - **Token & cost awareness** — per-node and cumulative token counts, per-model context-window gauges, prompt-cache hits, and a per-provider daily spend readout.
-- **Resilient by design** — pre-flight model health checks, partial-consensus fallback, and per-node retry that re-runs one node without re-billing the others.
+- **Resilient by design** — automatic model-health tracking (recently-failed models are skipped), per-node and consensus stall guards, partial-consensus fallback, and per-node retry that re-runs one node without re-billing the others.
 - **Editable temperaments** — give each MAGI a dispositional lens, or write your own persona (see **Temperaments** below).
 - **Deliberation controls** — Opinionated and Collaborative modes, a 2–5 round debate ceiling, and seeded per-turn peer-order shuffling to wash out position bias.
 - **Polish** — dark/light theming with five palettes and reduced-motion modes, syntax-highlighted markdown, a filterable run-history panel with JSON export, and an animated ASCII intro.
+- **Bring your own key** — on deployments with `PUBLIC_BYOK_ENABLED=true`, visitors paste their own provider keys to unlock tiers on their own billing; keys stay browser-local and are never logged or stored server-side.
 
 ## 🎭 Temperaments
 
@@ -274,7 +277,7 @@ Streams results via Server-Sent Events.
 
 **Stack:** Bun · TypeScript · SvelteKit · [Vercel AI SDK](https://sdk.vercel.ai) · Tailwind CSS · Zod. Display font [Michroma](https://fonts.google.com/specimen/Michroma), body font [Atkinson Hyperlegible](https://fonts.google.com/specimen/Atkinson+Hyperlegible).
 
-**Security:** optional Bearer-token auth (`MAGI_API_KEY`) with timing-safe comparison; SvelteKit CSRF protection when unset; per-IP rate limiting; Zod validation on every request; `Content-Type` enforcement; client disconnects abort in-flight LLM calls; server errors never leak internals to the client.
+**Security:** strict hash-based Content-Security-Policy (`default-src 'self'`) plus `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy` headers; optional Bearer-token auth (`MAGI_API_KEY`) with timing-safe comparison; SvelteKit CSRF protection when unset; per-IP rate limiting; Zod validation on every request; `Content-Type` enforcement; client disconnects abort in-flight LLM calls; server errors never leak internals to the client.
 
 ## ☁️ Deployment
 
