@@ -249,7 +249,6 @@ export function loadPrefs(): MagiPrefs | null {
 			const rs = rawSettings as Record<string, unknown>;
 			rawSettings = {
 				...rs,
-				// `palette: 'eva'` was renamed to 'nebula'.
 				...(rs.palette === 'eva' ? { palette: 'nebula' } : {}),
 				// Custom-temperament overrides are keyed by node id — migrate the keys.
 				...(rs.customTemperaments

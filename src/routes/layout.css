@@ -56,7 +56,7 @@
 	/* Re-centre: trailing letter-spacing otherwise shifts a centered title left. */
 	padding-left: 0.12em;
 }
-/* The monospace display font for the node + consensus titles, which keep their
+/* The display font for the node + consensus titles, which keep their
    own size/weight/color. Tracking is applied per-element (so a node title can
    space its name without spacing the "• N" unit suffix). */
 @utility magi-display {
@@ -342,7 +342,6 @@
 		font-family: var(--magi-font-body);
 	}
 
-	/* Randomize button — match the auto-bordered <select> controls */
 	/* Sits in the prompt-entry row beside the input, so it wears the input's own
 	   surface + border tokens to read as one unit; only the icon color and a
 	   subtle hover set it apart as a button. */

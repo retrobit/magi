@@ -143,9 +143,10 @@
 		}
 	}
 
-	// Temperament awareness only shapes the Synthesis writer. Voting jurors already
-	// score through their own lens, and the Debate synthesizer is a neutral scribe
-	// (the lenses live in the debaters) — so the toggle is inert for both.
+	// Temperament awareness only shapes the Synthesis writer. Voting has no
+	// synthesizer (its jurors score on substance, not disposition) and the Debate
+	// synthesizer is a neutral scribe (the lenses live in the debaters) — so the
+	// toggle is inert for both.
 	const awarenessApplies = $derived(strategy === 'synthesis');
 
 	// Consensus temperament lenses the synthesizer (Synthesis only). It's inert

@@ -10,7 +10,7 @@
 	interface Props {
 		concept: 'boot' | 'decode' | 'convergence';
 		reduceMotion?: boolean;
-		/** Show the amber PREVIEW badge — set on the public demo. */
+		/** Show the amber demo badge — set on the public demo. */
 		demo?: boolean;
 		ondone: () => void;
 	}

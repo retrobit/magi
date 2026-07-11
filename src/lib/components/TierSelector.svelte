@@ -7,8 +7,8 @@
 		value: TierName;
 		onchange: (tier: TierName) => void;
 		disabled?: boolean;
-		/** Increment to pulse a slow highlight on the active pill — the demo tier
-		 *  guard uses it to draw the eye to Free instead of shaking the control. */
+		/** Increment to shake the active pill — a scoped ~1250ms head-shake the demo
+		 *  tier guard uses to draw the eye to Free without shaking the whole control. */
 		nudge?: number;
 	}
 
