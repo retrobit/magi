@@ -1,7 +1,7 @@
 {
 	"name": "magi",
 	"private": true,
-	"version": "0.0.1",
+	"version": "1.0.0",
 	"license": "MIT",
 	"description": "Three AI models deliberate in parallel, then converge on a consensus answer — synthesis, voting, or multi-round debate.",
 	"repository": {
