@@ -48,9 +48,10 @@ describe('FREE_MAGI_CONFIG', () => {
 		expect(FREE_MAGI_CONFIG.every((a) => a.gateway === 'openrouter')).toBe(true);
 	});
 
-	it('uses unique providers per node', () => {
-		const providers = FREE_MAGI_CONFIG.map((a) => a.provider);
-		expect(new Set(providers).size).toBe(3);
+	it('may repeat providers behind the router gateway (reliability outranks diversity)', () => {
+		// The trio is curated for stability; validateConfig's uniqueness rule
+		// exempts router seats, so a repeated sub-provider here is deliberate.
+		expect(() => validateConfig(FREE_MAGI_CONFIG)).not.toThrow();
 	});
 
 	it('uses unique models per node', () => {
@@ -123,6 +124,15 @@ describe('validateConfig', () => {
 			{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3-flash' }
 		];
 		expect(() => validateConfig(config)).toThrow('Duplicate providers');
+	});
+
+	it('allows duplicate providers across router-gateway seats', () => {
+		const config: MagiConfig = [
+			{ node: 'MAGI_1', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/a:free' },
+			{ node: 'MAGI_2', gateway: 'openrouter', provider: 'google', modelId: 'google/b:free' },
+			{ node: 'MAGI_3', gateway: 'openrouter', provider: 'nvidia', modelId: 'nvidia/c:free' }
+		];
+		expect(() => validateConfig(config)).not.toThrow();
 	});
 
 	it('throws on duplicate models', () => {
@@ -236,9 +246,22 @@ describe('buildDiverseConfig', () => {
 			model('cohere/north-mini-code:free', 'cohere'), // present but not preferred
 			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
 			model('google/gemma-4-26b-a4b-it:free', 'google'),
-			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama')
+			model('nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia')
 		]);
 		// The three top-ranked preferred seat ahead of the present non-preferred model.
+		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
+	});
+
+	it('seats same-provider preferred models together (reliability outranks diversity)', () => {
+		// Two nvidia entries sit in the preferred top three; both must seat rather
+		// than being displaced by a "diverse" non-preferred provider.
+		const config = buildDiverseConfig([
+			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama'), // diverse but not preferred
+			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
+			model('google/gemma-4-26b-a4b-it:free', 'google'),
+			model('nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia')
+		]);
+		expect(config.map((c) => c.provider)).toEqual(['nvidia', 'google', 'nvidia']);
 		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
 	});
 
