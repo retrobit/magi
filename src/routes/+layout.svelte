@@ -1,5 +1,11 @@
 <script lang="ts">
 	import './layout.css';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
+
+	// Vercel Web Analytics (page views / referrers). First-party script + beacon
+	// (/_vercel/insights/*), so the strict same-origin CSP already permits it;
+	// no-ops in dev and on hosts without the dashboard feature enabled.
+	injectAnalytics();
 
 	let { children } = $props();
 </script>

@@ -72,6 +72,7 @@
 		"@fontsource/michroma": "^5.2.8",
 		"@upstash/ratelimit": "^2.0.8",
 		"@upstash/redis": "^1.38.0",
+		"@vercel/analytics": "^2.0.1",
 		"ai": "^6.0.193",
 		"dompurify": "^3.4.7",
 		"highlight.js": "^11.11.1",
