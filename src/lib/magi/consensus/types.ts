@@ -188,14 +188,16 @@ export const SECTION_RULE = '\n\n---\n\n';
 // consensus entirely), flagship last.
 export const STRATEGY_NAMES = ['none', 'synthesis', 'voting', 'debate'] as const;
 export type StrategyName = (typeof STRATEGY_NAMES)[number];
-// Multi-Round Debate loads by default — the fullest expression of the three-MAGI
-// system is the first thing a new user sees. It is also the most expensive
-// strategy by every metric; the lighter options (synthesis, voting, none) are one
-// click away in the picker.
-export const DEFAULT_STRATEGY: StrategyName = 'debate';
+// Synthesis loads by default — a fresh visitor's first run should be fast and
+// reliable (one consensus call after the three nodes) rather than the most
+// impressive. Debate is the fullest expression of the system but also the most
+// expensive by every metric — slow on flaky free-tier models and ~3× the
+// request budget per turn — so it's one click away instead of the first thing
+// a new user waits on (changed from debate for the 1.0 public launch).
+export const DEFAULT_STRATEGY: StrategyName = 'synthesis';
 // The flagship strategy — the fullest expression of the three-MAGI system, given
-// headline treatment in the picker (badge + RGB-triad accent). Currently the same
-// as the default, but kept distinct: one drives initial state, the other the badge.
+// headline treatment in the picker (badge + RGB-triad accent). Distinct from the
+// default: one drives initial state, the other the badge.
 export const FLAGSHIP_STRATEGY: StrategyName = 'debate';
 
 export const STRATEGY_LABELS: Record<StrategyName, string> = {

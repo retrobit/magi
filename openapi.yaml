@@ -298,9 +298,9 @@ components:
       enum: [none, synthesis, voting, debate]
       description: |
         - `none` — skip consensus, just stream the three node responses.
-        - `synthesis` — a consensus model writes one unified answer.
+        - `synthesis` (UI default) — a consensus model writes one unified answer.
         - `voting` — peers score each other 0–10; highest wins, shown verbatim.
-        - `debate` (default, flagship) — multi-round revision until convergence, then synthesis.
+        - `debate` (flagship) — multi-round revision until convergence, then synthesis.
 
     GatewayName:
       type: string
