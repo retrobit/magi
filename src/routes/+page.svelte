@@ -181,6 +181,9 @@
 	// snaps mid-tween. WAAPI height reverts to the flex height on finish, so there's
 	// no end-state jump. Skipped under reduced motion.
 	function setLayoutFocus(focus: 'balanced' | 'nodes' | 'consensus') {
+		// Any layout change revokes the header-cycle claim (see cycleLayoutFrom,
+		// which re-stamps it immediately after calling this).
+		lastHeaderActor = null;
 		const reduced =
 			motionMode === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const zones = [nodeZoneEl, consensusZoneEl].filter((z): z is HTMLElement => !!z);
@@ -268,17 +271,30 @@
 		return base;
 	}
 
-	// Header-click layout cycling. A node header advances node→shared→consensus; the
-	// consensus header advances the reverse (consensus→shared→node) — both wrap.
+	// Header-click layout cycling with a last-actor rule: a header only CONTINUES
+	// its cycle (max→shared→other→wrap) when that same header zone made the
+	// previous layout change. After anything else moves the layout — the other
+	// header, the LayoutToggle, auto-layout, the new-conversation reset — the
+	// claim is revoked (setLayoutFocus clears it) and the next header click
+	// restarts by expanding its own zone, regardless of the current focus. The
+	// one exception: if the layout is already sitting on that zone's max, the
+	// restart would be a dead click, so it advances instead.
 	// Routed through setLayoutFocus (not a raw assignment) so the FLIP runs AND the
 	// auto/manual split falls out for free: with auto on, the accordion keeps showing
 	// "Auto" and the next phase reclaims the focus (a temporary nudge); with auto off,
 	// the manual focus persists and the accordion reflects it.
 	const NODE_LAYOUT_CYCLE = ['nodes', 'balanced', 'consensus'] as const;
 	const CONSENSUS_LAYOUT_CYCLE = ['consensus', 'balanced', 'nodes'] as const;
-	function cycleLayoutFrom(order: readonly ('balanced' | 'nodes' | 'consensus')[]) {
-		const i = order.indexOf(layoutFocus);
-		setLayoutFocus(order[(i + 1) % order.length]);
+	// Plain `let` (not $state) — handler-local bookkeeping, never rendered.
+	let lastHeaderActor: 'nodes' | 'consensus' | null = null;
+	function cycleLayoutFrom(order: typeof NODE_LAYOUT_CYCLE | typeof CONSENSUS_LAYOUT_CYCLE) {
+		const actor = order[0]; // each cycle leads with its own zone's max state
+		const next =
+			lastHeaderActor !== actor && layoutFocus !== actor
+				? actor
+				: order[(order.indexOf(layoutFocus) + 1) % order.length];
+		setLayoutFocus(next);
+		lastHeaderActor = actor;
 	}
 
 	// Auto-layout: when on, move the focus accordion as the run progresses. Only
