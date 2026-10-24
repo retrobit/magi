@@ -50,7 +50,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 ## 2. Temperaments
 
 - [ ] Temperament toggle defaults to OFF
-- [ ] Click the brain icon — toggle switches to ON with indigo highlight
+- [ ] Click the Temperament toggle (🧠) — it switches to ON with the subtle active state (faint tint + inset ring)
 - [ ] Each panel shows its temperament badge (Rationalist, Caretaker, Individualist)
 - [ ] Submit a query with temperaments ON — responses reflect dispositional lenses
 - [ ] Toggle OFF — badges disappear
@@ -77,7 +77,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 ## 5. Consensus Node Selection
 
-- [ ] "Synthesized by" dropdown defaults to the first node
+- [ ] The consensus seat dropdown — labelled "Synthesizer" (Synthesis) or "Consolidator" (Multi-Round Debate), N/A for Voting and None — defaults to the first node
 - [ ] Changing it before a query works — consensus uses the selected node's model
 - [ ] Changing it is disabled during loading
 

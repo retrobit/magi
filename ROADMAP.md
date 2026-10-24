@@ -18,8 +18,8 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Model Management
 
-- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Last verified 2026-07-05 against each provider's live `/v1/models` (balanced → Claude Sonnet 5; README/openapi frontier synced to Opus 4.8).
-- **Free-tier preferred defaults** — `PREFERRED_FREE_MODEL_IDS` (config.ts) is a ranked good-list of distinct-provider models that seat first on the free tier. Refresh it by **probing candidates live** (catalog presence isn't enough — some models return empty 200s or only handle code) and keep providers distinct. Last refreshed 2026-07-10 (dropped dead `poolside/laguna-xs.2`, expanded trio → ranked five).
+- **Paid-tier model freshness** — Periodically verify the static registry against current provider model lineups (IDs, display names, context lengths). Fastest ground truth: query each provider's live `/v1/models` directly, and wire GA ids only. Last verified 2026-07-05 (balanced → Claude Sonnet 5; README/openapi frontier synced to Opus 4.8). Decisions from that pass: **Claude Fable 5 as frontier was considered and declined** (≈2× Opus cost, always-on thinking, a refusal stop-reason and a 30-day-retention requirement — not worth it for a tier the public demo doesn't expose); `gpt-5.4-nano` would be a budget downgrade, not an upgrade; the undated `claude-haiku-4-5` alias is intentional.
+- **Free-tier preferred defaults** — `PREFERRED_FREE_MODEL_IDS` (config.ts) is a ranked good-list that seats first on the free tier, with diverse-pick backfill when entries are missing from the live pool. Reliability outranks provider diversity here: preferred models seat even when they repeat a provider, and `validateConfig`'s provider-uniqueness rule covers direct-gateway seats only (router seats are exempt). Refresh it by **probing candidates live** — catalog presence isn't enough (some models return empty 200s, 429 under load, or only handle code). Last refreshed 2026-07-14 (v1.0.2, `785f91b`: five probe-verified models). **Refresh due:** a 2026-10-04 probe found `nvidia/nemotron-3-nano-30b-a3b` gone from the catalog and `google/gemma-4-26b-a4b-it` 429-saturated. _Considered, not built:_ key the preference on providers (which churn slowly) instead of exact model ids, picking each provider's best current free model from the live pool.
 
 ## Temperaments
 
@@ -50,3 +50,16 @@ Support more model routers beyond OpenRouter. The dynamic model discovery patter
 | [Together AI](https://together.ai)                                     | Trial credits    | ✅ `/models`                   | 🟡  | Open-source models only — no Anthropic/OpenAI relay     |
 | [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) | ✅ Free plan     | ❌ No discovery                | 🟠  | Pass-through/cache layer, not a model router            |
 | [Bifrost](https://github.com/maximhq/bifrost)                          | ✅ Self-hosted   | ❌ Config-driven               | 🟠  | 11µs overhead — ultra-low latency, no dynamic discovery |
+
+## Parked & considered
+
+Assessed and deliberately not scheduled — recorded so they aren't re-litigated from scratch.
+
+- **Loader-animation dedup** — `MagiPanel` and `ConsensusView` each carry their own loader wiring around `loaderFrame` (the follow-scroll core is already shared via `scroll.svelte.ts`). Available as a cleanup.
+- **Voting jurors are history-blind** — on follow-up turns, jurors score only the current answers (`voting.ts` takes no history). Giving them history would change voting output, so it's left as-is.
+- **BYOK keyed bucket** — the 30 req/min bucket is granted when a valid `x-magi-byok` header is present, not when its keys actually cover the request. Checking coverage first would move work ahead of the rate limit; left as-is.
+- **Rate limit ∥ body read** — parallelizing the limiter round-trip with the body read was rejected: the limiter deliberately runs before the body is parsed, so an over-limit caller costs nothing.
+- **Splash glow animates `filter: drop-shadow`** — the one remaining exception to the animate-only-`transform`/`opacity` rule; it's a single non-looping pulse on load.
+- **Move `stripSummaryTail` / `debateVerdictLine` from `debate.ts` to `format.ts`** — would keep the AI SDK out of the browser bundle by structure rather than by tree-shaking. Low value, import churn.
+- **Stall-guard end-to-end test** — `_createStallGuard` has unit tests; a route-level test over a stalled stream with fake timers is flaky-prone, so it's skipped.
+- **Runtime idle-CPU test (Playwright)** — rejected: heavy (browser binaries, a new test project, CI wiring), flaky, and still blind to compositor/GPU cost. `MagiBackground.cost.test.ts` guards that regression class deterministically.

@@ -94,3 +94,33 @@ no `PUBLIC_` prefix and stay server-only.
 - [ ] Try a **paid tier** (Frontier/Balanced) → must return **403** "Only the free tier
       is available on the public demo."
 - [ ] Hit `GET /api/magi/budget` → must return the disabled message.
+
+## Operations
+
+- **Watch:** Vercel → project → **Observability** (per-route error rate and duration — a
+  rising error line under load is usually OpenRouter saturation, a cliff is a real
+  problem) and **Logs** (structured JSON with `requestId` and per-model latency; filter
+  `warn`/`error`). ⚠️ Hobby keeps runtime logs only ~1 hour — check right after traffic.
+  **Web Analytics** shows visitors; **openrouter.ai/activity** shows request counts
+  against the caps below.
+- **OpenRouter free-model caps** (account-wide, observed 2026-07-14): **20 req/min** —
+  the binding limit; a turn is 3–4 OpenRouter requests, so ≈5 turns/min across all
+  visitors — and **1,000 req/day** once the account has ever bought ≥ $10 of credits
+  (50/day otherwise). The daily counter resets at UTC midnight. Free calls bill $0, so
+  the account never drops back below the threshold.
+- **Key failures decoded:** `401 "User not found"` = dead, revoked or expired key; `402` =
+  no credits; `429` = one of the caps above. Mint replacement keys **without an expiry**,
+  update the variable for Production and Preview, then redeploy (env changes need a new
+  build).
+- **Did a deploy land?** `GET /_app/version.json` on the production alias returns
+  SvelteKit's build timestamp — a fresh stamp means a new deploy; an unchanged one means
+  the push only built a preview. Git-integration deploys land ~45–70 s after a push.
+- **Test the demo in a private window** at `magi-consensus.vercel.app`. Hashed deployment
+  URLs are SSO-walled and, for a logged-in team member, carry Vercel-toolbar CSP noise
+  that says nothing about the app.
+- **Upstash:** the `magi:rl` / `magi:rlk` sliding-window keys expire ~60 s after a burst,
+  so an empty Data Browser later is normal; usage metrics ticking during a burst confirm
+  the durable path.
+- **Runtime pin:** `adapter({ runtime: 'nodejs22.x' })` in
+  [svelte.config.js](svelte.config.js) — without it the adapter infers the runtime from
+  the local build's Node version and fails on one it doesn't recognize.
