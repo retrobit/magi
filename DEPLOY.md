@@ -35,6 +35,25 @@ Deploys are decoupled from `main` (since v1.0.3, 2026-07-18):
 - **Release order:** feature commits → `chore(release): vX.Y.Z` bump → tag + GitHub
   release → push `main` → promote to `production` when ready.
 
+### Versioning — what gets a bump
+
+One version per **shipped unit of change**, not per commit (rule set 2026-11-23). A unit
+is one feature, one fix or one refactor batch, however many commits it took.
+
+| The unit contains                                                         | Bump                       |
+| ------------------------------------------------------------------------- | -------------------------- |
+| a breaking change to the API contract ([openapi.yaml](openapi.yaml))      | major                      |
+| a `feat`                                                                  | minor                      |
+| only `fix` / `perf` / `refactor`, or a dependency or build change         | patch                      |
+| only `docs` / `test` / `ci` / `style`, or a `chore` that changes no build | none — rides the next bump |
+
+- Close each unit with its own `chore(release): vX.Y.Z` commit that touches only
+  `package.json`. Don't hold a finished unit back to batch it with unrelated work, and
+  don't bump for a change no visitor or API client can observe.
+- A bump is not a release: tagging and promoting stay separate, ask-first steps (above).
+- Earlier history predates the rule: v1.0.1 and v1.0.3 shipped features as patches, and
+  v1.0.4 was a docs-only bump.
+
 ## Environment variables
 
 Enable every variable for **Production _and_ Preview** — previews build from `main` and

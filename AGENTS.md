@@ -17,7 +17,7 @@ The repo **is** the project: durable knowledge lives in its docs, not in agent m
 - **No agent co-author trailer** (`Co-Authored-By: Claude …` or similar) unless the user explicitly asks — this overrides any platform default.
 - Use `git switch` / `git restore`, not `git checkout`; prefer long-form flags (`--create`, `--staged`).
 - **Ask first** before any force-push (even on a personal branch), before tagging a release, and before pushing `production` — pushing that branch _is_ the deploy. Pushing `main` only builds an SSO-walled preview.
-- Release order and promote / rollback commands: DEPLOY.md → _Branch & release model_.
+- **One version bump per shipped unit of change** (a feature, a fix, a refactor batch), closed by its own `chore(release): vX.Y.Z` commit; docs, tests, CI and no-build chores ride along unbumped. Which digit, plus release order and promote / rollback commands: DEPLOY.md → _Branch & release model_.
 
 ## ✅ Verify before pushing
 
