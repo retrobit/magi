@@ -10,20 +10,31 @@ export interface NodeAssignment {
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
 
-/** Ranked short-list of reliable, coherent free models — more than the three
- *  seats on purpose, so the demo's seats are always drawn from known-good models
- *  in rank order, not the flaky long tail (poolside/tencent return empty,
- *  cohere/north-mini-code is code-only, the popular general models — llama-3.3,
- *  qwen3-next, gpt-oss — 429 under load or vanish). Reliability outranks provider
- *  diversity here (see buildDiverseConfig). Re-probe live when refreshing this
- *  list — catalog presence != a coherent reply; last probed 2026-07-14 (launch
- *  day), every entry 2/2 coherent under repeat probes. */
+/** Ranked short-list of free models that answer reliably AND start answering
+ *  soon — more than the three seats on purpose, so the demo's seats are always
+ *  drawn from known-good models in rank order, not the long tail. Reliability
+ *  outranks provider diversity here (see buildDiverseConfig), which is why the
+ *  top three may share a provider.
+ *
+ *  Rank on two things, both measured live — catalog presence != a usable reply:
+ *  1. Success rate under repeat probes (free endpoints 429 for weeks on end).
+ *  2. Time to the first ANSWER token on a hard prompt. Most free models now
+ *     reason before answering, the route cannot see reasoning tokens, and its
+ *     stall guard (NODE_STALL_TIMEOUT_MS) aborts a seat that stays silent too
+ *     long — so a slow thinker fails exactly on the questions worth asking.
+ *
+ *  Last probed 2026-11-23, all 12 free models, 7-10 real requests each. Kept:
+ *  every entry answered every time except particle-1 (7/10, upstream 429s).
+ *  Left out: google/gemma-4-* (429 on every attempt, as on 2026-10-04),
+ *  recursive/flint-v1.0 and baidu/ernie-5.5-flash-preview (coherent, but up to
+ *  43 s / 62 s of silent reasoning), inclusionai/ling-3.2-flash (429s),
+ *  liquid/lfm-3-1.7b and dots-studio/dots-3-note-preview (empty replies). */
 export const PREFERRED_FREE_MODEL_IDS = [
-	'nvidia/nemotron-3-super-120b-a12b:free',
-	'google/gemma-4-26b-a4b-it:free',
 	'nvidia/nemotron-3-ultra-550b-a55b:free',
 	'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-	'nvidia/nemotron-3-nano-30b-a3b:free'
+	'nvidia/nemotron-3.5-lightning:free',
+	'nvidia/nemotron-3.5-super-vl:free',
+	'particle-ai/particle-1:free'
 ];
 
 /** Seed a 3-node assignment from a model list. Shared by the client (free-tier
@@ -60,28 +71,13 @@ export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
 ];
 
-// Static fallback when the live OpenRouter list can't be fetched — kept in sync
-// with PREFERRED_FREE_MODEL_IDS so the demo's reliable trio shows even offline.
-export const FREE_MAGI_CONFIG: MagiConfig = [
-	{
-		node: 'MAGI_1',
-		gateway: 'openrouter',
-		provider: 'nvidia',
-		modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
-	},
-	{
-		node: 'MAGI_2',
-		gateway: 'openrouter',
-		provider: 'google',
-		modelId: 'google/gemma-4-26b-a4b-it:free'
-	},
-	{
-		node: 'MAGI_3',
-		gateway: 'openrouter',
-		provider: 'nvidia',
-		modelId: 'nvidia/nemotron-3-ultra-550b-a55b:free'
-	}
-];
+// Static fallback when the live OpenRouter list can't be fetched: the top three
+// preferred models, so the demo's reliable trio shows even offline. A router
+// model's provider is the slug before the slash (as in server/openrouter.ts).
+export const FREE_MAGI_CONFIG = MAGI_NODE_NAMES.map((node, i) => {
+	const modelId = PREFERRED_FREE_MODEL_IDS[i];
+	return { node, gateway: 'openrouter', provider: modelId.split('/')[0], modelId };
+}) as unknown as MagiConfig;
 
 /** Maps each tier to its node configuration. */
 export const TIER_CONFIGS: Record<TierName, MagiConfig> = {

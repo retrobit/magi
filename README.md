@@ -94,7 +94,7 @@ Pick a tier to trade quality against cost:
 | **Budget**   | Claude Haiku 4.5 | GPT-5.4 Mini | Gemini 3.1 Flash Lite |
 | **Free**     | \*               | \*           | \*                    |
 
-> The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai), fetching the currently-live model list dynamically and auto-selecting three from different providers. Set `OPENROUTER_API_KEY` to enable it.
+> The **Free** tier routes all three nodes through [OpenRouter](https://openrouter.ai), fetching the currently-live model list dynamically. A short ranked list of probe-verified models seats first (reliability outranks variety, so two seats may share a provider); any gap is filled with a provider-diverse pick from the rest of the live pool. Set `OPENROUTER_API_KEY` to enable it.
 >
 > ⚠️ Free-tier models are community / promotional endpoints and can be flaky — retry or swap any node that stalls or fails. A caution icon by the tier selector flags this in-app.
 
@@ -167,11 +167,11 @@ Available models for a tier (paid: static registry; free: live from OpenRouter).
 {
 	"models": [
 		{
-			"id": "qwen/qwen3-coder:free",
+			"id": "nvidia/nemotron-3-ultra-550b-a55b:free",
 			"gateway": "openrouter",
-			"provider": "qwen",
-			"displayName": "Qwen3 Coder",
-			"contextLength": 262144
+			"provider": "nvidia",
+			"displayName": "Nemotron 3 Ultra",
+			"contextLength": 1000000
 		}
 	]
 }
@@ -212,20 +212,20 @@ Streams results via Server-Sent Events.
 		{
 			"node": "MAGI_1",
 			"gateway": "openrouter",
-			"provider": "qwen",
-			"modelId": "qwen/qwen3-coder:free"
+			"provider": "nvidia",
+			"modelId": "nvidia/nemotron-3-ultra-550b-a55b:free"
 		},
 		{
 			"node": "MAGI_2",
 			"gateway": "openrouter",
-			"provider": "nvidia",
-			"modelId": "nvidia/nemotron-3-super-120b-a12b:free"
+			"provider": "particle-ai",
+			"modelId": "particle-ai/particle-1:free"
 		},
 		{
 			"node": "MAGI_3",
 			"gateway": "openrouter",
-			"provider": "meta-llama",
-			"modelId": "meta-llama/llama-3.3-70b-instruct:free"
+			"provider": "nvidia",
+			"modelId": "nvidia/nemotron-3.5-lightning:free"
 		}
 	]
 }

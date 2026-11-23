@@ -165,7 +165,7 @@ describe('validateConfig', () => {
 				node: 'MAGI_2',
 				gateway: 'openrouter',
 				provider: 'nvidia',
-				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+				modelId: 'nvidia/nemotron-3-ultra-550b-a55b:free'
 			},
 			{
 				node: 'MAGI_3',
@@ -208,7 +208,7 @@ describe('validateConfig', () => {
 				node: 'MAGI_3',
 				gateway: 'openrouter',
 				provider: 'nvidia',
-				modelId: 'nvidia/nemotron-3-super-120b-a12b:free'
+				modelId: 'nvidia/nemotron-3-ultra-550b-a55b:free'
 			}
 		];
 		expect(() => validateConfig(config)).not.toThrow();
@@ -241,41 +241,45 @@ describe('buildDiverseConfig', () => {
 		expect(buildDiverseConfig([model('a/1', 'a'), model('b/1', 'b')])).toHaveLength(2);
 	});
 
+	// These derive their ids from the live list, so a free-tier refresh never has
+	// to edit them: what they pin is the seating rule, not which models are listed.
+	const preferred = (id: string) => model(id, id.split('/')[0]);
+	const top3 = PREFERRED_FREE_MODEL_IDS.slice(0, 3);
+
 	it('seats the preferred free defaults first when present', () => {
 		const config = buildDiverseConfig([
 			model('cohere/north-mini-code:free', 'cohere'), // present but not preferred
-			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
-			model('google/gemma-4-26b-a4b-it:free', 'google'),
-			model('nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia')
+			...top3.map(preferred)
 		]);
 		// The three top-ranked preferred seat ahead of the present non-preferred model.
-		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
+		expect(config.map((c) => c.modelId)).toEqual(top3);
+	});
+
+	it('seats preferred models in rank order, whatever order the pool lists them in', () => {
+		const config = buildDiverseConfig([...PREFERRED_FREE_MODEL_IDS].reverse().map(preferred));
+		expect(config.map((c) => c.modelId)).toEqual(top3);
 	});
 
 	it('seats same-provider preferred models together (reliability outranks diversity)', () => {
-		// Two nvidia entries sit in the preferred top three; both must seat rather
-		// than being displaced by a "diverse" non-preferred provider.
+		// Preferred entries that share a provider must all seat rather than being
+		// displaced by a non-preferred model from a provider not yet at the table.
 		const config = buildDiverseConfig([
 			model('meta-llama/llama-3.3-70b-instruct:free', 'meta-llama'), // diverse but not preferred
-			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
-			model('google/gemma-4-26b-a4b-it:free', 'google'),
-			model('nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia')
+			model('a/one:free', 'a'), // diverse but not preferred
+			...top3.map(preferred)
 		]);
-		expect(config.map((c) => c.provider)).toEqual(['nvidia', 'google', 'nvidia']);
-		expect(config.map((c) => c.modelId)).toEqual(PREFERRED_FREE_MODEL_IDS.slice(0, 3));
+		expect(config.map((c) => c.modelId)).toEqual(top3);
 	});
 
 	it('backfills a missing preferred default with a diverse pick', () => {
 		// Only two preferred present (the rest of the ranked list absent) → seats
-		// nemotron + gemma, then fills the third from a non-preferred pool model.
+		// those two, then fills the third from a non-preferred pool model.
 		const config = buildDiverseConfig([
-			model('nvidia/nemotron-3-super-120b-a12b:free', 'nvidia'),
-			model('google/gemma-4-26b-a4b-it:free', 'google'),
+			...top3.slice(0, 2).map(preferred),
 			model('cohere/north-mini-code:free', 'cohere')
 		]);
 		expect(config.map((c) => c.modelId)).toEqual([
-			'nvidia/nemotron-3-super-120b-a12b:free',
-			'google/gemma-4-26b-a4b-it:free',
+			...top3.slice(0, 2),
 			'cohere/north-mini-code:free'
 		]);
 	});
