@@ -852,35 +852,16 @@
 	}
 
 	// Intro splash. Auto-plays on every page load; the header MAGI mark replays
-	// it on demand. Only `decode` is active; `boot` and `convergence` stay
-	// implemented in Splash.svelte but aren't reachable from the UI (a
-	// `?splash=<concept>` query param can still force them for dev/preview).
-	// The only active concept — the per-load default and the header-mark replay.
-	const SPLASH_CONCEPTS = ['decode'] as const;
-	// All implemented concepts — kept for the `?splash=` dev/preview param only.
-	const SPLASH_CONCEPTS_ALL = ['decode', 'boot', 'convergence'] as const;
-	type SplashConcept = (typeof SPLASH_CONCEPTS_ALL)[number];
+	// it on demand.
 	let showSplash = $state(false);
-	let splashConcept = $state<SplashConcept>('decode');
 	let splashNonce = $state(0);
 	function replaySplash() {
-		const i = SPLASH_CONCEPTS.indexOf(splashConcept as (typeof SPLASH_CONCEPTS)[number]);
-		splashConcept = SPLASH_CONCEPTS[(i + 1) % SPLASH_CONCEPTS.length];
 		splashNonce += 1;
 		showSplash = true;
 	}
 
 	onMount(async () => {
-		// Splash runs first so it can paint over the hydrating shell. It plays on
-		// every load; the `?splash=<concept>` param only overrides which concept.
-		try {
-			const forced = new URLSearchParams(location.search).get('splash');
-			if (forced && (SPLASH_CONCEPTS_ALL as readonly string[]).includes(forced)) {
-				splashConcept = forced as SplashConcept;
-			}
-		} catch {
-			// `location` unavailable — fall back to the default concept.
-		}
+		// Splash runs first so it can paint over the hydrating shell.
 		showSplash = true;
 
 		const prefs = loadPrefs();
