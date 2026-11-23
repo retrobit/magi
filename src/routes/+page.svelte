@@ -795,12 +795,7 @@
 		// so a fresh session always opens neutral. Auto-layout then takes over once a
 		// run begins.
 		autoLayout = s.autoLayout ?? true;
-		// Back-compat: older payloads stored a `reduceMotion` boolean. Map true →
-		// reduced, false → full (an explicit Full choice); a fresh payload with
-		// neither field defaults to the new `normal` mode.
-		motionMode =
-			s.motionMode ??
-			(s.reduceMotion === undefined ? 'normal' : s.reduceMotion ? 'reduced' : 'full');
+		motionMode = s.motionMode ?? 'normal';
 	}
 
 	// A persisted snapshot is usable only if every model it names still exists.
@@ -1475,7 +1470,6 @@
 {#if showSplash}
 	{#key splashNonce}
 		<Splash
-			concept={splashConcept}
 			reduceMotion={motionMode === 'reduced'}
 			demo={DEMO_MODE}
 			ondone={() => (showSplash = false)}

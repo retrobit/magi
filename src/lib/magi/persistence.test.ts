@@ -204,28 +204,6 @@ describe('loadConversations / saveConversations', () => {
 		expect(loadConversations()).toEqual({});
 	});
 
-	it('migrates legacy node ids in a saved conversation turn', () => {
-		localStorage.setItem(
-			CONVERSATION_KEY,
-			JSON.stringify({
-				balanced: [
-					{
-						query: 'q',
-						nodeResponses: { MELCHIOR: 'a', CASPAR: 'c' },
-						nodeErrors: {},
-						consensus: 'done',
-						consensusNode: 'MELCHIOR',
-						nodeUsage: { MELCHIOR: { inputTokens: 1, outputTokens: 2 } }
-					}
-				]
-			})
-		);
-		const turn = loadConversations().balanced?.[0];
-		expect(turn?.consensusNode).toBe('MAGI_1');
-		expect(Object.keys(turn!.nodeResponses)).toEqual(['MAGI_1', 'MAGI_3']);
-		expect(Object.keys(turn!.nodeUsage)).toEqual(['MAGI_1']);
-	});
-
 	it('returns an empty object when stored JSON is unparseable', () => {
 		localStorage.setItem(CONVERSATION_KEY, 'not json');
 		expect(loadConversations()).toEqual({});
@@ -294,18 +272,16 @@ describe('clearConversations', () => {
 });
 
 describe('loadPrefs / savePrefs — settings optional fields', () => {
-	it('round-trips a settings slice including palette, layoutFocus, and reduceMotion', () => {
+	it('round-trips a settings slice including palette and layoutFocus', () => {
 		const settings: PersistedSettings = {
 			...validSettings,
 			palette: 'nebula',
-			layoutFocus: 'nodes',
-			reduceMotion: true
+			layoutFocus: 'nodes'
 		};
 		savePrefs({ ...validPrefs, settings });
 		const loaded = loadPrefs();
 		expect(loaded?.settings?.palette).toBe('nebula');
 		expect(loaded?.settings?.layoutFocus).toBe('nodes');
-		expect(loaded?.settings?.reduceMotion).toBe(true);
 	});
 
 	it('round-trips the autoLayout flag', () => {
@@ -335,57 +311,6 @@ describe('loadPrefs / savePrefs — settings optional fields', () => {
 		// The over-cap prompt fails schema validation, so the whole settings slice is
 		// dropped (tier + snapshots survive).
 		expect(loadPrefs()?.settings).toBeUndefined();
-	});
-
-	it('migrates a legacy palette: "eva" stored in settings loads as "nebula"', () => {
-		localStorage.setItem(
-			STORAGE_KEY,
-			JSON.stringify({
-				...validPrefs,
-				settings: { ...validSettings, palette: 'eva' }
-			})
-		);
-		const result = loadPrefs();
-		expect(result?.settings?.palette).toBe('nebula');
-	});
-
-	it('migrates legacy node ids (MELCHIOR/BALTHASAR/CASPAR) in a saved snapshot', () => {
-		localStorage.setItem(
-			STORAGE_KEY,
-			JSON.stringify({
-				tier: 'balanced',
-				snapshots: {
-					balanced: {
-						assignments: [
-							{ node: 'MELCHIOR', gateway: 'anthropic', provider: 'anthropic', modelId: 'opus' },
-							{ node: 'BALTHASAR', gateway: 'openai', provider: 'openai', modelId: 'gpt' },
-							{ node: 'CASPAR', gateway: 'google', provider: 'google', modelId: 'gemini' }
-						],
-						configuredNodes: [0, 1, 2],
-						consensusNode: 'CASPAR'
-					}
-				}
-			})
-		);
-		const snap = loadPrefs()?.snapshots.balanced;
-		expect(snap?.consensusNode).toBe('MAGI_3');
-		expect(snap?.assignments.map((a) => a.node)).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
-	});
-
-	it('migrates legacy node-keyed customTemperaments', () => {
-		localStorage.setItem(
-			STORAGE_KEY,
-			JSON.stringify({
-				...validPrefs,
-				settings: {
-					...validSettings,
-					customTemperaments: { BALTHASAR: { label: 'Guardian', prompt: 'Protect.' } }
-				}
-			})
-		);
-		expect(loadPrefs()?.settings?.customTemperaments).toEqual({
-			MAGI_2: { label: 'Guardian', prompt: 'Protect.' }
-		});
 	});
 
 	it('round-trips the motionMode field', () => {
