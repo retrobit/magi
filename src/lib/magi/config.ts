@@ -10,27 +10,26 @@ export interface NodeAssignment {
 
 export type MagiConfig = readonly [NodeAssignment, NodeAssignment, NodeAssignment];
 
-/** Ranked short-list of free models that answer reliably AND start answering
- *  soon — more than the three seats on purpose, so the demo's seats are always
- *  drawn from known-good models in rank order, not the long tail. Reliability
- *  outranks provider diversity here (see buildDiverseConfig), which is why the
- *  top three may share a provider.
+/** Ranked short-list of free models that answer reliably — more than the three
+ *  seats on purpose, so the demo's seats are always drawn from known-good models
+ *  in rank order, not the long tail. Reliability outranks provider diversity in
+ *  the seating rule (see buildDiverseConfig); within that, the top three are
+ *  picked from three different providers so the demo shows three model families.
+ *  Seat 1 is also the default consensus seat, so it holds the fastest of them.
  *
- *  Rank on two things, both measured live — catalog presence != a usable reply:
- *  1. Success rate under repeat probes (free endpoints 429 for weeks on end).
- *  2. Time to the first ANSWER token on a hard prompt. Most free models now
- *     reason before answering, the route cannot see reasoning tokens, and its
- *     stall guard (NODE_STALL_TIMEOUT_MS) aborts a seat that stays silent too
- *     long — so a slow thinker fails exactly on the questions worth asking.
- *
- *  Last probed 2026-11-23, all 12 free models, 7-10 real requests each. Kept:
- *  every entry answered every time except particle-1 (7/10, upstream 429s).
- *  Left out: google/gemma-4-* (429 on every attempt, as on 2026-10-04),
- *  recursive/flint-v1.0 and baidu/ernie-5.5-flash-preview (coherent, but up to
- *  43 s / 62 s of silent reasoning), inclusionai/ling-3.2-flash (429s),
- *  liquid/lfm-3-1.7b and dots-studio/dots-3-note-preview (empty replies). */
+ *  Re-probe live when refreshing — catalog presence != a usable reply. Probed
+ *  2026-11-23 (12 free models, 7-10 requests each, then 5 questions through the
+ *  app for the top three): every entry answered every time except particle-1
+ *  (7/10, upstream 429s). Most of these reason before answering; flint (up to
+ *  ~45 s) and ernie (up to ~60 s) only became usable once the route gave every
+ *  call a 120 s window to its first answer token (THINKING_WINDOW_MS in the
+ *  route). Left out: google/gemma-4-* (429 on every attempt since at least
+ *  2026-10-04), inclusionai/ling-3.2-flash (429s), liquid/lfm-3-1.7b and
+ *  dots-studio/dots-3-note-preview (empty replies). */
 export const PREFERRED_FREE_MODEL_IDS = [
 	'nvidia/nemotron-3-ultra-550b-a55b:free',
+	'baidu/ernie-5.5-flash-preview:free',
+	'recursive/flint-v1.0:free',
 	'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 	'nvidia/nemotron-3.5-lightning:free',
 	'nvidia/nemotron-3.5-super-vl:free',
