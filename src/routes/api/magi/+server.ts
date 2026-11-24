@@ -22,6 +22,7 @@ import {
 } from '$lib/magi/stream-events';
 import { resolveNodeTemperament } from '$lib/magi/temperaments';
 import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
+import { scrubErrorMessage } from '$lib/magi/scrub-error';
 import { findModelEntry } from '$lib/magi/registry';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import {
@@ -143,33 +144,6 @@ export function _extractErrorMessage(err: unknown): string {
 	}
 	if (err instanceof Error) return err.message;
 	return 'Unknown error';
-}
-
-/** Redact a raw upstream error before it leaves the server in an SSE event. The
- *  full message is still logged server-side; this only governs what the browser
- *  sees. Strips leak vectors (request URLs, bearer tokens / `sk-…` keys,
- *  absolute file paths, IP:port pairs) and caps length, while preserving the
- *  human-readable reason the UI relies on (rate-limit and context-window hints).
- *  Exported for unit testing; `_`-prefixed per the route's bare-export convention. */
-export function _scrubErrorMessage(message: string): string {
-	const scrubbed = message
-		// API keys / bearer tokens — long opaque secrets that must never surface.
-		.replace(/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{8,}/g, '[redacted-key]')
-		// Google AI Studio keys (AIza…) — a BYOK gateway, so a key could surface in
-		// an upstream error body; the sk-/rk-/pk- rule above doesn't cover them.
-		.replace(/\bAIza[0-9A-Za-z_-]{10,}/g, '[redacted-key]')
-		.replace(/\bBearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
-		// URLs — provider endpoints can carry keys in query strings or path.
-		.replace(/https?:\/\/\S+/gi, '[url]')
-		// Absolute filesystem paths — internal server layout.
-		.replace(/(?:\/[\w.-]+){2,}/g, '[path]')
-		// IP:port — internal hosts.
-		.replace(/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g, '[host]')
-		.replace(/\s+/g, ' ')
-		.trim();
-	if (!scrubbed) return 'The model failed to respond.';
-	const MAX = 300;
-	return scrubbed.length > MAX ? `${scrubbed.slice(0, MAX - 1).trimEnd()}…` : scrubbed;
 }
 
 // Replay a node's own past turns as an alternating user/assistant message list.
@@ -585,7 +559,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							node: h.node,
 							gateway: h.gateway,
 							provider: h.provider,
-							error: _scrubErrorMessage(h.reason)
+							error: scrubErrorMessage(h.reason)
 						});
 					}
 				}
@@ -749,7 +723,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							if (!_isAuthError(rootErr) && _isAvailabilityError(message)) {
 								markUnhealthy(modelId, message);
 							}
-							send('model-error', { node, gateway, provider, error: _scrubErrorMessage(message) });
+							send('model-error', { node, gateway, provider, error: scrubErrorMessage(message) });
 							throw rootErr;
 						} finally {
 							stall.cleanup();
@@ -1021,9 +995,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						elapsedMs: requestTimer()
 					});
 					send('error', {
-						message: _scrubErrorMessage(
-							err instanceof Error ? err.message : 'Internal server error'
-						)
+						message: scrubErrorMessage(err instanceof Error ? err.message : 'Internal server error')
 					});
 				}
 			}

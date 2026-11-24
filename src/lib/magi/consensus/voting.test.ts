@@ -212,6 +212,17 @@ describe('votingStrategy.execute', () => {
 		expect(text).toContain('Answer from MAGI_1');
 	});
 
+	it('redacts a raw upstream error before quoting it in the vote', async () => {
+		generateTextMock.mockRejectedValue(
+			new Error('401 from https://api.provider.com/v1/chat with key sk-or-v1-deadbeefcafe1234')
+		);
+		const text = completeText(await collect(votingStrategy.execute(context())));
+		expect(text).toContain('No juror produced a usable score');
+		expect(text).toContain('[redacted-key]');
+		expect(text).not.toContain('sk-or-v1-deadbeefcafe1234');
+		expect(text).not.toContain('api.provider.com');
+	});
+
 	it('forwards the abort signal to every juror call', async () => {
 		generateTextMock.mockResolvedValue(
 			jurorReply([

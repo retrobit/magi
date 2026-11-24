@@ -12,9 +12,9 @@ import {
 	_createStallGuard,
 	_extractErrorMessage,
 	_isAvailabilityError,
-	_isAuthError,
-	_scrubErrorMessage
+	_isAuthError
 } from './+server';
+import { scrubErrorMessage } from '$lib/magi/scrub-error';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;
@@ -540,38 +540,38 @@ describe('_extractErrorMessage', () => {
 	});
 });
 
-describe('_scrubErrorMessage', () => {
+describe('scrubErrorMessage', () => {
 	it('redacts request URLs that could carry keys in the query string', () => {
-		const out = _scrubErrorMessage('failed calling https://api.provider.com/v1/chat?key=abc123');
+		const out = scrubErrorMessage('failed calling https://api.provider.com/v1/chat?key=abc123');
 		expect(out).not.toContain('https://');
 		expect(out).toContain('[url]');
 	});
 
 	it('redacts API keys and bearer tokens', () => {
-		expect(_scrubErrorMessage('bad key sk-or-v1-deadbeefcafe1234')).toContain('[redacted-key]');
-		expect(_scrubErrorMessage('Authorization: Bearer eyJhbGciOi.JIUzI1Ni')).toContain(
+		expect(scrubErrorMessage('bad key sk-or-v1-deadbeefcafe1234')).toContain('[redacted-key]');
+		expect(scrubErrorMessage('Authorization: Bearer eyJhbGciOi.JIUzI1Ni')).toContain(
 			'Bearer [redacted]'
 		);
 	});
 
 	it('redacts absolute filesystem paths and IP:port hosts', () => {
-		expect(_scrubErrorMessage('ENOENT at /var/run/secrets/key.pem')).toContain('[path]');
-		expect(_scrubErrorMessage('refused by 10.0.0.5:8080')).toContain('[host]');
+		expect(scrubErrorMessage('ENOENT at /var/run/secrets/key.pem')).toContain('[path]');
+		expect(scrubErrorMessage('refused by 10.0.0.5:8080')).toContain('[host]');
 	});
 
 	it('preserves the human-readable reason the UI relies on', () => {
-		expect(_scrubErrorMessage('Rate limit exceeded — 500 requests per day')).toBe(
+		expect(scrubErrorMessage('Rate limit exceeded — 500 requests per day')).toBe(
 			'Rate limit exceeded — 500 requests per day'
 		);
-		expect(_scrubErrorMessage('maximum context length is 8192 tokens')).toContain('context');
+		expect(scrubErrorMessage('maximum context length is 8192 tokens')).toContain('context');
 	});
 
 	it('caps length and falls back when nothing readable remains', () => {
 		const long = 'x'.repeat(500);
-		const out = _scrubErrorMessage(long);
+		const out = scrubErrorMessage(long);
 		expect(out.length).toBeLessThanOrEqual(300);
 		expect(out.endsWith('…')).toBe(true);
-		expect(_scrubErrorMessage('   ')).toBe('The model failed to respond.');
+		expect(scrubErrorMessage('   ')).toBe('The model failed to respond.');
 	});
 });
 

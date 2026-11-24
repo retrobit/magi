@@ -11,6 +11,7 @@ import {
 import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
 import { makePeerOrderer } from './peer-order';
+import { scrubErrorMessage } from '../scrub-error';
 
 interface Candidate {
 	label: string;
@@ -212,7 +213,10 @@ export const votingStrategy: ConsensusStrategy = {
 
 		for (const run of jurorRuns) {
 			if (run.status !== 'fulfilled') {
-				jurorErrors.push(run.reason instanceof Error ? run.reason.message : String(run.reason));
+				// Raw provider text — redact before it is written into the streamed markdown.
+				jurorErrors.push(
+					scrubErrorMessage(run.reason instanceof Error ? run.reason.message : String(run.reason))
+				);
 				continue;
 			}
 			const { juror, candidates, text, usage } = run.value;
