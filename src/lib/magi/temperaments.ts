@@ -5,6 +5,9 @@ import {
 	type TemperamentName,
 	type MagiNodeName
 } from './types';
+// Type-only: validation.ts imports the length limits below, so a value import
+// here would be a cycle.
+import type { TemperamentOverride } from './validation';
 
 export const TEMPERAMENT_SYSTEM_PROMPTS: Record<TemperamentName, string> = {
 	rationalist: `You are the Rationalist aspect of the MAGI system. You approach every question through the lens of cold logic, empirical reasoning, and the pursuit of truth. Your guiding question is: "What do the facts say?"
@@ -25,14 +28,8 @@ You are passionate, bold, and unapologetically honest. You chase what resonates 
 export const MAX_TEMPERAMENT_LABEL = 40;
 export const MAX_TEMPERAMENT_PROMPT = 4000;
 
-/** A user-authored override for a node's temperament. Either field may be blank,
- *  in which case the built-in default fills in for it. */
-export interface TemperamentOverride {
-	label: string;
-	prompt: string;
-}
-
-/** Per-node temperament overrides, sparse — a node absent from the map keeps its
+/** Per-node temperament overrides (a user-authored label/prompt pair, either of
+ *  which may be blank so the built-in fills in), sparse — a node absent from the map keeps its
  *  built-in temperament. */
 export type CustomTemperaments = Partial<Record<MagiNodeName, TemperamentOverride>>;
 

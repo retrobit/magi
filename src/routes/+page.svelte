@@ -22,7 +22,13 @@
 	} from '$lib/components/DebugPanel.svelte';
 	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
 	import { assembleRetryPriors } from '$lib/magi/retry';
-	import { MAX_HISTORY_TURNS, MAX_NODE_TEXT_LENGTH, MAX_QUERY_LENGTH } from '$lib/magi/validation';
+	import {
+		MAX_HISTORY_TURNS,
+		MAX_NODE_TEXT_LENGTH,
+		MAX_QUERY_LENGTH,
+		type HistoryTurn,
+		type MagiRequest
+	} from '$lib/magi/validation';
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
@@ -51,8 +57,12 @@
 	import { getModelsForTier, findModelEntry } from '$lib/magi/registry';
 	import { resolveNodeTemperament, type CustomTemperaments } from '$lib/magi/temperaments';
 	import TemperamentEditor from '$lib/components/TemperamentEditor.svelte';
-	import { DEFAULT_STRATEGY, DEFAULT_DEBATE_ROUNDS, type StrategyName } from '$lib/magi/consensus';
-	import { SECTION_RULE } from '$lib/magi/consensus/types';
+	import {
+		DEFAULT_STRATEGY,
+		DEFAULT_DEBATE_ROUNDS,
+		SECTION_RULE,
+		type StrategyName
+	} from '$lib/magi/consensus/types';
 	import { decodeStreamEvents } from '$lib/magi/stream-events';
 	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
@@ -1045,7 +1055,7 @@
 	// Replay completed turns as request history (own-thread context per node).
 	// Trimmed to the server's request limits (validation.ts): an over-long thread
 	// or answer would otherwise be rejected with a 400 on every later turn.
-	function buildHistory() {
+	function buildHistory(): HistoryTurn[] {
 		return conversation.slice(-MAX_HISTORY_TURNS).map((turn) => ({
 			query: turn.query.slice(0, MAX_QUERY_LENGTH),
 			nodeResponses: MAGI_NODE_NAMES.filter((n) => turn.nodeResponses[n] !== undefined).map(
@@ -1240,13 +1250,14 @@
 		retryNodes?: MagiNodeName[];
 		priorResponses?: { node: MagiNodeName; text: string }[];
 	}) {
-		return JSON.stringify({
+		const body: MagiRequest = {
 			query: opts.turnQuery,
 			tier,
 			strategy,
 			debateRounds,
 			consensusNode,
-			assignments,
+			// The schema wants the fixed three-seat tuple; `assignments` is always one.
+			assignments: assignments as MagiRequest['assignments'],
 			temperaments,
 			// The dependent lens flags only make sense under the master Temperaments
 			// switch: with it off the nodes answered neutrally, so telling the
@@ -1262,7 +1273,8 @@
 			...(opts.forceRetry ? { forceRetry: true } : {}),
 			...(opts.retryNodes ? { retryNodes: opts.retryNodes } : {}),
 			...(opts.priorResponses ? { priorResponses: opts.priorResponses } : {})
-		});
+		};
+		return JSON.stringify(body);
 	}
 
 	function handleSubmit(e: SubmitEvent) {

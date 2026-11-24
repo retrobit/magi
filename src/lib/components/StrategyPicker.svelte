@@ -6,7 +6,7 @@
 		STRATEGY_INTENSITY,
 		FLAGSHIP_STRATEGY,
 		type StrategyName
-	} from '$lib/magi/consensus';
+	} from '$lib/magi/consensus/types';
 	import { NODE_COLOR_VARS, MAGI_NODE_NAMES } from '$lib/magi/types';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { Check } from 'lucide-svelte';

@@ -6,7 +6,6 @@
 		DebateVerdict,
 		ScrollMode
 	} from '$lib/magi/types';
-	import { SECTION_RULE } from '$lib/magi/consensus/types';
 	import type { ResolvedTemperament } from '$lib/magi/temperaments';
 	import {
 		MAGI_NODE_NAMES,
@@ -19,7 +18,7 @@
 		getProviderLabel,
 		isRouter
 	} from '$lib/magi/types';
-	import { type StrategyName, DEBATE_ROUND_OPTIONS } from '$lib/magi/consensus';
+	import { SECTION_RULE, type StrategyName, DEBATE_ROUND_OPTIONS } from '$lib/magi/consensus/types';
 	import {
 		STRATEGY_VERBS,
 		GENERIC_VERBS,

@@ -14,18 +14,8 @@ export const BYOK_ENABLED = env.PUBLIC_BYOK_ENABLED === 'true';
 // so they can never ride along in a state export or a prefs reset.
 const STORAGE_KEY = 'magi:byok:v1';
 
-function storageAvailable(): boolean {
-	try {
-		return typeof localStorage !== 'undefined';
-	} catch {
-		// Accessing localStorage can throw in some privacy modes.
-		return false;
-	}
-}
-
 /** Read the saved keys, tolerant of a single malformed field. */
 export function loadByokKeys(): ByokKeys {
-	if (!storageAvailable()) return {};
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return {};
@@ -49,7 +39,6 @@ export function loadByokKeys(): ByokKeys {
 
 /** Persist the keys, dropping blank fields; an all-blank set removes the entry. */
 export function saveByokKeys(keys: Partial<Record<keyof ByokKeys, string>>): void {
-	if (!storageAvailable()) return;
 	const pruned: Record<string, string> = {};
 	for (const [gateway, value] of Object.entries(keys)) {
 		const trimmed = value?.trim();

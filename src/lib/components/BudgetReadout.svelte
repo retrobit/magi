@@ -1,20 +1,7 @@
 <script lang="ts">
 	import { RefreshCw } from 'lucide-svelte';
 	import { tooltip } from '$lib/actions/tooltip';
-
-	type ProviderName = 'openrouter' | 'anthropic' | 'openai' | 'google';
-	type BudgetStatus = 'ok' | 'unavailable' | 'error';
-
-	interface ProviderBudget {
-		provider: ProviderName;
-		status: BudgetStatus;
-		label?: string;
-		usage?: number;
-		limit?: number | null;
-		remaining?: number;
-		isFreeKey?: boolean;
-		reason?: string;
-	}
+	import { GATEWAY_LABELS, type ProviderBudget } from '$lib/magi/types';
 
 	interface Props {
 		/** When the parent panel becomes visible, the first fetch fires. */
@@ -27,13 +14,6 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let loaded = $state(false);
-
-	const PROVIDER_LABELS: Record<ProviderName, string> = {
-		openrouter: 'OpenRouter',
-		anthropic: 'Anthropic',
-		openai: 'OpenAI',
-		google: 'Google'
-	};
 
 	async function fetchBudgets(force = false) {
 		if (loading) return;
@@ -108,7 +88,7 @@
 	{:else if loaded}
 		{#each providers as p (p.provider)}
 			<div class="flex flex-col gap-1">
-				<span class="magi-label">{PROVIDER_LABELS[p.provider]}</span>
+				<span class="magi-label">{GATEWAY_LABELS[p.provider]}</span>
 				{#if p.status === 'ok'}
 					{@const ratio = usageRatio(p)}
 					{#if typeof p.usage === 'number' && typeof p.limit === 'number'}

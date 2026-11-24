@@ -1,31 +1,21 @@
 import * as z from 'zod/mini';
-import { nodeAssignmentSchema } from './validation';
+import { assignmentsSchema, debateRoundsSchema, temperamentOverrideSchema } from './validation';
 import {
 	TIER_NAMES,
 	MAGI_NODE_NAMES,
 	BG_VARIANTS,
 	PALETTES,
 	MOTION_MODES,
+	SCROLL_MODES,
+	LAYOUT_FOCUSES,
+	DEBATE_VERDICTS,
+	THEMES,
 	type TierName,
 	type MagiNodeName,
-	type ConversationTurn,
-	type ScrollMode,
-	type BgVariant,
-	type Palette,
-	type MotionMode
+	type ConversationTurn
 } from './types';
 import type { NodeAssignment } from './config';
-import {
-	STRATEGY_NAMES,
-	MIN_DEBATE_ROUNDS,
-	MAX_DEBATE_ROUNDS,
-	type StrategyName
-} from './consensus/types';
-import {
-	MAX_TEMPERAMENT_LABEL,
-	MAX_TEMPERAMENT_PROMPT,
-	type CustomTemperaments
-} from './temperaments';
+import { STRATEGY_NAMES } from './consensus/types';
 
 const STORAGE_KEY = 'magi:prefs:v1';
 const CONVERSATION_KEY = 'magi:conversation:v1';
@@ -38,39 +28,7 @@ export interface PersistedSnapshot {
 }
 
 /** Global (not per-tier) UI preferences worth surviving a page reload. */
-export interface PersistedSettings {
-	strategy: StrategyName;
-	/** Multi-Round Debate round ceiling. Optional for back-compat — older payloads
-	 *  fall back to the in-code default. */
-	debateRounds?: number;
-	temperaments: boolean;
-	consensusTemperament: boolean;
-	temperamentAwareness: boolean;
-	/** Per-node temperament overrides (edited personas). Optional/sparse — absent
-	 *  nodes keep their built-in temperament. */
-	customTemperaments?: CustomTemperaments;
-	/** Opinionated / Collaborative deliberation toggles. Optional for back-compat —
-	 *  older payloads fall back to the in-code defaults (both off). */
-	opinionated?: boolean;
-	collaborative?: boolean;
-	genericLabels: boolean;
-	theme: 'dark' | 'light';
-	bgVariant: BgVariant;
-	/** Color palette. Optional for back-compat — older payloads fall back to the
-	 *  in-code default (`nebula`). */
-	palette?: Palette;
-	scrollMode: ScrollMode;
-	/** Focus accordion state. Optional for back-compat with payloads saved
-	 *  before this field existed — those simply fall back to the in-code default. */
-	layoutFocus?: 'balanced' | 'nodes' | 'consensus';
-	/** Auto-layout: let the focus accordion follow the run lifecycle (nodes while
-	 *  they think → balanced while consensus streams → consensus when done).
-	 *  Optional for back-compat; older payloads fall back to the in-code default (on). */
-	autoLayout?: boolean;
-	/** Motion preference (`normal` | `full` | `reduced`). Optional for back-compat;
-	 *  payloads without it fall back to the in-code default (`normal`). */
-	motionMode?: MotionMode;
-}
+export type PersistedSettings = z.infer<typeof persistedSettingsSchema>;
 
 /** Top-level shape stored in localStorage: the last active tier, a per-tier
  *  snapshot map (so switching tiers never discards saved selections), and the
@@ -96,37 +54,43 @@ const turnUsageSchema = z.object({
 const nodeStringRecord = z.record(z.string(), z.string());
 
 const persistedSnapshotSchema = z.object({
-	assignments: z.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema]),
+	assignments: assignmentsSchema,
 	configuredNodes: z.array(z.number()),
 	consensusNode: z.enum(MAGI_NODE_NAMES)
 });
 
+// The persisted settings shape is derived from this schema (PersistedSettings),
+// so a new setting is declared once, here. Fields marked "optional for back-compat"
+// are absent from payloads saved before they existed and fall back to the page's
+// in-code default.
 const persistedSettingsSchema = z.object({
 	strategy: z.enum(STRATEGY_NAMES),
-	debateRounds: z.optional(
-		z.number().check(z.int(), z.gte(MIN_DEBATE_ROUNDS), z.lte(MAX_DEBATE_ROUNDS))
-	),
+	/** Multi-Round Debate round ceiling. */
+	debateRounds: z.optional(debateRoundsSchema),
 	temperaments: z.boolean(),
 	consensusTemperament: z.boolean(),
 	temperamentAwareness: z.boolean(),
+	/** Per-node temperament overrides (edited personas). Sparse — absent nodes
+	 *  keep their built-in temperament. */
 	customTemperaments: z.optional(
-		z.partialRecord(
-			z.enum(MAGI_NODE_NAMES),
-			z.object({
-				label: z.string().check(z.maxLength(MAX_TEMPERAMENT_LABEL)),
-				prompt: z.string().check(z.maxLength(MAX_TEMPERAMENT_PROMPT))
-			})
-		)
+		z.partialRecord(z.enum(MAGI_NODE_NAMES), temperamentOverrideSchema)
 	),
+	/** Opinionated / Collaborative deliberation toggles (both default off). */
 	opinionated: z.optional(z.boolean()),
 	collaborative: z.optional(z.boolean()),
 	genericLabels: z.boolean(),
-	theme: z.enum(['dark', 'light']),
+	theme: z.enum(THEMES),
 	bgVariant: z.enum(BG_VARIANTS),
+	/** Color palette (default `nebula`). */
 	palette: z.optional(z.enum(PALETTES)),
-	scrollMode: z.enum(['off', 'follow', 'snap']),
-	layoutFocus: z.optional(z.enum(['balanced', 'nodes', 'consensus'])),
+	scrollMode: z.enum(SCROLL_MODES),
+	/** Focus accordion state. */
+	layoutFocus: z.optional(z.enum(LAYOUT_FOCUSES)),
+	/** Auto-layout: let the focus accordion follow the run lifecycle (nodes while
+	 *  they think → balanced while consensus streams → consensus when done).
+	 *  Defaults on. */
 	autoLayout: z.optional(z.boolean()),
+	/** Motion preference (`normal` | `full` | `reduced`; default `normal`). */
 	motionMode: z.optional(z.enum(MOTION_MODES))
 });
 
@@ -145,7 +109,7 @@ const conversationTurnSchema = z.object({
 	nodeUsage: z.record(z.string(), turnUsageSchema),
 	consensusUsage: z.optional(turnUsageSchema),
 	strategy: z.optional(z.string()),
-	debateVerdict: z.optional(z.enum(['consensus', 'split', 'walkover'])),
+	debateVerdict: z.optional(z.enum(DEBATE_VERDICTS)),
 	debateSummary: z.optional(z.string()),
 	debateRounds: z.optional(z.record(z.string(), z.array(debateRoundSchema))),
 	error: z.optional(z.string()),
@@ -153,19 +117,9 @@ const conversationTurnSchema = z.object({
 	aborted: z.optional(z.boolean())
 });
 
-function storageAvailable(): boolean {
-	try {
-		return typeof localStorage !== 'undefined';
-	} catch {
-		// Accessing localStorage can throw in some privacy modes.
-		return false;
-	}
-}
-
 /** Read saved preferences, returning null when absent, unparseable, or malformed.
  *  Individual tier snapshots that fail validation are dropped silently. */
 export function loadPrefs(): MagiPrefs | null {
-	if (!storageAvailable()) return null;
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return null;
@@ -195,7 +149,6 @@ export function loadPrefs(): MagiPrefs | null {
 
 /** Persist preferences. No-ops if storage is unavailable or the quota is hit. */
 export function savePrefs(prefs: MagiPrefs): void {
-	if (!storageAvailable()) return;
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
 	} catch {
@@ -205,7 +158,6 @@ export function savePrefs(prefs: MagiPrefs): void {
 
 /** Discard all saved preferences (used by a "reset to defaults" affordance). */
 export function clearPrefs(): void {
-	if (!storageAvailable()) return;
 	try {
 		localStorage.removeItem(STORAGE_KEY);
 	} catch {
@@ -215,7 +167,6 @@ export function clearPrefs(): void {
 
 /** Read saved conversations, keyed by tier. Malformed turns/tiers are dropped. */
 export function loadConversations(): Partial<Record<TierName, ConversationTurn[]>> {
-	if (!storageAvailable()) return {};
 	try {
 		const raw = localStorage.getItem(CONVERSATION_KEY);
 		if (!raw) return {};
@@ -243,7 +194,6 @@ export function loadConversations(): Partial<Record<TierName, ConversationTurn[]
 export function saveConversations(
 	conversations: Partial<Record<TierName, ConversationTurn[]>>
 ): void {
-	if (!storageAvailable()) return;
 	try {
 		localStorage.setItem(CONVERSATION_KEY, JSON.stringify(conversations));
 	} catch {
@@ -253,7 +203,6 @@ export function saveConversations(
 
 /** Discard all saved conversations across every tier (used by "reset to defaults"). */
 export function clearConversations(): void {
-	if (!storageAvailable()) return;
 	try {
 		localStorage.removeItem(CONVERSATION_KEY);
 	} catch {

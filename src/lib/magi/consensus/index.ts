@@ -17,20 +17,3 @@ const strategies: Record<DispatchableStrategy, ConsensusStrategy> = {
 export function getStrategy(name: DispatchableStrategy): ConsensusStrategy {
 	return strategies[name];
 }
-
-export {
-	STRATEGY_NAMES,
-	STRATEGY_LABELS,
-	STRATEGY_DESCRIPTIONS,
-	STRATEGY_INTENSITY,
-	FLAGSHIP_STRATEGY,
-	DEFAULT_STRATEGY,
-	DEBATE_ROUND_OPTIONS,
-	DEFAULT_DEBATE_ROUNDS,
-	MIN_DEBATE_ROUNDS,
-	MAX_DEBATE_ROUNDS,
-	type ConsensusStrategy,
-	type StrategyName,
-	type ConsensusEvent,
-	type ConsensusContext
-} from './types';

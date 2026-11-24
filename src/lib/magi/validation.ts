@@ -10,7 +10,7 @@ import { MAX_TEMPERAMENT_LABEL, MAX_TEMPERAMENT_PROMPT } from './temperaments';
 // A single per-node temperament override. Both fields are capped so a crafted
 // payload can't bloat the injected prompt; either may be blank (the server fills
 // in the built-in for an empty field).
-const temperamentOverrideSchema = z.object({
+export const temperamentOverrideSchema = z.object({
 	label: z.string().check(z.maxLength(MAX_TEMPERAMENT_LABEL)),
 	prompt: z.string().check(z.maxLength(MAX_TEMPERAMENT_PROMPT))
 });
@@ -21,6 +21,18 @@ export const MAX_QUERY_LENGTH = 10_000;
 export const MAX_NODE_TEXT_LENGTH = 50_000;
 export const MAX_HISTORY_TURNS = 50;
 
+// Shared with the localStorage schemas so a stored setting and an API request
+// agree on what's acceptable.
+export const debateRoundsSchema = z
+	.number()
+	.check(z.int(), z.gte(MIN_DEBATE_ROUNDS), z.lte(MAX_DEBATE_ROUNDS));
+
+// A node's answer text, replayed as history or as a per-node-retry prior.
+const nodeTextSchema = z.object({
+	node: z.enum(MAGI_NODE_NAMES),
+	text: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
+});
+
 export const nodeAssignmentSchema = z.object({
 	node: z.enum(MAGI_NODE_NAMES),
 	gateway: z.enum(GATEWAY_NAMES),
@@ -30,17 +42,17 @@ export const nodeAssignmentSchema = z.object({
 	modelId: z.string().check(z.minLength(1), z.maxLength(128))
 });
 
+// The three seats' model assignments, one per node.
+export const assignmentsSchema = z.tuple([
+	nodeAssignmentSchema,
+	nodeAssignmentSchema,
+	nodeAssignmentSchema
+]);
+
 // One completed conversation turn, replayed as context for the next turn.
 const historyTurnSchema = z.object({
 	query: z.string().check(z.minLength(1), z.maxLength(MAX_QUERY_LENGTH)),
-	nodeResponses: z
-		.array(
-			z.object({
-				node: z.enum(MAGI_NODE_NAMES),
-				text: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
-			})
-		)
-		.check(z.maxLength(3)),
+	nodeResponses: z.array(nodeTextSchema).check(z.maxLength(3)),
 	consensus: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
 });
 
@@ -55,13 +67,9 @@ export const magiRequestSchema = z.object({
 	strategy: z.enum(STRATEGY_NAMES),
 	/** Multi-Round Debate round ceiling. Out-of-range or non-integer values are
 	 *  rejected (400); absent ⇒ the runner's default. Inert for other strategies. */
-	debateRounds: z.optional(
-		z.number().check(z.int(), z.gte(MIN_DEBATE_ROUNDS), z.lte(MAX_DEBATE_ROUNDS))
-	),
+	debateRounds: z.optional(debateRoundsSchema),
 	consensusNode: z.optional(z.enum(MAGI_NODE_NAMES)),
-	assignments: z.optional(
-		z.tuple([nodeAssignmentSchema, nodeAssignmentSchema, nodeAssignmentSchema])
-	),
+	assignments: z.optional(assignmentsSchema),
 	temperaments: z.optional(z.boolean()),
 	consensusTemperament: z.optional(z.boolean()),
 	temperamentAwareness: z.optional(z.boolean()),
@@ -89,16 +97,14 @@ export const magiRequestSchema = z.object({
 	 *  consensus runs over the full set without re-billing them. Gateway/provider are
 	 *  taken from the server's own config (text only here) so a client can't spoof
 	 *  the origin of a response. */
-	priorResponses: z.optional(
-		z
-			.array(
-				z.object({
-					node: z.enum(MAGI_NODE_NAMES),
-					text: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
-				})
-			)
-			.check(z.maxLength(3))
-	)
+	priorResponses: z.optional(z.array(nodeTextSchema).check(z.maxLength(3)))
 });
 
+/** The `/api/magi` request body as the client builds it (before server-side
+ *  defaults). Typing the client's payload against this makes a key that drifts
+ *  from the schema a compile error instead of a silently-stripped field. */
+export type MagiRequest = z.input<typeof magiRequestSchema>;
+
 export type HistoryTurn = z.infer<typeof historyTurnSchema>;
+
+export type TemperamentOverride = z.infer<typeof temperamentOverrideSchema>;

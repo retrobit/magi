@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { env as _publicEnv } from '$env/dynamic/public';
-import { getModel } from '$lib/magi/models';
+import { getModel } from '$lib/server/models';
 import { decodeStreamEvents } from '$lib/magi/stream-events';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
@@ -51,7 +51,7 @@ vi.mock('$lib/server/health', () => ({
 	clearHealthEntry: vi.fn(),
 	UNHEALTHY_TTL: 120_000
 }));
-vi.mock('$lib/magi/models', () => ({ getModel: vi.fn(() => ({})) }));
+vi.mock('$lib/server/models', () => ({ getModel: vi.fn(() => ({})) }));
 vi.mock('$lib/server/openrouter', () => ({ getOpenRouterFreeModels: vi.fn(async () => []) }));
 vi.mock('$lib/server/logger', () => ({
 	logEvent: vi.fn(),

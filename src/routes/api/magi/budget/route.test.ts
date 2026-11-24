@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { env as _env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { GET } from './+server';
-import { getProviderBudgets, type ProviderBudget } from '$lib/server/budget';
+import { getProviderBudgets } from '$lib/server/budget';
+import type { ProviderBudget } from '$lib/magi/types';
 
 interface MutableEnv {
 	MAGI_API_KEY?: string;

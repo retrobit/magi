@@ -58,11 +58,6 @@ export const NODE_TEMPERAMENTS: Record<MagiNodeName, TemperamentName> = {
 	MAGI_3: 'individualist'
 };
 
-export interface MagiNode {
-	name: MagiNodeName;
-	temperament: TemperamentName;
-}
-
 export interface MagiResponse {
 	node: MagiNodeName;
 	gateway: GatewayName;
@@ -75,7 +70,8 @@ export interface MagiResponse {
  *  still diverging); the synthesizer lays the positions out rather than forcing
  *  a unified answer. `walkover` — only one MAGI responded, so nothing was
  *  debated. Drives which headline banner the consensus panel shows. */
-export type DebateVerdict = 'consensus' | 'split' | 'walkover';
+export const DEBATE_VERDICTS = ['consensus', 'split', 'walkover'] as const;
+export type DebateVerdict = (typeof DEBATE_VERDICTS)[number];
 
 /** One debate round as surfaced in a node panel — the trimmed inputs the node
  *  was reacting to and the revised answer it produced. */
@@ -150,7 +146,13 @@ export function tokenUsageTooltip(opts: {
 /** How a panel reacts to streamed content. `off` — never moves. `follow` —
  *  pins to the newest text while scrolled to the bottom. `snap` — jumps to the
  *  start of the latest response once that response finishes. */
-export type ScrollMode = 'off' | 'follow' | 'snap';
+export const SCROLL_MODES = ['off', 'follow', 'snap'] as const;
+export type ScrollMode = (typeof SCROLL_MODES)[number];
+
+/** Focus accordion states: which side of the node/consensus split is expanded. */
+export const LAYOUT_FOCUSES = ['balanced', 'nodes', 'consensus'] as const;
+
+export const THEMES = ['dark', 'light'] as const;
 
 /** Background flavors selectable in Settings. Single source of truth for the
  *  union consumed by the component, the header, page state, and the
@@ -292,6 +294,26 @@ export const GATEWAY_LABELS: Record<GatewayName, string> = {
 	openrouter: 'OpenRouter'
 };
 
+/** One gateway's spend/credit readout, served by `/api/magi/budget`. */
+type BudgetStatus = 'ok' | 'unavailable' | 'error';
+
+export interface ProviderBudget {
+	provider: GatewayName;
+	status: BudgetStatus;
+	/** Human label for the credit source (e.g. OpenRouter key label). */
+	label?: string;
+	/** Current spend in USD. */
+	usage?: number;
+	/** Credit limit in USD; null means uncapped (pay-as-you-go). */
+	limit?: number | null;
+	/** limit - usage, when both are known. */
+	remaining?: number;
+	/** OpenRouter: the key itself is a free-tier key. */
+	isFreeKey?: boolean;
+	/** When status !== 'ok', a one-line explanation for the UI. */
+	reason?: string;
+}
+
 const KNOWN_PROVIDER_LABELS: Record<string, string> = {
 	anthropic: 'Anthropic',
 	openai: 'OpenAI',
@@ -312,35 +334,3 @@ export function getProviderLabel(provider: string): string {
 			.join(' ')
 	);
 }
-
-export function pickDiverseModels(models: AvailableModel[], count: number): AvailableModel[] {
-	const picked: AvailableModel[] = [];
-	const usedProviders = new Set<string>();
-	// First pass: one model per provider, in order, for maximum provider diversity.
-	for (const m of models) {
-		if (usedProviders.has(m.provider)) continue;
-		picked.push(m);
-		usedProviders.add(m.provider);
-		if (picked.length >= count) return picked;
-	}
-	// Backfill: the pool had fewer than `count` DISTINCT providers but may still
-	// hold enough models. Fill the remaining slots from the leftovers (duplicate
-	// providers allowed) so a small-provider pool yields a FULL config instead of a
-	// short one — callers (buildDiverseConfig → the free tier) would otherwise have
-	// to special-case an under-count result. Only diversity degrades, never arity.
-	if (picked.length < count) {
-		const taken = new Set(picked);
-		for (const m of models) {
-			if (taken.has(m)) continue;
-			picked.push(m);
-			if (picked.length >= count) break;
-		}
-	}
-	return picked;
-}
-
-export const MAGI_NODES: readonly MagiNode[] = [
-	{ name: 'MAGI_1', temperament: 'rationalist' },
-	{ name: 'MAGI_2', temperament: 'caretaker' },
-	{ name: 'MAGI_3', temperament: 'individualist' }
-];

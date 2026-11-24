@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { streamText, type ModelMessage } from 'ai';
-import { getModel } from '$lib/magi/models';
-import { getStrategy, type ConsensusContext } from '$lib/magi/consensus';
+import { getModel } from '$lib/server/models';
+import { getStrategy } from '$lib/magi/consensus';
+import type { ConsensusContext } from '$lib/magi/consensus/types';
 import {
 	TIER_CONFIGS,
 	DEFAULT_MAGI_CONFIG,

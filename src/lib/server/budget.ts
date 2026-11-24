@@ -10,26 +10,7 @@
 
 import { env } from '$env/dynamic/private';
 import { logEvent } from './logger';
-
-export type ProviderName = 'openrouter' | 'anthropic' | 'openai' | 'google';
-export type BudgetStatus = 'ok' | 'unavailable' | 'error';
-
-export interface ProviderBudget {
-	provider: ProviderName;
-	status: BudgetStatus;
-	/** Human label for the credit source (e.g. OpenRouter key label). */
-	label?: string;
-	/** Current spend in USD. */
-	usage?: number;
-	/** Credit limit in USD; null means uncapped (pay-as-you-go). */
-	limit?: number | null;
-	/** limit - usage, when both are known. */
-	remaining?: number;
-	/** OpenRouter: the key itself is a free-tier key. */
-	isFreeKey?: boolean;
-	/** When status !== 'ok', a one-line explanation for the UI. */
-	reason?: string;
-}
+import type { GatewayName, ProviderBudget } from '$lib/magi/types';
 
 interface OpenRouterKeyResponse {
 	data?: {
@@ -41,7 +22,8 @@ interface OpenRouterKeyResponse {
 	};
 }
 
-const PROVIDERS: readonly ProviderName[] = ['openrouter', 'anthropic', 'openai', 'google'];
+// Display order — OpenRouter first, unlike GATEWAY_NAMES.
+const PROVIDERS: readonly GatewayName[] = ['openrouter', 'anthropic', 'openai', 'google'];
 const CACHE_TTL = 60_000;
 
 let cached: ProviderBudget[] | null = null;
@@ -77,7 +59,7 @@ export async function getProviderBudgets(options?: { force?: boolean }): Promise
 	return results;
 }
 
-function fetchOne(provider: ProviderName): Promise<ProviderBudget> {
+function fetchOne(provider: GatewayName): Promise<ProviderBudget> {
 	switch (provider) {
 		case 'openrouter':
 			return fetchOpenRouterBudget();

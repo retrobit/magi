@@ -2,8 +2,8 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { env } from '$env/dynamic/private';
-import type { ByokKeys } from './byok';
-import type { GatewayName } from './types';
+import type { ByokKeys } from '$lib/magi/byok';
+import type { GatewayName } from '$lib/magi/types';
 
 let _anthropic: ReturnType<typeof createAnthropic>;
 let _openai: ReturnType<typeof createOpenAI>;

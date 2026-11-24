@@ -1,24 +1,16 @@
 import type { NodeAssignment } from './config';
-import type { ConversationTurn, GatewayName, MagiNodeName, MagiResponse, TurnUsage } from './types';
+import type { ConversationTurn, MagiNodeName, MagiResponse, TurnUsage } from './types';
+import type { StreamEventPayloads } from './stream-events';
 import { MAX_NODE_TEXT_LENGTH } from './validation';
-
-/** A node that also failed last turn, carried forward unchanged during a
- *  per-node retry — same shape as the page's live model-error entries. */
-export interface RetryCarriedError {
-	node: MagiNodeName;
-	gateway: GatewayName;
-	provider: string;
-	error: string;
-}
 
 /** The four lists a per-node retry needs, derived purely from the committed
  *  turn. See {@link assembleRetryPriors}. */
 export interface RetryPriors {
 	/** Survivor answers that succeeded last turn, rehydrated into the live turn. */
 	responses: MagiResponse[];
-	/** Other nodes that ALSO failed last turn — they stay failed; only the
-	 *  retried node re-runs. */
-	modelErrors: RetryCarriedError[];
+	/** Other nodes that ALSO failed last turn — carried forward unchanged (the same
+	 *  shape as a live `model-error` event); only the retried node re-runs. */
+	modelErrors: StreamEventPayloads['model-error'][];
 	/** Survivor answers sent to the server (text only) so it skips them in phase 1.
 	 *  Trimmed to the request limit, like replayed history. */
 	priorResponses: { node: MagiNodeName; text: string }[];
@@ -39,7 +31,7 @@ export function assembleRetryPriors(
 	node: MagiNodeName
 ): RetryPriors {
 	const responses: MagiResponse[] = [];
-	const modelErrors: RetryCarriedError[] = [];
+	const modelErrors: StreamEventPayloads['model-error'][] = [];
 	const priorResponses: { node: MagiNodeName; text: string }[] = [];
 	const carriedUsage: Partial<Record<MagiNodeName, TurnUsage>> = {};
 

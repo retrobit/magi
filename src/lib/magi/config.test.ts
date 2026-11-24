@@ -5,6 +5,7 @@ import {
 	TIER_CONFIGS,
 	validateConfig,
 	buildDiverseConfig,
+	pickDiverseModels,
 	PREFERRED_FREE_MODEL_IDS
 } from './config';
 import type { MagiConfig } from './config';
@@ -282,5 +283,40 @@ describe('buildDiverseConfig', () => {
 			...top3.slice(0, 2),
 			'cohere/north-mini-code:free'
 		]);
+	});
+});
+
+const model = (id: string, provider: string): AvailableModel => ({
+	id,
+	gateway: 'openrouter',
+	provider,
+	displayName: id
+});
+
+describe('pickDiverseModels', () => {
+	it('picks one model per provider, first-of-each, when providers are plentiful', () => {
+		const pool = [
+			model('a/1', 'a'),
+			model('a/2', 'a'),
+			model('b/1', 'b'),
+			model('c/1', 'c'),
+			model('d/1', 'd')
+		];
+		const picked = pickDiverseModels(pool, 3);
+		expect(picked.map((m) => m.id)).toEqual(['a/1', 'b/1', 'c/1']);
+	});
+
+	it('backfills with duplicate-provider models so it still returns `count`', () => {
+		// Only two distinct providers but four models — must still yield three.
+		const pool = [model('a/1', 'a'), model('a/2', 'a'), model('b/1', 'b'), model('a/3', 'a')];
+		const picked = pickDiverseModels(pool, 3);
+		expect(picked).toHaveLength(3);
+		// Diversity first (a/1, b/1), then the leftover fills the third slot.
+		expect(picked.map((m) => m.id)).toEqual(['a/1', 'b/1', 'a/2']);
+	});
+
+	it('returns everything when the pool is smaller than `count`', () => {
+		const picked = pickDiverseModels([model('a/1', 'a'), model('b/1', 'b')], 3);
+		expect(picked).toHaveLength(2);
 	});
 });

@@ -10,7 +10,6 @@ import {
 	TEMPERAMENT_TOOLTIPS,
 	NODE_TEMPERAMENTS,
 	MAGI_NODE_NAMES,
-	MAGI_NODES,
 	type TemperamentName
 } from './types';
 
@@ -54,21 +53,6 @@ describe('NODE_TEMPERAMENTS', () => {
 		expect(NODE_TEMPERAMENTS.MAGI_1).toBe('rationalist');
 		expect(NODE_TEMPERAMENTS.MAGI_2).toBe('caretaker');
 		expect(NODE_TEMPERAMENTS.MAGI_3).toBe('individualist');
-	});
-});
-
-describe('MAGI_NODES', () => {
-	it('includes temperament on each node', () => {
-		for (const node of MAGI_NODES) {
-			expect(node.temperament).toBeTruthy();
-			expect(TEMPERAMENT_NAMES).toContain(node.temperament);
-		}
-	});
-
-	it('node temperaments match NODE_TEMPERAMENTS mapping', () => {
-		for (const node of MAGI_NODES) {
-			expect(node.temperament).toBe(NODE_TEMPERAMENTS[node.name]);
-		}
 	});
 });
 
