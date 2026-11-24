@@ -71,14 +71,48 @@
 		return doc.body.innerHTML;
 	}
 
+	// Model HTML may carry only the classes this pipeline itself emits: highlight.js
+	// tokens (`hljs`, `hljs-*`, sub-scopes such as `function_`), the fence's
+	// `language-*`, and the emoji wrapper. Everything else is dropped, so a reply
+	// can't borrow the app's own utility classes (`fixed inset-0 …`) to cover the UI.
+	const ALLOWED_CLASS = /^(?:hljs(?:-[\w-]+)?|language-\S+|[a-z]+_{1,2}|not-italic)$/;
+	// isSupported is false where there is no DOM (server import) — no hook API there.
+	if (DOMPurify.isSupported) {
+		DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+			if (data.attrName !== 'class') return;
+			data.attrValue = data.attrValue
+				.split(/\s+/)
+				.filter((c) => ALLOWED_CLASS.test(c))
+				.join(' ');
+			if (!data.attrValue) data.keepAttr = false;
+		});
+		// The one <input> markdown produces is a GFM task-list checkbox. Keep that,
+		// inert, and drop every other kind — a password or submit field inside an
+		// answer is a fake prompt even though nothing can post it anywhere.
+		DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+			if (node.nodeName !== 'INPUT') return;
+			if (node.getAttribute('type') === 'checkbox') node.setAttribute('disabled', '');
+			else node.remove();
+		});
+	}
+
+	// What untrusted model HTML may not bring, beyond DOMPurify's script-level
+	// defaults. Markdown + hljs emit none of these, so nothing legitimate is lost:
+	// - `style` attribute and <style> element: restyle, hide or overlay the app.
+	// - form controls and <dialog>: a fake prompt inside an answer. (<input> is
+	//   narrowed to disabled checkboxes by the hook above, for GFM task lists.)
+	// - `id` / `name`: DOM clobbering and hijacking the app's own anchors/labels.
+	const SANITIZE_CONFIG = {
+		FORBID_TAGS: ['style', 'form', 'textarea', 'select', 'button', 'dialog'],
+		FORBID_ATTR: ['style', 'id', 'name']
+	};
+
 	function render(src: string): string {
 		const raw = marked.parse(src, { async: false, breaks: true, gfm: true }) as string;
 		// Sanitize LAST so no DOM transform runs after it (the emoji wrap re-parses
 		// and re-serializes, so doing it first keeps DOMPurify the final word — no
-		// mXSS re-open). FORBID_ATTR style: untrusted model HTML can't smuggle an
-		// inline style to position/overlay the app. Pure markdown + hljs (class-
-		// based) never emit inline styles, so nothing legitimate is lost.
-		return DOMPurify.sanitize(wrapEmojisInTextNodes(raw), { FORBID_ATTR: ['style'] });
+		// mXSS re-open).
+		return DOMPurify.sanitize(wrapEmojisInTextNodes(raw), SANITIZE_CONFIG);
 	}
 
 	// A streamed `source` grows one chunk at a time; re-parsing the whole string on
