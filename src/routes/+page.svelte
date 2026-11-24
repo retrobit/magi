@@ -965,11 +965,22 @@
 			applyTierSnapshot(cached);
 		} else {
 			resetLiveState();
-			configuredNodes.clear();
-			configuredNodes.add(0);
-			configuredNodes.add(1);
-			configuredNodes.add(2);
-			consensusNode = 'MAGI_1';
+			// Seat this tier's OWN config now, synchronously. fetchModels awaits the
+			// free-tier catalog, and the persist effect runs during that await: left
+			// holding the previous tier's seats it would save them as this tier's
+			// snapshot, overwriting the user's saved one. fetchModels re-validates
+			// against the live pool once it resolves.
+			const persisted = persistedSnapshots[t];
+			if (persisted) {
+				applyPersistedSnapshot(persisted);
+			} else {
+				assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+				configuredNodes.clear();
+				configuredNodes.add(0);
+				configuredNodes.add(1);
+				configuredNodes.add(2);
+				consensusNode = 'MAGI_1';
+			}
 			conversation = conversationsByTier[t] ?? [];
 		}
 		activeTurnQuery = '';
