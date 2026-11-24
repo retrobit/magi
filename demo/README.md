@@ -56,8 +56,9 @@ run-stats
 
 Prereqs: `ffmpeg` on PATH, and Playwright's cached Chromium (the script
 defaults to the macOS arm64 cache at
-`~/Library/Caches/ms-playwright/chromium-<ver>`; override the full path with
-`MAGI_CHROMIUM` on other platforms).
+`~/Library/Caches/ms-playwright/chromium-1223`, the revision hard-coded in
+`record.mjs`; set `MAGI_CHROMIUM` to the full executable path on other platforms
+or when your cached Chromium revision differs).
 
 Record against a **production build** so the dev-only PerfOverlay and Debug
 button don't appear:

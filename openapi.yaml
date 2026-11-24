@@ -25,7 +25,9 @@ info:
 
     **Source of truth.** The canonical schemas live in [src/lib/magi/validation.ts](src/lib/magi/validation.ts)
     (request) and [src/lib/magi/stream-events.ts](src/lib/magi/stream-events.ts) (events).
-    This spec is hand-maintained to match — keep them in sync.
+    This spec is hand-maintained to match — keep them in sync. Request objects strip
+    unknown keys rather than rejecting them (the `x-magi-byok` header is the one
+    strict object).
   license:
     name: MIT
     identifier: MIT
@@ -35,7 +37,7 @@ info:
 
 servers:
   - url: /
-    description: Same-origin (default — the spec is served alongside the app)
+    description: Same-origin (default — relative to wherever the app is hosted)
 
 tags:
   - name: consensus
@@ -59,7 +61,7 @@ paths:
         `model-error`/`model-usage` per node; then (unless `strategy: none`) optionally
         `partial-consensus`, one `consensus-seat` (the node that actually synthesizes),
         then `consensus-chunk` deltas, `consensus-complete`, and `consensus-usage`.
-        Voting and debate runs additionally emit one `run-stats` event; debate runs
+        Every consensus run also emits one `run-stats` event; debate runs
         interleave `node-round` events during the multi-round phase. A fatal failure
         emits a single `error` event and closes the stream.
       operationId: runMagi
@@ -279,6 +281,13 @@ components:
       description: |
         Sliding-window rate limit exceeded — 10 req/min per IP by default, 30 for
         requests carrying BYOK keys (see the `x-magi-byok` header).
+      headers:
+        Retry-After:
+          description: Seconds until the caller may retry.
+          schema: { type: string }
+        X-Request-Id:
+          description: Request id, the same one that appears in the server logs.
+          schema: { type: string }
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorBody' }
@@ -323,24 +332,23 @@ components:
     NodeAssignment:
       type: object
       required: [node, gateway, provider, modelId]
-      additionalProperties: false
       properties:
         node: { $ref: '#/components/schemas/MagiNodeName' }
         gateway: { $ref: '#/components/schemas/GatewayName' }
         provider:
           type: string
           minLength: 1
+          maxLength: 64
           description: |
             The model provider slug. For direct gateways this is the gateway label
             (`anthropic`, `openai`, `google`); for OpenRouter it is the leading
             segment of the model ID (`qwen/qwen3-coder:free` → `qwen`). The server
             re-derives this from an authoritative source before validating.
-        modelId: { type: string, minLength: 1 }
+        modelId: { type: string, minLength: 1, maxLength: 128 }
 
     HistoryNodeResponse:
       type: object
       required: [node, text]
-      additionalProperties: false
       properties:
         node: { $ref: '#/components/schemas/MagiNodeName' }
         text: { type: string, maxLength: 50000 }
@@ -348,7 +356,6 @@ components:
     HistoryTurn:
       type: object
       required: [query, nodeResponses, consensus]
-      additionalProperties: false
       properties:
         query: { type: string, minLength: 1, maxLength: 10000 }
         nodeResponses:
@@ -360,7 +367,6 @@ components:
     MagiRequest:
       type: object
       required: [query, tier, strategy]
-      additionalProperties: false
       properties:
         query:
           type: string
@@ -419,13 +425,15 @@ components:
           type: object
           description: |
             Sparse per-node persona overrides (only applied when `temperaments` is on).
-            Keyed by node name; each entry overrides the built-in label and/or prompt.
+            Keyed by node name; each entry carries both fields, and a blank one
+            falls back to the node's built-in label or prompt.
+          propertyNames: { $ref: '#/components/schemas/MagiNodeName' }
           additionalProperties:
             type: object
-            additionalProperties: false
+            required: [label, prompt]
             properties:
-              label: { type: string }
-              prompt: { type: string }
+              label: { type: string, maxLength: 40 }
+              prompt: { type: string, maxLength: 4000 }
         history:
           type: array
           maxItems: 50
@@ -457,7 +465,6 @@ components:
           items:
             type: object
             required: [node, text]
-            additionalProperties: false
             properties:
               node: { $ref: '#/components/schemas/MagiNodeName' }
               text: { type: string, maxLength: 50000 }
@@ -504,7 +511,7 @@ components:
           enum: [ok, unavailable, error]
         label: { type: string }
         usage: { type: number }
-        limit: { type: number }
+        limit: { type: [number, 'null'] }
         remaining: { type: number }
         isFreeKey: { type: boolean }
         reason:

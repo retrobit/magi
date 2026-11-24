@@ -64,7 +64,7 @@ The consensus engine is pluggable:
 - **Resilient by design** — automatic model-health tracking (recently-failed models are skipped), per-node and consensus stall guards, partial-consensus fallback, and per-node retry that re-runs one node without re-billing the others.
 - **Editable temperaments** — give each MAGI a dispositional lens, or write your own persona (see **Temperaments** below).
 - **Deliberation controls** — Opinionated and Collaborative modes, a 2–5 round debate ceiling, and seeded per-turn peer-order shuffling to wash out position bias.
-- **Polish** — dark/light theming with five palettes and reduced-motion modes, syntax-highlighted markdown, a filterable run-history panel with JSON export, and an animated ASCII intro.
+- **Polish** — dark/light theming with two palettes (three more ship hidden behind a flag) and reduced-motion modes, syntax-highlighted markdown, a filterable run-history panel with JSON export, and an animated ASCII intro.
 - **Bring your own key** — on deployments with `PUBLIC_BYOK_ENABLED=true`, visitors paste their own provider keys to unlock tiers on their own billing; keys stay browser-local and are never logged or stored server-side.
 
 ## 🎭 Temperaments
@@ -116,20 +116,7 @@ You'll need API keys from [Anthropic](https://console.anthropic.com), [OpenAI](h
 | `OPENROUTER_API_KEY`           | Free tier  | OpenRouter models                    |
 | `MAGI_API_KEY`                 | No         | Require Bearer-token auth on the API |
 
-<details>
-<summary>Optional environment variables (budget readout, OpenRouter attribution, logging)</summary>
-
-| Variable                   | Description                                                                                                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_ADMIN_KEY`      | Anthropic org admin key (`sk-ant-admin-…`). Enables the Budget readout via `/v1/organizations/cost_report`. Unavailable for individual accounts; falls back to `ANTHROPIC_API_KEY` (which the cost API rejects with a 401). |
-| `OPENAI_ADMIN_KEY`         | OpenAI org admin key (`sk-admin-…`). Enables the Budget readout via `/v1/organization/costs`.                                                                                                                               |
-| `ANTHROPIC_MONTHLY_BUDGET` | USD decimal (e.g. `50`). Optional bar denominator for the Anthropic Budget row — the API exposes no hard per-key limit.                                                                                                     |
-| `OPENAI_MONTHLY_BUDGET`    | Same, for OpenAI.                                                                                                                                                                                                           |
-| `OPENROUTER_REFERER`       | Overrides the `HTTP-Referer` sent to OpenRouter. Defaults to this repo; set your deployment URL on a fork.                                                                                                                  |
-| `OPENROUTER_TITLE`         | Overrides the `X-Title` sent to OpenRouter. Defaults to `MAGI`.                                                                                                                                                             |
-| `MAGI_LOG_LEVEL`           | `debug` \| `info` \| `warn` \| `error`. Defaults to `debug` in dev, `info` in prod.                                                                                                                                         |
-
-</details>
+Every other variable (admin keys and monthly caps for the budget readout, OpenRouter attribution, log level, the `PUBLIC_*` demo/BYOK flags, the Upstash `KV_REST_API_*` pair) is optional and documented inline in [.env.local.example](.env.local.example). Vercel-specific values: [DEPLOY.md](DEPLOY.md#environment-variables).
 
 <details>
 <summary>Development commands</summary>
@@ -140,6 +127,7 @@ bun run build        # Production build
 bun run preview      # Preview production build
 bun run check        # Type-check
 bun run test         # Run unit tests
+bun run verify       # check + lint + test:coverage + build — CI's gate
 bun run lint         # Check formatting + linting
 bun run format       # Auto-format with Prettier
 ```
@@ -153,123 +141,25 @@ In dev, a 🐞 button opens a debug panel that injects synthetic error / context
 MAGI exposes a small SSE-streaming HTTP API. The full machine-readable spec lives in [openapi.yaml](openapi.yaml) (OpenAPI 3.1) — feed it to Swagger UI, Postman, or your codegen of choice.
 
 <details>
-<summary>Endpoints, request/response shapes, SSE events, and a client example</summary>
+<summary>Endpoints, a minimal request, and a client example</summary>
 
-### `GET /api/magi/models`
+- `POST /api/magi` — run a query; streams the result as Server-Sent Events.
+- `GET /api/magi/models?tier=<tier>` — available models for a tier (paid: static registry; free: live from OpenRouter).
+- `GET /api/magi/budget` — each paid provider's spend and remaining credit (`?force=1` bypasses the 60 s server cache).
 
-Available models for a tier (paid: static registry; free: live from OpenRouter).
+`MAGI_API_KEY`, when set, is required as `Authorization: Bearer <key>` on `POST /api/magi` and `GET /api/magi/budget`.
 
-| Param  | Required | Values                                   |
-| ------ | -------- | ---------------------------------------- |
-| `tier` | Yes      | `frontier`, `balanced`, `budget`, `free` |
-
-```json
-{
-	"models": [
-		{
-			"id": "nvidia/nemotron-3-ultra-550b-a55b:free",
-			"gateway": "openrouter",
-			"provider": "nvidia",
-			"displayName": "Nemotron 3 Ultra",
-			"contextLength": 1000000
-		}
-	]
-}
+```bash
+curl -N http://localhost:5173/api/magi \
+  -H 'Content-Type: application/json' \
+  -d '{ "query": "What is consciousness?", "tier": "free", "strategy": "synthesis" }'
 ```
 
-### `GET /api/magi/budget`
+The stream is a sequence of `event: <name>` / `data: <JSON>` frames separated by a blank line — split on `\n\n`, then read the two lines of each frame. Every request field, event payload, error status and header is specified in [openapi.yaml](openapi.yaml); that file is the contract.
 
-Each paid provider's current spend and remaining credit. OpenRouter is live; others degrade gracefully without admin credentials. `?force=1` bypasses the 60s server cache. Same `Authorization` header as `POST /api/magi` when `MAGI_API_KEY` is set.
+**Rate limiting:** 10 req/min per IP — 30 for requests carrying a BYOK key (below). **BYOK:** on a deployment with `PUBLIC_BYOK_ENABLED=true`, an optional `x-magi-byok` header carries caller-supplied provider keys (a JSON object).
 
-```json
-{
-	"providers": [
-		{ "provider": "openrouter", "status": "ok", "usage": 7.2, "limit": 10, "remaining": 2.8 },
-		{
-			"provider": "anthropic",
-			"status": "unavailable",
-			"reason": "ANTHROPIC_ADMIN_KEY not configured"
-		}
-	]
-}
-```
-
-### `POST /api/magi`
-
-Streams results via Server-Sent Events.
-
-**Headers:** `Content-Type: application/json` (required), `Authorization: Bearer <MAGI_API_KEY>` (only if the key is set).
-
-**Request body:**
-
-```json
-{
-	"query": "Your question here",
-	"tier": "free",
-	"strategy": "synthesis",
-	"consensusNode": "MAGI_1",
-	"assignments": [
-		{
-			"node": "MAGI_1",
-			"gateway": "openrouter",
-			"provider": "nvidia",
-			"modelId": "nvidia/nemotron-3-ultra-550b-a55b:free"
-		},
-		{
-			"node": "MAGI_2",
-			"gateway": "openrouter",
-			"provider": "particle-ai",
-			"modelId": "particle-ai/particle-1:free"
-		},
-		{
-			"node": "MAGI_3",
-			"gateway": "openrouter",
-			"provider": "nvidia",
-			"modelId": "nvidia/nemotron-3.5-lightning:free"
-		}
-	]
-}
-```
-
-| Field                  | Type    | Required | Notes                                                                                             |
-| ---------------------- | ------- | -------- | ------------------------------------------------------------------------------------------------- |
-| `query`                | string  | Yes      | 1–10,000 characters                                                                               |
-| `tier`                 | string  | Yes      | `frontier`, `balanced`, `budget`, `free`                                                          |
-| `strategy`             | string  | Yes      | `none`, `synthesis`, `voting`, or `debate`                                                        |
-| `consensusNode`        | string  | No       | `MAGI_1` (default), `MAGI_2`, or `MAGI_3`                                                         |
-| `assignments`          | array   | No       | Tuple of 3 `NodeAssignment` objects; omit to use the tier preset                                  |
-| `temperaments`         | boolean | No       | Enable dispositional temperaments. Default `false`                                                |
-| `consensusTemperament` | boolean | No       | Give the synthesizer the `consensusNode`'s lens. Default `false`                                  |
-| `temperamentAwareness` | boolean | No       | Tell the synthesizer the actual lens each node used (real label + persona). Default `false`       |
-| `genericLabels`        | boolean | No       | Use MAGI 1/2/3 instead of proper names in consensus prompts. Default `true`                       |
-| `history`              | array   | No       | Prior turns for context: `{ query, nodeResponses: [{ node, text }], consensus }`. Max 50          |
-| `debateRounds`         | number  | No       | Debate round ceiling, 2–5 (else 400). Default 3                                                   |
-| `opinionated`          | boolean | No       | Push each model to commit to one answer on open-ended questions (all strategies). Default `false` |
-| `collaborative`        | boolean | No       | Push debaters toward convergence (debate only). Default `false`                                   |
-| `forceRetry`           | boolean | No       | Bypass and clear the unhealthy-model cache for a real re-call                                     |
-| `retryNodes`           | array   | No       | Per-node retry: restrict phase-1 dispatch to these nodes (max 3)                                  |
-| `priorResponses`       | array   | No       | Per-node retry: already-good answers for nodes not retried — `[{ node, text }]`, max 3            |
-
-**SSE events:**
-
-| Event                | Payload                                                  | Description                         |
-| -------------------- | -------------------------------------------------------- | ----------------------------------- |
-| `config`             | `NodeAssignment[]`                                       | Node-to-model assignment mapping    |
-| `model-chunk`        | `{ node, text }`                                         | Streaming text delta from a node    |
-| `model-response`     | `{ node, gateway, provider, text }`                      | A node's complete response          |
-| `model-error`        | `{ node, gateway, provider, error }`                     | A node failure                      |
-| `model-usage`        | `{ node, inputTokens, outputTokens, cachedInputTokens }` | Token usage for a completed node    |
-| `partial-consensus`  | `{ responded, total }`                                   | Warning: not all models responded   |
-| `consensus-chunk`    | `{ text }`                                               | Streaming consensus text delta      |
-| `node-round`         | `{ node, entry }`                                        | A debater's revised answer (debate) |
-| `consensus-complete` | `{ text }`                                               | Full consensus text                 |
-| `consensus-usage`    | `{ inputTokens, outputTokens, cachedInputTokens }`       | Token usage for the consensus       |
-| `run-stats`          | `{ strategy, tier, ... }`                                | Per-run aggregate stats (one/run)   |
-| `error`              | `{ message }`                                            | Fatal error                         |
-
-> Payload shapes above are abbreviated — see [`openapi.yaml`](openapi.yaml) for the full event taxonomy and field-level schemas.
-
-**Rate limiting:** 10 req/min per IP — 30 for requests carrying a BYOK key (see below) — backed by Upstash Redis across the serverless fleet when configured, with an in-memory fallback. **BYOK:** on a deployment with `PUBLIC_BYOK_ENABLED=true`, an optional `x-magi-byok` header carries caller-supplied provider keys (a JSON object); see `openapi.yaml`. **Errors:** `400` bad request · `401` bad/missing key · `403` tier gate (paid/uncovered gateway on a keyless production deployment) · `415` wrong Content-Type · `429` rate limited. Frame the SSE stream by splitting on `\n\n` and reading the `event:` / `data:` lines.
+</details>
 
 </details>
 
@@ -277,7 +167,7 @@ Streams results via Server-Sent Events.
 
 **Stack:** Bun · TypeScript · SvelteKit · [Vercel AI SDK](https://sdk.vercel.ai) · Tailwind CSS · Zod. Display font [Michroma](https://fonts.google.com/specimen/Michroma), body font [Atkinson Hyperlegible](https://fonts.google.com/specimen/Atkinson+Hyperlegible).
 
-**Security:** strict hash-based Content-Security-Policy (`default-src 'self'`) plus `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy` headers; optional Bearer-token auth (`MAGI_API_KEY`) with timing-safe comparison; SvelteKit CSRF protection when unset; per-IP rate limiting; Zod validation on every request; `Content-Type` enforcement; client disconnects abort in-flight LLM calls; server errors never leak internals to the client.
+**Security:** strict hash-based Content-Security-Policy (`default-src 'self'`) plus `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` headers; optional Bearer-token auth (`MAGI_API_KEY`) with timing-safe comparison; SvelteKit CSRF protection when unset; per-IP rate limiting; Zod validation on every request; `Content-Type` enforcement; client disconnects abort in-flight LLM calls; server errors never leak internals to the client.
 
 ## ☁️ Deployment
 

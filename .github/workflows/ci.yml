@@ -19,12 +19,17 @@ jobs:
   verify:
     name: Lint, type-check, test, and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned so `--frozen-lockfile` doesn't change meaning under a new Bun
+          # release; bump together with the local Bun that writes bun.lock.
+          bun-version: 1.4.5
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -44,8 +49,9 @@ jobs:
       - name: Build
         run: bun run build
 
-      # Knip and audit are informational at first — they surface dead code and
-      # dependency advisories but don't fail the build until findings are triaged.
+      # Knip and audit stay informational by choice: `bun run verify` (the local
+      # gate) doesn't run them, so a blocking step here would turn CI red for
+      # something the local gate passes. Knip is currently clean.
       - name: Dead-code scan (knip)
         run: bun run knip
         continue-on-error: true

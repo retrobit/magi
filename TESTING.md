@@ -8,9 +8,7 @@ Run the full suite before manual testing — it covers the pure modules, the
 `/api/magi` and `/api/magi/models` route handlers, and the Svelte components:
 
 ```bash
-bun run test     # vitest, both projects
-bun run check    # svelte-check / type checking
-bun run lint     # prettier + eslint
+bun run verify   # check + lint + test:coverage + build — the same gate as CI
 ```
 
 Vitest runs two projects (configured in `vite.config.ts`): a **server** project
@@ -31,11 +29,11 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 - [ ] Page loads with Free tier selected and all three node panels visible
 - [ ] Type a query and click Execute
-- [ ] All three panels transition from "Awaiting query..." to "Thinking..." (pending state)
+- [ ] All three panels transition from "Awaiting query..." to the pending state (a rotating loader verb)
 - [ ] Streaming text appears in each panel as chunks arrive
 - [ ] All three panels show green checkmark (success) when complete
 - [ ] Consensus section shows a live "Waiting for MAGI — N / 3 responded…" progress line during model phase
-- [ ] Consensus section shows "Synthesizing consensus..." after models finish
+- [ ] Consensus section shows its pending loader after models finish
 - [ ] Consensus streams in and shows green checkmark when complete
 - [ ] Copy button on consensus works
 
@@ -55,7 +53,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] Submit a query with temperaments ON — responses reflect dispositional lenses
 - [ ] Toggle OFF — badges disappear
 - [ ] Submit a query with temperaments OFF — responses are neutral/unstyled
-- [ ] Switch tiers and back — temperament toggle state is preserved per tier
+- [ ] Switch tiers and back — the temperament toggle keeps its state (it is a global setting, not per tier)
 
 ## 3. Node Labels
 
@@ -94,8 +92,6 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 ### Network / server errors
 
 - [ ] Disconnect network mid-query — error banner appears, panels stop gracefully
-- [ ] Submit with invalid JSON (via API) — 400 error response
-- [ ] Rapid-fire 11+ requests — 429 rate limit response
 
 ## 7. Abort
 
@@ -108,10 +104,27 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 
 - [ ] Submit a query on Free tier
 - [ ] Switch to Balanced tier — Free results disappear, Balanced shows clean state
-- [ ] Switch back to Free — previous Free results are fully restored (responses, consensus, errors, assignments, temperament toggle)
+- [ ] Switch back to Free — previous Free results are fully restored (responses, consensus, errors, assignments)
 - [ ] Cache is per-tier, not global
 
-## 9. Responsive Layout
+## 9. Strategies
+
+- [ ] Structured Voting — a tally table shows each node's scores and the winner appears verbatim beneath it; no extra consensus-model call
+- [ ] Multi-Round Debate — each node panel gains per-round entries, the consensus ends with a verdict line, and a converged debate stops before the round ceiling
+- [ ] Strategy "None" — only the three raw answers appear, no consensus section
+- [ ] Switching strategy and back keeps the toggles that don't apply showing "N/A" without losing their values
+
+## 10. Per-node Retry
+
+- [ ] A failed node shows a retry control; retrying re-runs only that node and the consensus is recomputed over all three answers
+- [ ] The other two nodes' token counts do not change after the retry
+
+## 11. Bring Your Own Key (needs `PUBLIC_BYOK_ENABLED=true`)
+
+- [ ] The header key icon opens the API-keys popover; a pasted key survives a reload and is sent only as the `x-magi-byok` header
+- [ ] With the key set, the tiers it covers become selectable
+
+## 12. Responsive Layout
 
 - [ ] Desktop (≥1024px): three panels side-by-side with swap buttons between them
 - [ ] Below 1024px: panels stack vertically, swap buttons hidden

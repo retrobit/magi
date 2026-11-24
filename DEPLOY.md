@@ -59,7 +59,7 @@ is one feature, one fix or one refactor batch, however many commits it took.
 Enable every variable for **Production _and_ Preview** — previews build from `main` and
 need the same runtime keys (a var missing from Preview fails at request time, not build
 time). The **Development** environment is inert for this project: local dev runs
-`bun run dev` against `.env`, not `vercel dev`.
+`bun run dev` against `.env.local`, not `vercel dev`.
 
 Vercel's "`PUBLIC_` exposes this value to the browser" warning is expected for
 `PUBLIC_DEMO_MODE` — exposing it is the point (it's a feature flag); the secret keys have
@@ -122,6 +122,11 @@ no `PUBLIC_` prefix and stay server-only.
   `warn`/`error`). ⚠️ Hobby keeps runtime logs only ~1 hour — check right after traffic.
   **Web Analytics** shows visitors; **openrouter.ai/activity** shows request counts
   against the caps below.
+- **Stall guards:** every model call gets a 120 s thinking window to its first answer
+  token, then 40 s of idle once it is answering (consensus: 120 s, then 90 s); debate
+  and voting calls also carry an 80 s per-call deadline. A tripped guard fails that seat
+  cleanly instead of running into the 300 s function cap — see `THINKING_WINDOW_MS` in
+  [src/routes/api/magi/+server.ts](src/routes/api/magi/+server.ts).
 - **OpenRouter free-model caps** (account-wide, observed 2026-07-14): **20 req/min** —
   the binding limit; a turn is 3–4 OpenRouter requests, so ≈5 turns/min across all
   visitors — and **1,000 req/day** once the account has ever bought ≥ $10 of credits
