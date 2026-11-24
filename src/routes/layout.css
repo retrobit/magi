@@ -27,7 +27,6 @@
    Cheat sheet — bracketed color is the utility's default, via theme vars
      (dark value shown; light mode overrides the vars)
      magi-headline        — app title (text-2xl bold wider, no default color)
-     magi-banner-headline — banner titles (sm bold wider uppercase, no color)
      magi-banner-detail   — banner subtitle [gray-400]
      magi-section-header  — popover header (xs semibold wide, no default color)
      magi-subhead         — subsection header inside a panel [gray-400]
@@ -61,9 +60,6 @@
    space its name without spacing the "• N" unit suffix). */
 @utility magi-display {
 	font-family: var(--magi-font-display);
-}
-@utility magi-banner-headline {
-	@apply text-sm font-bold tracking-wide uppercase;
 }
 @utility magi-banner-detail {
 	@apply text-xs;
@@ -146,14 +142,6 @@
 	border-color: var(--magi-border-subtle);
 }
 
-/* The RGB-triad gradient clipped to text (consensus headline, Flagship chip). */
-@utility magi-gradient-text {
-	background: var(--magi-consensus-gradient);
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
-}
-
 /* ── Theme variables ──
    Dark is the base theme: every themed surface reads a --magi-* variable
    declared here, and light mode is (almost) purely the variable override
@@ -183,9 +171,8 @@
 	   high-legibility face distinct from the UI/display fonts. */
 	--magi-font-body: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
 	/* Background-triad colors — what the aurora tints with. Default to the node
-	   identity triad so the RGB/Orange/Red palettes keep panels and background in
-	   sync; the Nebula palette overrides these to decouple them (blue panels, orange
-	   background). --magi-hex-hot is the cursor-spotlight colour for the hex variant. */
+	   identity triad, so the background always follows the active palette.
+	   --magi-hex-hot is the cursor-spotlight colour for the hex variant. */
 	--magi-bg-1: var(--magi-node-red);
 	--magi-bg-2: var(--magi-node-green);
 	--magi-bg-3: var(--magi-node-blue);
@@ -336,12 +323,6 @@
 		background-color: var(--magi-output-bg);
 	}
 
-	/* Reply bodies render as `.prose` (model responses + consensus). Give them the
-	   dedicated reading face; the UI chrome and display marks keep their own fonts. */
-	.prose {
-		font-family: var(--magi-font-body);
-	}
-
 	/* Sits in the prompt-entry row beside the input, so it wears the input's own
 	   surface + border tokens to read as one unit; only the icon color and a
 	   subtle hover set it apart as a button. */
@@ -466,11 +447,6 @@
 		cursor: not-allowed;
 	}
 
-	/* The control strip is now theme-aware (see .magi-controls), so its toggles use
-	   the same theme-aware .magi-toggle as the consensus panel — no dark-pinned
-	   override. This is what makes the strip and consensus on/off switches identical
-	   across every state (on / off / disabled) in both themes. */
-
 	/* Popover menu rows — the option/nav buttons inside the header popovers and the
 	   copy-scope menu. One theme-aware recipe (surface-hover wash on hover, a filled
 	   `-active` for the selected row) so every popover row matches and follows the
@@ -548,7 +524,6 @@ html {
 	--magi-btn-hover-bg: #6b7280;
 	/* Subtle active: a faint gray tint + thin ring + dark text on the light surface. */
 	--magi-toggle-on-bg: color-mix(in oklab, #4b5563 16%, transparent);
-	--magi-toggle-on-text: var(--magi-text);
 	--magi-toggle-on-ring: color-mix(in oklab, #6b7280 55%, transparent);
 	--magi-token-split-color: #4b5563;
 	--magi-token-total-color: #9ca3af;
@@ -575,7 +550,7 @@ html {
 
 /* ── Color palettes ──────────────────────────────────────────────────────────
    A palette is a class on <html> that remaps the node identity triad (and, for
-   Nebula, the background triad + hex spotlight independently). `rgb` is the :root
+   Nebula, the hex spotlight independently). `rgb` is the :root
    default and needs no class. Each palette ships a dark block plus a `.light`
    companion (higher specificity, so it wins over the base `.light` overrides) to
    stay legible on the white surface. The hex lattice base stays neutral gray for
@@ -664,28 +639,17 @@ summary:focus-visible,
 	animation: none;
 }
 
-.light .prose {
-	--tw-prose-body: #374151;
-	--tw-prose-headings: #111827;
-	--tw-prose-links: #111827;
-	--tw-prose-bold: #111827;
-	--tw-prose-code: #111827;
-	--tw-prose-pre-bg: #f3f4f6;
-	--tw-prose-pre-code: #374151;
-}
-
-/* Response body size — model output renders inside `.prose`, which defaults to
-   16px. A touch smaller reads better in the panels; prose sizes its children in
-   `em`, so headings/code/lists all scale proportionally from this one value. */
-.prose {
-	font-size: 0.9375rem;
-}
-
 /* ── Code syntax highlighting (highlight.js token classes) ──
    highlight.js emits a fixed set of `.hljs-*` token spans; rather than ship a
    prebuilt theme that only suits one mode, the palette is driven by CSS vars
    the light theme overrides — so code stays legible on both backgrounds. */
+/* Reply bodies (model responses + consensus) render as `.prose`: the dedicated
+   reading face (UI chrome and display marks keep their own fonts), and a size a
+   touch under the 16px default — prose sizes its children in `em`, so headings,
+   code and lists all scale from this one value. */
 .prose {
+	font-family: var(--magi-font-body);
+	font-size: 0.9375rem;
 	--hljs-comment: #8b949e;
 	--hljs-keyword: #ff7b72;
 	--hljs-string: #a5d6ff;
@@ -695,6 +659,13 @@ summary:focus-visible,
 }
 
 .light .prose {
+	--tw-prose-body: #374151;
+	--tw-prose-headings: #111827;
+	--tw-prose-links: #111827;
+	--tw-prose-bold: #111827;
+	--tw-prose-code: #111827;
+	--tw-prose-pre-bg: #f3f4f6;
+	--tw-prose-pre-code: #374151;
 	--hljs-comment: #6e7781;
 	--hljs-keyword: #cf222e;
 	--hljs-string: #0a3069;

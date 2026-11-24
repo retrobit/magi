@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { TIER_NAMES, type TierName } from '$lib/magi/types';
 	import { tooltip } from '$lib/actions/tooltip';
+	import { prefersReducedMotion } from '$lib/motion';
 	import { tick } from 'svelte';
 
 	interface Props {
@@ -76,11 +77,7 @@
 	// cleanly on a rapid re-click; suppressed when motion is reduced.
 	let nudgeAnim: Animation | undefined;
 	$effect(() => {
-		if (nudge <= 0 || !indicatorEl) return;
-		const reduced =
-			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
-			document.documentElement.classList.contains('reduce-motion');
-		if (reduced) return;
+		if (nudge <= 0 || !indicatorEl || prefersReducedMotion()) return;
 		nudgeAnim?.cancel();
 		nudgeAnim = indicatorEl.animate(
 			[
@@ -97,6 +94,21 @@
 		);
 	});
 </script>
+
+{#snippet tierButton(tier: TierName)}
+	<button
+		bind:this={buttonEls[tier]}
+		class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors {value === tier
+			? 'text-white'
+			: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+		{disabled}
+		aria-pressed={value === tier}
+		onclick={() => onchange(tier)}
+		use:tooltip={tierTooltips[tier]}
+	>
+		{tierLabels[tier]}
+	</button>
+{/snippet}
 
 <div
 	bind:this={containerEl}
@@ -115,19 +127,7 @@
 	<!-- Free tier -->
 	<div class="flex gap-1">
 		{#each freeTiers as tier (tier)}
-			<button
-				bind:this={buttonEls[tier]}
-				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors {value ===
-				tier
-					? 'text-white'
-					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-				{disabled}
-				aria-pressed={value === tier}
-				onclick={() => onchange(tier)}
-				use:tooltip={tierTooltips[tier]}
-			>
-				{tierLabels[tier]}
-			</button>
+			{@render tierButton(tier)}
 		{/each}
 	</div>
 
@@ -137,19 +137,7 @@
 	<!-- Paid tiers -->
 	<div class="flex gap-1">
 		{#each paidTiers as tier (tier)}
-			<button
-				bind:this={buttonEls[tier]}
-				class="relative z-10 rounded-md px-3 py-1.5 magi-label-muted transition-colors {value ===
-				tier
-					? 'text-white'
-					: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-				{disabled}
-				aria-pressed={value === tier}
-				onclick={() => onchange(tier)}
-				use:tooltip={tierTooltips[tier]}
-			>
-				{tierLabels[tier]}
-			</button>
+			{@render tierButton(tier)}
 		{/each}
 	</div>
 </div>

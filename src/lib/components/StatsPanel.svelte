@@ -5,7 +5,6 @@
 		clearRunStats,
 		exportRunStats,
 		aggregate,
-		type CountEntry,
 		type RunStatRecord
 	} from '$lib/magi/run-stats';
 	import { STRATEGY_LABELS, type StrategyName } from '$lib/magi/consensus/types';
@@ -14,7 +13,7 @@
 	import {
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
-		type MagiNodeName,
+		MAGI_NODE_NAMES,
 		type DebateVerdict
 	} from '$lib/magi/types';
 
@@ -74,8 +73,6 @@
 	});
 
 	const agg = $derived(aggregate(filteredRecords));
-	const nodeOrder: MagiNodeName[] = ['MAGI_1', 'MAGI_2', 'MAGI_3'];
-	const strategyOrder: StrategyName[] = FILTERABLE_STRATEGIES;
 	const verdictOrder: DebateVerdict[] = ['consensus', 'split', 'walkover'];
 	const VERDICT_LABELS: Record<DebateVerdict, string> = {
 		consensus: 'Consensus',
@@ -115,11 +112,52 @@
 		URL.revokeObjectURL(url);
 	}
 
-	// A usage axis renders the same way each time: label, bar, count (share).
-	function topN(entries: CountEntry[], n = 6): CountEntry[] {
-		return entries.slice(0, n);
-	}
+	// Usage axes list their top entries only; the long tail collapses to "+ N more".
+	const TOP_N = 6;
 </script>
+
+<!-- One selectable filter chip. -->
+{#snippet chip(label: string, active: boolean, pick: () => void)}
+	<button
+		type="button"
+		class="rounded px-2 py-0.5 text-xs transition-colors {active
+			? 'bg-(--magi-btn-bg) text-white'
+			: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:bg-(--magi-surface-hover)'}"
+		onclick={pick}
+		aria-pressed={active}
+	>
+		{label}
+	</button>
+{/snippet}
+
+<!-- label, proportional bar (`fraction` 0..1, `fill` a literal Tailwind class), right-aligned
+     figure. `labelClass` carries the label width; `tip` adds a tooltip for truncated labels. -->
+{#snippet bar(
+	label: string,
+	labelClass: string,
+	fraction: number,
+	fill: string,
+	text: string,
+	tip?: string
+)}
+	<div class="flex items-center gap-2 text-xs">
+		<span class="{labelClass} text-(--magi-text-secondary)" use:tooltip={tip}>{label}</span>
+		<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
+			<div class="h-full {fill}" style="width: {(fraction * 100).toFixed(1)}%"></div>
+		</div>
+		<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)">
+			{text}
+		</span>
+	</div>
+{/snippet}
+
+<!-- label on the left, value on the right. -->
+{#snippet kvRow(label: string, value: string | number)}
+	<div class="flex items-center justify-between text-xs">
+		<span class="text-(--magi-text-secondary)">{label}</span>
+		<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">{value}</span>
+	</div>
+{/snippet}
 
 <div
 	class="flex min-h-0 flex-col overflow-hidden magi-popover text-sm text-(--magi-text-secondary)"
@@ -167,30 +205,16 @@
 		     there are no records at all (the empty-state CTA below carries the panel). -->
 			<div class="flex flex-wrap items-center gap-1">
 				{#each FILTER_OPTIONS as opt (opt)}
-					<button
-						type="button"
-						class="rounded px-2 py-0.5 text-xs transition-colors {filter === opt
-							? 'bg-(--magi-btn-bg) text-white'
-							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:bg-(--magi-surface-hover)'}"
-						onclick={() => (filter = opt)}
-						aria-pressed={filter === opt}
-					>
-						{opt === 'all' ? 'All' : STRATEGY_LABELS[opt]}
-					</button>
+					{@render chip(
+						opt === 'all' ? 'All' : STRATEGY_LABELS[opt],
+						filter === opt,
+						() => (filter = opt)
+					)}
 				{/each}
 			</div>
 			<div class="flex flex-wrap items-center gap-1">
 				{#each DATE_OPTIONS as opt (opt.key)}
-					<button
-						type="button"
-						class="rounded px-2 py-0.5 text-xs transition-colors {dateRange === opt.key
-							? 'bg-(--magi-btn-bg) text-white'
-							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:bg-(--magi-surface-hover)'}"
-						onclick={() => (dateRange = opt.key)}
-						aria-pressed={dateRange === opt.key}
-					>
-						{opt.label}
-					</button>
+					{@render chip(opt.label, dateRange === opt.key, () => (dateRange = opt.key))}
 				{/each}
 			</div>
 		{/if}
@@ -213,22 +237,15 @@
 			{#if filter === 'all'}
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Runs by strategy</h3>
-					{#each strategyOrder as s (s)}
+					{#each FILTERABLE_STRATEGIES as s (s)}
 						{@const count = agg.byStrategy[s] ?? 0}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="w-28 text-(--magi-text-secondary)">{STRATEGY_LABELS[s]}</span>
-							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-								<div
-									class="h-full bg-indigo-500/80"
-									style="width: {agg.total > 0 ? ((count / agg.total) * 100).toFixed(1) : 0}%"
-								></div>
-							</div>
-							<span
-								class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>
-								{count} ({pct(count, agg.total)})
-							</span>
-						</div>
+						{@render bar(
+							STRATEGY_LABELS[s],
+							'w-28',
+							count / agg.total,
+							'bg-indigo-500/80',
+							`${count} (${pct(count, agg.total)})`
+						)}
 					{/each}
 				</section>
 			{/if}
@@ -236,49 +253,37 @@
 			<!-- Usage by gateway -->
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">Usage by gateway</h3>
-				{#each topN(agg.usageByGateway) as e (e.key)}
-					<div class="flex items-center gap-2 text-xs">
-						<span class="w-28 truncate text-(--magi-text-secondary)" use:tooltip={e.label}
-							>{e.label}</span
-						>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-							<div
-								class="h-full bg-sky-500/70"
-								style="width: {(e.count / agg.usageByGateway[0].count) * 100}%"
-							></div>
-						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>{e.count}</span
-						>
-					</div>
+				{#each agg.usageByGateway.slice(0, TOP_N) as e (e.key)}
+					{@render bar(
+						e.label,
+						'w-28 truncate',
+						e.count / agg.usageByGateway[0].count,
+						'bg-sky-500/70',
+						`${e.count}`,
+						e.label
+					)}
 				{/each}
 			</section>
 
 			<!-- Usage by provider -->
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">Usage by provider</h3>
-				{#each topN(agg.usageByProvider) as e (e.key)}
-					<div class="flex items-center gap-2 text-xs">
-						<span class="w-28 truncate text-(--magi-text-secondary)" use:tooltip={e.label}
-							>{e.label}</span
-						>
-						<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-							<div
-								class="h-full bg-teal-500/70"
-								style="width: {(e.count / agg.usageByProvider[0].count) * 100}%"
-							></div>
-						</div>
-						<span class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>{e.count}</span
-						>
-					</div>
+				{#each agg.usageByProvider.slice(0, TOP_N) as e (e.key)}
+					{@render bar(
+						e.label,
+						'w-28 truncate',
+						e.count / agg.usageByProvider[0].count,
+						'bg-teal-500/70',
+						`${e.count}`,
+						e.label
+					)}
 				{/each}
 			</section>
 
 			<!-- Usage by model — capped; long tail summarized. -->
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">Usage by model</h3>
-				{#each topN(agg.usageByModel) as e (e.key)}
+				{#each agg.usageByModel.slice(0, TOP_N) as e (e.key)}
 					<div class="flex items-center gap-2 text-xs">
 						<span class="flex-1 truncate text-(--magi-text-muted)" use:tooltip={e.key}>{e.key}</span
 						>
@@ -287,22 +292,16 @@
 						>
 					</div>
 				{/each}
-				{#if agg.usageByModel.length > 6}
-					<p class="magi-meta">+ {agg.usageByModel.length - 6} more</p>
+				{#if agg.usageByModel.length > TOP_N}
+					<p class="magi-meta">+ {agg.usageByModel.length - TOP_N} more</p>
 				{/if}
 			</section>
 
 			<!-- Usage by node -->
 			<section class="flex flex-col gap-1">
 				<h3 class="magi-subhead">Usage by node</h3>
-				{#each nodeOrder as node (node)}
-					{@const count = agg.usageByNode[node] ?? 0}
-					<div class="flex items-center justify-between text-xs">
-						<span class="text-(--magi-text-secondary)">{nodeLabels[node]}</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>{count}</span
-						>
-					</div>
+				{#each MAGI_NODE_NAMES as node (node)}
+					{@render kvRow(nodeLabels[node], agg.usageByNode[node] ?? 0)}
 				{/each}
 			</section>
 
@@ -319,29 +318,22 @@
 				<!-- Wins by node -->
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Wins by node</h3>
-					{#each nodeOrder as node (node)}
+					{#each MAGI_NODE_NAMES as node (node)}
 						{@const wins = v.winsByNode[node] ?? 0}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
-							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-								<div
-									class="h-full bg-emerald-500/80"
-									style="width: {v.total > 0 ? ((wins / v.total) * 100).toFixed(1) : 0}%"
-								></div>
-							</div>
-							<span
-								class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>
-								{wins} ({pct(wins, v.total)})
-							</span>
-						</div>
+						{@render bar(
+							nodeLabels[node],
+							'w-24',
+							wins / v.total,
+							'bg-emerald-500/80',
+							`${wins} (${pct(wins, v.total)})`
+						)}
 					{/each}
 				</section>
 
 				<!-- Wins by model — separates "node bias" from "model bias". -->
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Wins by model</h3>
-					{#each v.winsByModel.slice(0, 6) as entry (entry.model + entry.node)}
+					{#each v.winsByModel.slice(0, TOP_N) as entry (entry.model + entry.node)}
 						<div class="flex items-center gap-2 text-xs">
 							<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[entry.node]}</span>
 							<span class="flex-1 truncate text-(--magi-text-muted)" use:tooltip={entry.model}
@@ -354,8 +346,8 @@
 							</span>
 						</div>
 					{/each}
-					{#if v.winsByModel.length > 6}
-						<p class="magi-meta">+ {v.winsByModel.length - 6} more</p>
+					{#if v.winsByModel.length > TOP_N}
+						<p class="magi-meta">+ {v.winsByModel.length - TOP_N} more</p>
 					{/if}
 				</section>
 
@@ -363,23 +355,13 @@
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Wins by gateway</h3>
 					{#each v.winsByGateway as e (e.key)}
-						<div class="flex items-center justify-between text-xs">
-							<span class="text-(--magi-text-secondary)">{e.label}</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
-								>{e.count} ({pct(e.count, v.total)})</span
-							>
-						</div>
+						{@render kvRow(e.label, `${e.count} (${pct(e.count, v.total)})`)}
 					{/each}
 				</section>
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Wins by provider</h3>
 					{#each v.winsByProvider as e (e.key)}
-						<div class="flex items-center justify-between text-xs">
-							<span class="text-(--magi-text-secondary)">{e.label}</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
-								>{e.count} ({pct(e.count, v.total)})</span
-							>
-						</div>
+						{@render kvRow(e.label, `${e.count} (${pct(e.count, v.total)})`)}
 					{/each}
 				</section>
 
@@ -412,40 +394,23 @@
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Tiebreak path</h3>
 					<div class="flex flex-col gap-0.5 text-xs">
-						<div class="flex justify-between">
-							<span class="text-(--magi-text-secondary)">Decisive</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-								{v.tiebreakDistribution.none} ({pct(v.tiebreakDistribution.none, v.total)})
-							</span>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-(--magi-text-secondary)">Best-score tiebreak</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-								{v.tiebreakDistribution['best-score']} ({pct(
-									v.tiebreakDistribution['best-score'],
-									v.total
-								)})
-							</span>
-						</div>
-						<div class="flex justify-between">
-							<span class="text-(--magi-text-secondary)">Node-order tiebreak</span>
-							<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-								{v.tiebreakDistribution['node-order']} ({pct(
-									v.tiebreakDistribution['node-order'],
-									v.total
-								)})
-							</span>
-						</div>
+						{@render kvRow(
+							'Decisive',
+							`${v.tiebreakDistribution.none} (${pct(v.tiebreakDistribution.none, v.total)})`
+						)}
+						{@render kvRow(
+							'Best-score tiebreak',
+							`${v.tiebreakDistribution['best-score']} (${pct(v.tiebreakDistribution['best-score'], v.total)})`
+						)}
+						{@render kvRow(
+							'Node-order tiebreak',
+							`${v.tiebreakDistribution['node-order']} (${pct(v.tiebreakDistribution['node-order'], v.total)})`
+						)}
 						{#if v.tiebreakDistribution.walkover > 0}
-							<div class="flex justify-between">
-								<span class="text-(--magi-text-secondary)">Walkover</span>
-								<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-									{v.tiebreakDistribution.walkover} ({pct(
-										v.tiebreakDistribution.walkover,
-										v.total
-									)})
-								</span>
-							</div>
+							{@render kvRow(
+								'Walkover',
+								`${v.tiebreakDistribution.walkover} (${pct(v.tiebreakDistribution.walkover, v.total)})`
+							)}
 						{/if}
 					</div>
 				</section>
@@ -453,18 +418,8 @@
 				<!-- Length correlation — sanity check for "longer answers tend to win" hypothesis. -->
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Avg response length (chars)</h3>
-					<div class="flex justify-between text-xs">
-						<span class="text-(--magi-text-secondary)">Winners</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>{Math.round(v.winnerAvgLength)}</span
-						>
-					</div>
-					<div class="flex justify-between text-xs">
-						<span class="text-(--magi-text-secondary)">Losers</span>
-						<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>{Math.round(v.loserAvgLength)}</span
-						>
-					</div>
+					{@render kvRow('Winners', Math.round(v.winnerAvgLength))}
+					{@render kvRow('Losers', Math.round(v.loserAvgLength))}
 				</section>
 			{/if}
 
@@ -483,20 +438,13 @@
 					<h3 class="magi-subhead">Verdict distribution</h3>
 					{#each verdictOrder as verdict (verdict)}
 						{@const count = dbt.verdictCounts[verdict] ?? 0}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="w-24 text-(--magi-text-secondary)">{VERDICT_LABELS[verdict]}</span>
-							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-								<div
-									class="h-full bg-purple-500/70"
-									style="width: {dbt.total > 0 ? ((count / dbt.total) * 100).toFixed(1) : 0}%"
-								></div>
-							</div>
-							<span
-								class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>
-								{count} ({pct(count, dbt.total)})
-							</span>
-						</div>
+						{@render bar(
+							VERDICT_LABELS[verdict],
+							'w-24',
+							count / dbt.total,
+							'bg-purple-500/70',
+							`${count} (${pct(count, dbt.total)})`
+						)}
 					{/each}
 				</section>
 
@@ -505,20 +453,13 @@
 					<section class="flex flex-col gap-1">
 						<h3 class="magi-subhead">Convergence</h3>
 						{#if dbt.verdictCounts.consensus > 0}
-							<div class="flex justify-between text-xs">
-								<span class="text-(--magi-text-secondary)">Avg rounds to converge</span>
-								<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-									{dbt.avgRoundsToConverge.toFixed(2)}
-								</span>
-							</div>
+							{@render kvRow('Avg rounds to converge', dbt.avgRoundsToConverge.toFixed(2))}
 						{/if}
 						{#if dbt.hitLimitCount > 0}
-							<div class="flex justify-between text-xs">
-								<span class="text-(--magi-text-secondary)">Hit round limit</span>
-								<span class="shrink-0 pl-2 font-mono whitespace-nowrap text-(--magi-text-muted)">
-									{dbt.hitLimitCount} ({pct(dbt.hitLimitCount, dbt.total)})
-								</span>
-							</div>
+							{@render kvRow(
+								'Hit round limit',
+								`${dbt.hitLimitCount} (${pct(dbt.hitLimitCount, dbt.total)})`
+							)}
 						{/if}
 					</section>
 				{/if}
@@ -526,51 +467,37 @@
 				<!-- Revision rate by node — which nodes are most willing to revise their answer. -->
 				<section class="flex flex-col gap-1">
 					<h3 class="magi-subhead">Revision rate by node</h3>
-					{#each nodeOrder as node (node)}
+					{#each MAGI_NODE_NAMES as node (node)}
 						{@const r = dbt.revisionRateByNode[node]}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
-							<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-								<div
-									class="h-full bg-(--magi-color-warn)/70"
-									style="width: {(r.rate * 100).toFixed(1)}%"
-								></div>
-							</div>
-							<span
-								class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-							>
-								{r.revised}/{r.rounds} ({r.rounds > 0 ? `${(r.rate * 100).toFixed(0)}%` : '—'})
-							</span>
-						</div>
+						{@render bar(
+							nodeLabels[node],
+							'w-24',
+							r.rate,
+							'bg-(--magi-color-warn)/70',
+							`${r.revised}/${r.rounds} (${r.rounds > 0 ? `${(r.rate * 100).toFixed(0)}%` : '—'})`
+						)}
 					{/each}
 				</section>
 
 				<!-- Dissenter — when a clean 2-vs-1 split happened, who was the holdout? -->
-				{#if nodeOrder.some((n) => dbt.dissenterByNode[n] > 0)}
+				{#if MAGI_NODE_NAMES.some((n) => dbt.dissenterByNode[n] > 0)}
 					<section class="flex flex-col gap-1">
 						<h3 class="magi-subhead">
 							Dissenter
 							<span class="font-normal text-(--magi-text-faint)"
-								>({nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)} 2-vs-1 splits)</span
+								>({MAGI_NODE_NAMES.reduce((s, n) => s + dbt.dissenterByNode[n], 0)} 2-vs-1 splits)</span
 							>
 						</h3>
-						{#each nodeOrder as node (node)}
+						{#each MAGI_NODE_NAMES as node (node)}
 							{@const count = dbt.dissenterByNode[node] ?? 0}
-							{@const denom = nodeOrder.reduce((s, n) => s + dbt.dissenterByNode[n], 0)}
-							<div class="flex items-center gap-2 text-xs">
-								<span class="w-24 text-(--magi-text-secondary)">{nodeLabels[node]}</span>
-								<div class="h-1.5 flex-1 overflow-hidden rounded-sm bg-(--magi-surface-bg)">
-									<div
-										class="h-full bg-rose-500/70"
-										style="width: {denom > 0 ? ((count / denom) * 100).toFixed(1) : 0}%"
-									></div>
-								</div>
-								<span
-									class="shrink-0 text-right font-mono whitespace-nowrap text-(--magi-text-muted)"
-								>
-									{count} ({pct(count, denom)})
-								</span>
-							</div>
+							{@const denom = MAGI_NODE_NAMES.reduce((s, n) => s + dbt.dissenterByNode[n], 0)}
+							{@render bar(
+								nodeLabels[node],
+								'w-24',
+								count / denom,
+								'bg-rose-500/70',
+								`${count} (${pct(count, denom)})`
+							)}
 						{/each}
 					</section>
 				{/if}

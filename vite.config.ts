@@ -20,7 +20,6 @@ export default defineConfig({
 				'**/*.test.ts',
 				'.svelte-kit/**',
 				'src/vitest-setup-client.ts',
-				'src/lib/index.ts',
 				'src/app.d.ts'
 			]
 		},

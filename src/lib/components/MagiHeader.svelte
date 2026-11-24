@@ -80,6 +80,60 @@
 		clearRunStats();
 		location.reload();
 	}
+
+	// One entry per header section, rendered both as a desktop icon button and as
+	// a mobile menu row. Hover classes stay literal so Tailwind's scanner sees them.
+	const SECTIONS = [
+		{
+			id: 'debug',
+			icon: Bug,
+			aria: 'Debug panel',
+			label: 'Debug',
+			hover: 'hover:text-amber-400',
+			show: import.meta.env.DEV
+		},
+		{
+			id: 'stats',
+			icon: BarChart3,
+			aria: 'Stats',
+			label: 'Stats',
+			hover: 'hover:text-blue-400',
+			show: true
+		},
+		{
+			id: 'budget',
+			icon: Wallet,
+			aria: 'Budget',
+			label: 'Budget',
+			hover: 'hover:text-green-400',
+			show: true
+		},
+		{
+			id: 'keys',
+			icon: KeyRound,
+			aria: 'API keys',
+			label: 'API keys',
+			hover: 'hover:text-violet-400',
+			show: BYOK_ENABLED
+		},
+		{
+			id: 'settings',
+			icon: Settings,
+			aria: 'Settings',
+			label: 'Settings',
+			hover: 'hover:text-(--magi-chrome-btn-hover-text)',
+			menuHover: 'hover:text-(--magi-text)',
+			show: true
+		}
+	] satisfies {
+		id: HeaderPanel;
+		icon: typeof Bug;
+		aria: string;
+		label: string;
+		hover: string;
+		menuHover?: string;
+		show: boolean;
+	}[];
 </script>
 
 <header class="magi-header relative z-30 shrink-0 border-b">
@@ -118,59 +172,34 @@
 			</button>
 			<!-- Tablet/desktop: every section gets its own icon button -->
 			<div class="hidden items-center gap-1 sm:flex">
-				{#if import.meta.env.DEV}
+				{#each SECTIONS.filter((s) => s.show) as s (s.id)}
 					<button
 						type="button"
-						class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-amber-400"
-						onclick={() => togglePanel('debug')}
-						aria-label="Debug panel"
-						aria-expanded={openPanel === 'debug'}
+						class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) {s.hover}"
+						onclick={() => togglePanel(s.id)}
+						aria-label={s.aria}
+						aria-expanded={openPanel === s.id}
 					>
-						<Bug size={16} />
+						<s.icon size={16} />
 					</button>
-				{/if}
-				<button
-					type="button"
-					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-blue-400"
-					onclick={() => togglePanel('stats')}
-					aria-label="Stats"
-					aria-expanded={openPanel === 'stats'}
-				>
-					<BarChart3 size={16} />
-				</button>
-				<button
-					type="button"
-					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-green-400"
-					onclick={() => togglePanel('budget')}
-					aria-label="Budget"
-					aria-expanded={openPanel === 'budget'}
-				>
-					<Wallet size={16} />
-				</button>
-				{#if BYOK_ENABLED}
-					<button
-						type="button"
-						class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-violet-400"
-						onclick={() => togglePanel('keys')}
-						aria-label="API keys"
-						aria-expanded={openPanel === 'keys'}
-					>
-						<KeyRound size={16} />
-					</button>
-				{/if}
-				<button
-					type="button"
-					class="rounded-lg p-2 text-(--magi-chrome-btn) transition-colors hover:bg-(--magi-chrome-btn-hover-bg) hover:text-(--magi-chrome-btn-hover-text)"
-					onclick={() => togglePanel('settings')}
-					aria-label="Settings"
-					aria-expanded={openPanel === 'settings'}
-				>
-					<Settings size={16} />
-				</button>
+				{/each}
 			</div>
 		</div>
 	</div>
 </header>
+
+<!-- One selectable row in the Settings popover. -->
+{#snippet option(label: string, active: boolean, pick: () => void)}
+	<button
+		class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {active
+			? 'magi-menu-item-active'
+			: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
+		aria-pressed={active}
+		onclick={pick}
+	>
+		{label}
+	</button>
+{/snippet}
 
 <!-- Shared scaffold for every header popover: the full-screen click-catcher
      backdrop and the right-aligned positioning wrapper. The body snippet
@@ -219,45 +248,17 @@
 			</button>
 		</div>
 		<div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3">
-			{#if import.meta.env.DEV}
+			{#each SECTIONS.filter((s) => s.show) as s (s.id)}
 				<button
 					type="button"
-					class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-amber-400"
-					onclick={() => (openPanel = 'debug')}
+					class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) {s.menuHover ??
+						s.hover}"
+					onclick={() => (openPanel = s.id)}
 				>
-					<Bug size={14} /> Debug
+					<s.icon size={14} />
+					{s.label}
 				</button>
-			{/if}
-			<button
-				type="button"
-				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-blue-400"
-				onclick={() => (openPanel = 'stats')}
-			>
-				<BarChart3 size={14} /> Stats
-			</button>
-			<button
-				type="button"
-				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-green-400"
-				onclick={() => (openPanel = 'budget')}
-			>
-				<Wallet size={14} /> Budget
-			</button>
-			{#if BYOK_ENABLED}
-				<button
-					type="button"
-					class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-violet-400"
-					onclick={() => (openPanel = 'keys')}
-				>
-					<KeyRound size={14} /> API keys
-				</button>
-			{/if}
-			<button
-				type="button"
-				class="magi-menu-item flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm text-(--magi-text-secondary) hover:text-(--magi-text)"
-				onclick={() => (openPanel = 'settings')}
-			>
-				<Settings size={14} /> Settings
-			</button>
+			{/each}
 		</div>
 	</div>
 {/snippet}
@@ -283,125 +284,41 @@
 		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
 			<span class="magi-section-header text-(--magi-text-muted)">THEME</span>
 			<div class="mt-2 flex flex-col gap-1">
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {theme === 'dark'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={theme === 'dark'}
-					onclick={() => (theme = 'dark')}
-				>
-					Dark
-				</button>
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {theme === 'light'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={theme === 'light'}
-					onclick={() => (theme = 'light')}
-				>
-					Light
-				</button>
+				{@render option('Dark', theme === 'dark', () => (theme = 'dark'))}
+				{@render option('Light', theme === 'light', () => (theme = 'light'))}
 			</div>
 			<span class="mt-3 magi-section-header text-(--magi-text-muted)">PALETTE</span>
 			<div class="mt-2 flex flex-col gap-1">
 				{#each VISIBLE_PALETTES as p (p)}
-					<button
-						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {palette === p
-							? 'magi-menu-item-active'
-							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-						aria-pressed={palette === p}
-						onclick={() => (palette = p)}
-					>
-						{PALETTE_LABELS[p]}
-					</button>
+					{@render option(PALETTE_LABELS[p], palette === p, () => (palette = p))}
 				{/each}
 			</div>
 			<span class="mt-3 magi-section-header text-(--magi-text-muted)">BACKGROUND</span>
 			<div class="mt-2 flex flex-col gap-1">
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'off'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={bgVariant === 'off'}
-					onclick={() => (bgVariant = 'off')}
-				>
-					Off
-				</button>
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'hex'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={bgVariant === 'hex'}
-					onclick={() => (bgVariant = 'hex')}
-				>
-					Hex
-				</button>
+				{@render option('Off', bgVariant === 'off', () => (bgVariant = 'off'))}
+				{@render option('Hex', bgVariant === 'hex', () => (bgVariant = 'hex'))}
 				{#if REVEAL_EXPERIMENTAL_UI}
-					<button
-						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'orbs'
-							? 'magi-menu-item-active'
-							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-						aria-pressed={bgVariant === 'orbs'}
-						onclick={() => (bgVariant = 'orbs')}
-					>
-						Orbs
-					</button>
-					<button
-						class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {bgVariant === 'columns'
-							? 'magi-menu-item-active'
-							: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-						aria-pressed={bgVariant === 'columns'}
-						onclick={() => (bgVariant = 'columns')}
-					>
-						Columns
-					</button>
+					{@render option('Orbs', bgVariant === 'orbs', () => (bgVariant = 'orbs'))}
+					{@render option('Columns', bgVariant === 'columns', () => (bgVariant = 'columns'))}
 				{/if}
 			</div>
 			{#if REVEAL_EXPERIMENTAL_UI}
 				<span class="mt-3 magi-section-header text-(--magi-text-muted)">MOTION</span>
 				<div class="mt-2 flex flex-col gap-1">
 					{#each MOTION_MODES as mode (mode)}
-						<button
-							class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {motionMode === mode
-								? 'magi-menu-item-active'
-								: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-							aria-pressed={motionMode === mode}
-							onclick={() => (motionMode = mode)}
-						>
-							{MOTION_MODE_LABELS[mode]}
-						</button>
+						{@render option(
+							MOTION_MODE_LABELS[mode],
+							motionMode === mode,
+							() => (motionMode = mode)
+						)}
 					{/each}
 				</div>
 			{/if}
 			<span class="mt-3 magi-section-header text-(--magi-text-muted)">AUTO-SCROLL</span>
 			<div class="mt-2 flex flex-col gap-1">
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'follow'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={scrollMode === 'follow'}
-					onclick={() => (scrollMode = 'follow')}
-				>
-					Follow
-				</button>
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'snap'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={scrollMode === 'snap'}
-					onclick={() => (scrollMode = 'snap')}
-				>
-					Snap
-				</button>
-				<button
-					class="magi-menu-item rounded px-3 py-1.5 text-left text-sm {scrollMode === 'off'
-						? 'magi-menu-item-active'
-						: 'text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					aria-pressed={scrollMode === 'off'}
-					onclick={() => (scrollMode = 'off')}
-				>
-					Off
-				</button>
+				{@render option('Follow', scrollMode === 'follow', () => (scrollMode = 'follow'))}
+				{@render option('Snap', scrollMode === 'snap', () => (scrollMode = 'snap'))}
+				{@render option('Off', scrollMode === 'off', () => (scrollMode = 'off'))}
 			</div>
 			<div class="mt-3 border-t border-(--magi-border-subtle) pt-3">
 				<button
