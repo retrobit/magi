@@ -7,6 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Hoisted so the vi.mock factories (which are lifted above this line) can safely
 // reference them.
 const { limitMock, logEvent } = vi.hoisted(() => ({ limitMock: vi.fn(), logEvent: vi.fn() }));
+// Which `prefix` the limiter that served each call was constructed with.
+const servedBy: string[] = [];
 
 vi.mock('$env/dynamic/private', () => ({
 	env: { KV_REST_API_URL: 'https://example.upstash.io', KV_REST_API_TOKEN: 'token' }
@@ -14,7 +16,14 @@ vi.mock('$env/dynamic/private', () => ({
 vi.mock('@upstash/ratelimit', () => ({
 	Ratelimit: class {
 		static slidingWindow = vi.fn(() => ({}));
-		limit = limitMock;
+		prefix: string;
+		constructor(opts: { prefix: string }) {
+			this.prefix = opts.prefix;
+		}
+		limit = (key: string) => {
+			servedBy.push(this.prefix);
+			return limitMock(key);
+		};
 	}
 }));
 vi.mock('@upstash/redis', () => ({ Redis: class {} }));
@@ -25,6 +34,7 @@ import { checkRateLimit } from './rate-limit';
 beforeEach(() => {
 	limitMock.mockReset();
 	logEvent.mockReset();
+	servedBy.length = 0;
 });
 
 describe('checkRateLimit — durable Upstash branch', () => {
@@ -46,7 +56,8 @@ describe('checkRateLimit — durable Upstash branch', () => {
 	it('uses a distinct limiter instance for the keyed (BYOK) bucket', async () => {
 		limitMock.mockResolvedValue({ success: true, reset: Date.now() + 60_000 });
 		await checkRateLimit('1.2.3.4', { keyed: true });
-		expect(limitMock).toHaveBeenCalledWith('1.2.3.4');
+		await checkRateLimit('1.2.3.4');
+		expect(servedBy).toEqual(['magi:rlk', 'magi:rl']);
 	});
 
 	it('degrades to the in-memory limiter when Redis times out, instead of allowing everything', async () => {

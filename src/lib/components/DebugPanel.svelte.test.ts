@@ -1,13 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import DebugPanel, { freshDebugScenario, isDebugScenarioActive } from './DebugPanel.svelte';
-import type { NodeAssignment } from '$lib/magi/config';
-
-const assignments: NodeAssignment[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
-];
+import { assignments } from '$lib/magi/consensus/test-helpers';
 
 function setup(scenario = freshDebugScenario()) {
 	const onchange = vi.fn();

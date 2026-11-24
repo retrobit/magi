@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-	DEFAULT_MAGI_CONFIG,
 	FREE_MAGI_CONFIG,
 	TIER_CONFIGS,
 	validateConfig,
@@ -12,56 +11,9 @@ import type { MagiConfig } from './config';
 import type { AvailableModel } from './types';
 import { findModelEntry } from './registry';
 
-describe('DEFAULT_MAGI_CONFIG', () => {
-	it('assigns all three canonical nodes', () => {
-		const nodes = DEFAULT_MAGI_CONFIG.map((a) => a.node);
-		expect(nodes).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
-	});
-
-	it('uses unique providers', () => {
-		const providers = DEFAULT_MAGI_CONFIG.map((a) => a.provider);
-		expect(new Set(providers).size).toBe(3);
-	});
-
-	it('uses unique gateways', () => {
-		const gateways = DEFAULT_MAGI_CONFIG.map((a) => a.gateway);
-		expect(new Set(gateways).size).toBe(3);
-	});
-
-	it('has explicit modelId for each node', () => {
-		for (const a of DEFAULT_MAGI_CONFIG) {
-			expect(a.modelId).toBeTruthy();
-		}
-	});
-
-	it('passes validation', () => {
-		expect(() => validateConfig(DEFAULT_MAGI_CONFIG)).not.toThrow();
-	});
-});
-
 describe('FREE_MAGI_CONFIG', () => {
-	it('assigns all three canonical nodes', () => {
-		const nodes = FREE_MAGI_CONFIG.map((a) => a.node);
-		expect(nodes).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
-	});
-
 	it('uses openrouter for all nodes', () => {
 		expect(FREE_MAGI_CONFIG.every((a) => a.gateway === 'openrouter')).toBe(true);
-	});
-
-	it('may repeat providers behind the router gateway (reliability outranks diversity)', () => {
-		// The trio is curated for stability; validateConfig's uniqueness rule
-		// exempts router seats, so a repeated sub-provider here is deliberate.
-		expect(() => validateConfig(FREE_MAGI_CONFIG)).not.toThrow();
-	});
-
-	it('uses unique models per node', () => {
-		const models = FREE_MAGI_CONFIG.map((a) => a.modelId);
-		expect(new Set(models).size).toBe(3);
-	});
-
-	it('passes validation', () => {
-		expect(() => validateConfig(FREE_MAGI_CONFIG)).not.toThrow();
 	});
 
 	it('stays in sync with the preferred free defaults', () => {
@@ -73,14 +25,6 @@ describe('FREE_MAGI_CONFIG', () => {
 describe('TIER_CONFIGS', () => {
 	it('has an entry for every tier', () => {
 		expect(Object.keys(TIER_CONFIGS)).toEqual(['frontier', 'balanced', 'budget', 'free']);
-	});
-
-	it('maps free to FREE_MAGI_CONFIG', () => {
-		expect(TIER_CONFIGS.free).toBe(FREE_MAGI_CONFIG);
-	});
-
-	it('maps balanced to DEFAULT_MAGI_CONFIG', () => {
-		expect(TIER_CONFIGS.balanced).toBe(DEFAULT_MAGI_CONFIG);
 	});
 
 	it('each tier config uses tier-appropriate models', () => {

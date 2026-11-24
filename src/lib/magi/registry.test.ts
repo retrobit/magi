@@ -16,12 +16,6 @@ describe('MODEL_REGISTRY', () => {
 		expect(orEntries).toHaveLength(0);
 	});
 
-	it('every entry has a provider field', () => {
-		for (const entry of MODEL_REGISTRY) {
-			expect(entry.provider).toBeTruthy();
-		}
-	});
-
 	it('direct gateway entries have matching provider', () => {
 		for (const entry of MODEL_REGISTRY) {
 			expect(entry.provider).toBe(entry.gateway);

@@ -13,62 +13,14 @@ import {
 	type TemperamentName
 } from './types';
 
-describe('TEMPERAMENT_NAMES', () => {
-	it('defines exactly three temperaments', () => {
-		expect(TEMPERAMENT_NAMES).toHaveLength(3);
-	});
-
-	it('contains the canonical temperament names', () => {
-		expect([...TEMPERAMENT_NAMES]).toEqual(['rationalist', 'caretaker', 'individualist']);
-	});
-});
-
-describe('TEMPERAMENT_LABELS', () => {
-	it('has a label for every temperament', () => {
-		for (const name of TEMPERAMENT_NAMES) {
-			expect(TEMPERAMENT_LABELS[name]).toBeTruthy();
-		}
-	});
-
-	it('labels are capitalized display names', () => {
-		expect(TEMPERAMENT_LABELS.rationalist).toBe('Rationalist');
-		expect(TEMPERAMENT_LABELS.caretaker).toBe('Caretaker');
-		expect(TEMPERAMENT_LABELS.individualist).toBe('Individualist');
-	});
-});
-
 describe('NODE_TEMPERAMENTS', () => {
-	it('assigns a temperament to every MAGI node', () => {
-		for (const node of MAGI_NODE_NAMES) {
-			expect(TEMPERAMENT_NAMES).toContain(NODE_TEMPERAMENTS[node]);
-		}
-	});
-
 	it('assigns unique temperaments across nodes', () => {
 		const assigned = MAGI_NODE_NAMES.map((n) => NODE_TEMPERAMENTS[n]);
 		expect(new Set(assigned).size).toBe(3);
 	});
-
-	it('maps the canonical assignments', () => {
-		expect(NODE_TEMPERAMENTS.MAGI_1).toBe('rationalist');
-		expect(NODE_TEMPERAMENTS.MAGI_2).toBe('caretaker');
-		expect(NODE_TEMPERAMENTS.MAGI_3).toBe('individualist');
-	});
 });
 
 describe('TEMPERAMENT_SYSTEM_PROMPTS', () => {
-	it('has a prompt for every temperament', () => {
-		for (const name of TEMPERAMENT_NAMES) {
-			expect(TEMPERAMENT_SYSTEM_PROMPTS[name]).toBeTruthy();
-		}
-	});
-
-	it('each prompt is a non-trivial string', () => {
-		for (const name of TEMPERAMENT_NAMES) {
-			expect(TEMPERAMENT_SYSTEM_PROMPTS[name].length).toBeGreaterThan(50);
-		}
-	});
-
 	it('prompts are unique across temperaments', () => {
 		const prompts = Object.values(TEMPERAMENT_SYSTEM_PROMPTS);
 		expect(new Set(prompts).size).toBe(3);

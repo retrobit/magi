@@ -1,13 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { assembleRetryPriors } from './retry';
-import type { NodeAssignment } from './config';
+import { assignments } from './consensus/test-helpers';
 import type { ConversationTurn } from './types';
-
-const ASSIGNMENTS: [NodeAssignment, NodeAssignment, NodeAssignment] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
-];
 
 function turn(over: Partial<ConversationTurn> = {}): ConversationTurn {
 	return {
@@ -31,7 +25,7 @@ describe('assembleRetryPriors', () => {
 				MAGI_3: { inputTokens: 7, outputTokens: 3 }
 			}
 		});
-		const out = assembleRetryPriors(last, ASSIGNMENTS, 'MAGI_1');
+		const out = assembleRetryPriors(last, assignments, 'MAGI_1');
 
 		// MAGI_1 (the retried node) is omitted from every list.
 		expect(out.responses.map((r) => r.node)).toEqual(['MAGI_2', 'MAGI_3']);
@@ -53,7 +47,7 @@ describe('assembleRetryPriors', () => {
 			nodeResponses: { MAGI_3: 'cas ok' },
 			nodeErrors: { MAGI_1: 'mel boom', MAGI_2: 'bal boom' }
 		});
-		const out = assembleRetryPriors(last, ASSIGNMENTS, 'MAGI_1');
+		const out = assembleRetryPriors(last, assignments, 'MAGI_1');
 
 		// MAGI_2 also failed → stays in modelErrors, never becomes a prior.
 		expect(out.modelErrors).toEqual([
@@ -67,7 +61,7 @@ describe('assembleRetryPriors', () => {
 		const long = 'x'.repeat(50_001);
 		const out = assembleRetryPriors(
 			turn({ nodeResponses: { MAGI_2: long } }),
-			ASSIGNMENTS,
+			assignments,
 			'MAGI_1'
 		);
 		expect(out.priorResponses[0].text).toHaveLength(50_000);
@@ -79,7 +73,7 @@ describe('assembleRetryPriors', () => {
 			nodeResponses: { MAGI_2: 'bal ok', MAGI_3: 'cas ok' },
 			nodeUsage: { MAGI_2: { inputTokens: 4, outputTokens: 2 } }
 		});
-		const out = assembleRetryPriors(last, ASSIGNMENTS, 'MAGI_1');
+		const out = assembleRetryPriors(last, assignments, 'MAGI_1');
 		expect(out.carriedUsage).toEqual({ MAGI_2: { inputTokens: 4, outputTokens: 2 } });
 		expect('MAGI_3' in out.carriedUsage).toBe(false);
 	});

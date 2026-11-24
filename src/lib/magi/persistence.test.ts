@@ -9,25 +9,12 @@ import {
 	type MagiPrefs,
 	type PersistedSettings
 } from './persistence';
+import { MemoryStorage } from '$lib/test-storage';
 import type { ConversationTurn } from './types';
 
 // Storage keys mirror the (unexported) constants in persistence.ts.
 const STORAGE_KEY = 'magi:prefs:v1';
 const CONVERSATION_KEY = 'magi:conversation:v1';
-
-/** Minimal in-memory localStorage stand-in for the Node test environment. */
-class MemoryStorage {
-	private store = new Map<string, string>();
-	getItem(key: string): string | null {
-		return this.store.has(key) ? this.store.get(key)! : null;
-	}
-	setItem(key: string, value: string): void {
-		this.store.set(key, String(value));
-	}
-	removeItem(key: string): void {
-		this.store.delete(key);
-	}
-}
 
 function installStorage(storage: object): void {
 	(globalThis as { localStorage?: unknown }).localStorage = storage;

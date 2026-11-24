@@ -12,6 +12,13 @@ interface MutableEnv {
 const env = _env as unknown as MutableEnv;
 
 vi.mock('$env/dynamic/private', () => ({ env: {} as MutableEnv }));
+// `dev` is a primitive import; a getter lets tests simulate a production build.
+const appEnvState = vi.hoisted(() => ({ dev: true }));
+vi.mock('$app/environment', () => ({
+	get dev() {
+		return appEnvState.dev;
+	}
+}));
 vi.mock('$lib/server/budget', () => ({ getProviderBudgets: vi.fn() }));
 vi.mock('$lib/server/logger', () => ({ logEvent: vi.fn(), startTimer: vi.fn(() => () => 0) }));
 
@@ -42,12 +49,12 @@ beforeEach(() => {
 
 afterEach(() => {
 	delete env.MAGI_API_KEY;
+	appEnvState.dev = true;
 	vi.mocked(getProviderBudgets).mockReset();
 });
 
 describe('GET /api/magi/budget', () => {
 	it('returns the provider list as JSON', async () => {
-		vi.mocked(getProviderBudgets).mockResolvedValue(mockBudgets);
 		const res = await call();
 		expect(res.status).toBe(200);
 		const body = await res.json();
@@ -55,19 +62,16 @@ describe('GET /api/magi/budget', () => {
 	});
 
 	it('sets a private 60s Cache-Control header', async () => {
-		vi.mocked(getProviderBudgets).mockResolvedValue(mockBudgets);
 		const res = await call();
 		expect(res.headers.get('cache-control')).toBe('private, max-age=60');
 	});
 
 	it('forwards force=1 to getProviderBudgets to bypass the cache', async () => {
-		vi.mocked(getProviderBudgets).mockResolvedValue(mockBudgets);
 		await call({ force: true });
 		expect(getProviderBudgets).toHaveBeenCalledWith({ force: true });
 	});
 
 	it('omits force when the query param is absent', async () => {
-		vi.mocked(getProviderBudgets).mockResolvedValue(mockBudgets);
 		await call();
 		expect(getProviderBudgets).toHaveBeenCalledWith({ force: false });
 	});
@@ -76,6 +80,13 @@ describe('GET /api/magi/budget', () => {
 		env.MAGI_API_KEY = 'secret';
 		const res = await call();
 		expect(res.status).toBe(401);
+		expect(getProviderBudgets).not.toHaveBeenCalled();
+	});
+
+	it('fails closed with 404 in production when MAGI_API_KEY is unset', async () => {
+		appEnvState.dev = false;
+		const res = await call();
+		expect(res.status).toBe(404);
 		expect(getProviderBudgets).not.toHaveBeenCalled();
 	});
 

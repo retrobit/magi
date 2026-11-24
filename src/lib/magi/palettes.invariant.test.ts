@@ -54,78 +54,28 @@ function findBlock(selectorRe: RegExp): string | null {
 // 'rgb' is the :root default — it intentionally has no palette-rgb class.
 const nonDefaultPalettes = PALETTES.filter((p) => p !== 'rgb');
 
+// (?<!\.light) skips the .light.palette-<name> variant, which shares the suffix.
+const blocks = [
+	{
+		label: '.palette-',
+		selector: (p: string) => new RegExp(`(?<!\\.light)\\.palette-${p}\\s*\\{`)
+	},
+	{
+		label: '.light.palette-',
+		selector: (p: string) => new RegExp(`\\.light\\.palette-${p}\\s*\\{`)
+	}
+];
+
 describe('palette CSS coverage', () => {
 	for (const palette of nonDefaultPalettes) {
-		describe(`palette: ${palette}`, () => {
-			it(`has a .palette-${palette} block in layout.css`, () => {
-				// Match the selector line; allow it to appear after newlines/spaces.
-				const re = new RegExp(`\\.palette-${palette}\\s*\\{`);
-				const block = findBlock(re);
-				expect(block, `.palette-${palette} block not found in layout.css`).not.toBeNull();
+		for (const { label, selector } of blocks) {
+			const block = findBlock(selector(palette));
+			it(`${label}${palette} block exists in layout.css`, () => {
+				expect(block, `${label}${palette} block not found`).not.toBeNull();
 			});
-
-			it(`has a .light.palette-${palette} block in layout.css`, () => {
-				const re = new RegExp(`\\.light\\.palette-${palette}\\s*\\{`);
-				const block = findBlock(re);
-				expect(block, `.light.palette-${palette} block not found in layout.css`).not.toBeNull();
+			it.each(REQUIRED_VARS)(`${label}${palette} defines %s`, (varName) => {
+				expect(block, `${label}${palette} missing ${varName}`).toContain(`${varName}:`);
 			});
-
-			for (const varName of REQUIRED_VARS) {
-				it(`.palette-${palette} defines ${varName}`, () => {
-					const re = new RegExp(`\\.palette-${palette}\\s*\\{`);
-					// Exclude the .light companion (it has the same name with a prefix).
-					const lightRe = new RegExp(`\\.light\\.palette-${palette}`);
-					const idx = layoutCss.search(re);
-					// Find the dark-only block: search forward from idx, skipping the
-					// .light variant (which has higher specificity and appears after).
-					// Strategy: find the first match that is NOT preceded by '.light'.
-					let searchFrom = 0;
-					let blockContent: string | null = null;
-					while (searchFrom < layoutCss.length) {
-						const match = layoutCss.slice(searchFrom).search(re);
-						if (match === -1) break;
-						const absPos = searchFrom + match;
-						// Check whether '.light' immediately precedes '.palette-<name>'
-						// (possibly with whitespace — but the CSS has no whitespace between
-						// .light and .palette-<name>, so a simple lookbehind window suffices).
-						const prefix = layoutCss.slice(Math.max(0, absPos - 10), absPos);
-						if (!lightRe.test(prefix + layoutCss.slice(absPos, absPos + 40))) {
-							const open = layoutCss.indexOf('{', absPos);
-							if (open !== -1) {
-								let depth = 0;
-								let close = open;
-								for (let i = open; i < layoutCss.length; i++) {
-									if (layoutCss[i] === '{') depth++;
-									else if (layoutCss[i] === '}') {
-										depth--;
-										if (depth === 0) {
-											close = i;
-											break;
-										}
-									}
-								}
-								blockContent = layoutCss.slice(open, close + 1);
-							}
-							break;
-						}
-						searchFrom = absPos + 1;
-					}
-					void idx; // used only for context above
-					expect(blockContent, `.palette-${palette} dark block not found`).not.toBeNull();
-					expect(blockContent, `.palette-${palette} missing ${varName}`).toMatch(
-						new RegExp(varName.replace('--', '--'))
-					);
-				});
-
-				it(`.light.palette-${palette} defines ${varName}`, () => {
-					const re = new RegExp(`\\.light\\.palette-${palette}\\s*\\{`);
-					const block = findBlock(re);
-					expect(block, `.light.palette-${palette} block not found`).not.toBeNull();
-					expect(block, `.light.palette-${palette} missing ${varName}`).toMatch(
-						new RegExp(varName)
-					);
-				});
-			}
-		});
+		}
 	}
 });

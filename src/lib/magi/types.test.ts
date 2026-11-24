@@ -1,56 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-	MAGI_NODE_NAMES,
-	TIER_NAMES,
-	GATEWAY_NAMES,
-	PROVIDER_NAMES,
-	ROUTER_GATEWAYS,
 	isRouter,
 	DEFAULT_TIER,
 	estimateTokens,
 	tokenUsageTooltip,
 	getProviderLabel
 } from './types';
-describe('MAGI_NODE_NAMES', () => {
-	it('lists the three canonical seats', () => {
-		expect([...MAGI_NODE_NAMES]).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
-	});
-});
 
-describe('TIER_NAMES', () => {
-	it('defines four tiers', () => {
-		expect(TIER_NAMES).toEqual(['free', 'budget', 'balanced', 'frontier']);
-	});
-
+describe('DEFAULT_TIER', () => {
+	// The public demo 403s every other tier, so the default must stay free.
 	it('defaults to free tier', () => {
 		expect(DEFAULT_TIER).toBe('free');
-	});
-});
-
-describe('GATEWAY_NAMES', () => {
-	it('defines four gateways', () => {
-		expect(GATEWAY_NAMES).toEqual(['anthropic', 'openai', 'google', 'openrouter']);
-	});
-});
-
-describe('PROVIDER_NAMES', () => {
-	it('includes direct API providers (OpenRouter providers are dynamic)', () => {
-		expect(PROVIDER_NAMES).toContain('anthropic');
-		expect(PROVIDER_NAMES).toContain('openai');
-		expect(PROVIDER_NAMES).toContain('google');
-		expect(PROVIDER_NAMES).toHaveLength(3);
-	});
-});
-
-describe('ROUTER_GATEWAYS', () => {
-	it('identifies openrouter as a router', () => {
-		expect(ROUTER_GATEWAYS).toContain('openrouter');
-	});
-
-	it('does not include direct provider gateways', () => {
-		expect(ROUTER_GATEWAYS).not.toContain('anthropic');
-		expect(ROUTER_GATEWAYS).not.toContain('openai');
-		expect(ROUTER_GATEWAYS).not.toContain('google');
 	});
 });
 

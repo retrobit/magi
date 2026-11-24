@@ -7,31 +7,10 @@ import {
 	aggregate,
 	type RunStatRecord
 } from './run-stats';
+import { MemoryStorage } from '$lib/test-storage';
 import type { RunStats, VotingStats, DebateStats } from './consensus/types';
 
 const STORAGE_KEY = 'magi:run-stats:v1';
-
-class MemoryStorage implements Storage {
-	private store = new Map<string, string>();
-	get length() {
-		return this.store.size;
-	}
-	clear() {
-		this.store.clear();
-	}
-	getItem(k: string) {
-		return this.store.get(k) ?? null;
-	}
-	key(i: number) {
-		return [...this.store.keys()][i] ?? null;
-	}
-	removeItem(k: string) {
-		this.store.delete(k);
-	}
-	setItem(k: string, v: string) {
-		this.store.set(k, v);
-	}
-}
 
 function makeVoting(overrides: Partial<VotingStats> = {}): VotingStats {
 	return {
@@ -99,7 +78,13 @@ describe('run-stats persistence', () => {
 	});
 
 	it('caps the history at the 500 most recent records', () => {
-		for (let i = 0; i < 510; i += 1) {
+		// Seed 499 records in one write, then append 11 through the real code path.
+		const seeded = Array.from({ length: 499 }, (_, i) => ({
+			ts: i,
+			stats: makeRun({ voting: makeVoting({ winnerTotal: i }) })
+		}));
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, records: seeded }));
+		for (let i = 499; i < 510; i += 1) {
 			appendRunStat(makeRun({ voting: makeVoting({ winnerTotal: i }) }));
 		}
 		const records = loadRunStats();
@@ -107,9 +92,7 @@ describe('run-stats persistence', () => {
 		// Oldest 10 were dropped — the first remaining record's total is 10.
 		expect(records[0].stats.voting?.winnerTotal).toBe(10);
 		expect(records.at(-1)?.stats.voting?.winnerTotal).toBe(509);
-		// 510 appends each re-serialize the capped array (O(n²) by design, exercising
-		// the cap) — generous timeout so a loaded CI box doesn't flake on the default 5s.
-	}, 20000);
+	});
 
 	it('clears the history', () => {
 		appendRunStat(makeRun());

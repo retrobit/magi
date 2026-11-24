@@ -42,6 +42,7 @@ export default defineConfig({
 				test: {
 					name: 'server',
 					environment: 'node',
+					clearMocks: true,
 					include: ['src/**/*.test.ts'],
 					exclude: ['src/**/*.svelte.test.ts']
 				}

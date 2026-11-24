@@ -67,16 +67,19 @@ describe('getModel with API keys', () => {
 		});
 	});
 
-	it('creates each gateway client once and reuses it across calls', () => {
-		getModel('anthropic', 'claude-y');
-		getModel('anthropic', 'claude-z');
+	it('creates each gateway client once and reuses it across calls', async () => {
+		// Fresh module so the env-keyed singleton is unbuilt whatever ran before.
+		vi.resetModules();
+		const fresh = await import('./models');
+		fresh.getModel('anthropic', 'claude-y');
+		fresh.getModel('anthropic', 'claude-z');
 		expect(createAnthropic).toHaveBeenCalledOnce();
 	});
 });
 
 describe('getModel with BYOK keys', () => {
 	beforeEach(() => {
-		vi.mocked(createAnthropic).mockClear();
+		env.ANTHROPIC_API_KEY = 'a-key';
 	});
 
 	it('prefers a visitor BYOK key over the operator env key', () => {
@@ -105,6 +108,8 @@ describe('getModel with BYOK keys', () => {
 	it('ignores a BYOK object that does not cover the requested gateway', () => {
 		// A BYOK openai key on an anthropic request → the env-keyed singleton is
 		// used (createAnthropic not re-invoked for a throwaway client).
+		getModel('anthropic', 'claude-x'); // make sure the env-keyed client exists
+		vi.mocked(createAnthropic).mockClear();
 		getModel('anthropic', 'claude-x', { openai: 'byok-openai-only' });
 		expect(createAnthropic).not.toHaveBeenCalled();
 	});

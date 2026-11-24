@@ -4,23 +4,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // test don't need it, but the module import does.
 vi.mock('$env/dynamic/public', () => ({ env: {} as Record<string, string | undefined> }));
 
+import { MemoryStorage } from '$lib/test-storage';
 import { loadByokKeys, saveByokKeys } from './byok';
 
 const STORAGE_KEY = 'magi:byok:v1';
-
-/** Minimal in-memory localStorage stand-in for the Node test environment. */
-class MemoryStorage {
-	private m = new Map<string, string>();
-	getItem(k: string) {
-		return this.m.has(k) ? this.m.get(k)! : null;
-	}
-	setItem(k: string, v: string) {
-		this.m.set(k, v);
-	}
-	removeItem(k: string) {
-		this.m.delete(k);
-	}
-}
 
 beforeEach(() => {
 	(globalThis as { localStorage?: unknown }).localStorage = new MemoryStorage();
