@@ -15,3 +15,14 @@ export function prefersReducedMotion(): boolean {
 export function smoothSnap(el: HTMLElement, top: number): void {
 	el.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
+
+/** Smooth-scroll `scroller` so `target`'s top sits `gap` px below its own top. */
+export function snapToTop(scroller: HTMLElement, target: Element, gap = 8): void {
+	smoothSnap(
+		scroller,
+		scroller.scrollTop +
+			target.getBoundingClientRect().top -
+			scroller.getBoundingClientRect().top -
+			gap
+	);
+}

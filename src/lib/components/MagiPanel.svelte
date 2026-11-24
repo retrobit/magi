@@ -30,7 +30,8 @@
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { isControlClick } from '$lib/actions/click-guard';
-	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
+	import { snapToTop, prefersReducedMotion } from '$lib/motion';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { createFollowScroll } from '$lib/scroll.svelte';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
@@ -61,7 +62,7 @@
 		 *  thinking. The value is a restart key — it stays constant for the whole
 		 *  time the node is working (so the glow is one continuous heartbeat, never
 		 *  restarting mid-run), and only a change re-triggers the animation. */
-		pulse?: number | null;
+		pulse?: boolean;
 		/** Live debate rounds for this node (Multi-Round Debate only). */
 		debateRounds?: DebateRoundEntry[];
 		/** Collapsed to just the header (focus accordion). */
@@ -104,7 +105,7 @@
 		text,
 		error,
 		status,
-		pulse = null,
+		pulse = false,
 		debateRounds = [],
 		collapsed = false,
 		transcript = [],
@@ -128,6 +129,9 @@
 		onlabelclick,
 		onheadercycle
 	}: Props = $props();
+
+	// Round prompts whose "Inputs this round" has been opened (see roundList).
+	const openedInputs = new SvelteSet<string>();
 
 	const displayLabel = $derived(genericLabels ? NODE_LABELS_GENERIC[name] : NODE_LABELS[name]);
 	// Labels are "<name> • <unit>" (e.g. MAGI • 1). Only the name gets the
@@ -283,10 +287,7 @@
 			const block = content.lastElementChild;
 			const target = block?.firstElementChild ?? block;
 			if (target) {
-				smoothSnap(
-					el,
-					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-				);
+				snapToTop(el, target);
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -305,10 +306,7 @@
 			const rounds = content.querySelectorAll('.magi-round');
 			const target = rounds[rounds.length - 1];
 			if (target) {
-				smoothSnap(
-					el,
-					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-				);
+				snapToTop(el, target);
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -471,7 +469,10 @@
 					<div class="prose max-w-none prose-invert">
 						<Markdown source={r.response} />
 					</div>
-					<details class="group/inputs">
+					<details
+						class="group/inputs"
+						ontoggle={(e) => e.currentTarget.open && openedInputs.add(r.prompt)}
+					>
 						<summary
 							class="flex cursor-pointer items-center gap-1 magi-meta-strong select-none hover:text-(--magi-text-secondary)"
 						>
@@ -484,7 +485,10 @@
 							class="mt-1 ml-1.5 rounded border-l-2 border-(--magi-border) bg-(--magi-surface-bg)/60 py-1 pr-1 pl-2 opacity-80"
 						>
 							<div class="prose max-w-none text-(--magi-text-muted) prose-invert">
-								<Markdown source={r.prompt} />
+								<!-- Mounted on first open: the inputs are ~3 hidden answers per card. -->
+								{#if openedInputs.has(r.prompt)}
+									<Markdown source={r.prompt} />
+								{/if}
 							</div>
 						</div>
 					</details>
@@ -497,17 +501,15 @@
 <div
 	class="magi-panel flex max-h-[70vh] flex-col overflow-hidden rounded-lg lg:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72 lg:min-h-0'} {pulse !== null ? 'pulse-glow' : ''}"
+		: 'min-h-72 lg:min-h-0'} {pulse ? 'pulse-glow' : ''}"
 	style:--node-color={`var(${NODE_COLOR_VARS[name]})`}
 >
-	{#if pulse !== null}
+	{#if pulse}
 		<!-- Static inset-glow overlay; only its opacity animates (compositor-cheap).
-		     Keyed on `pulse` so a fresh thinking phase (next turn) restarts the
-		     pulse — but the key holds steady through a single run, so the glow stays
-		     one continuous heartbeat from phase 1 through every debate round. -->
-		{#key pulse}
-			<div class="node-glow" aria-hidden="true"></div>
-		{/key}
+		     It mounts when thinking starts and stays mounted through a single run, so
+		     the glow is one continuous heartbeat from phase 1 through every debate
+		     round; the next turn remounts it fresh. -->
+		<div class="node-glow" aria-hidden="true"></div>
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
@@ -772,8 +774,8 @@
 	   element; only its opacity animates, which the compositor handles without
 	   re-rasterizing the shadow each frame. Animating box-shadow directly (the
 	   old approach) repaints every frame and stuttered against the markdown
-	   streaming into the same panel. The overlay is keyed on `pulse`, which holds
-	   steady for a whole run — so the glow is one continuous heartbeat from phase 1
+	   streaming into the same panel. The overlay stays mounted for a whole
+	   run — so the glow is one continuous heartbeat from phase 1
 	   through every debate round, restarting only on the next turn. isolate +
 	   z-index:-1 keeps it above the panel bg but behind content. */
 	.pulse-glow {

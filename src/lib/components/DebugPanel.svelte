@@ -111,16 +111,23 @@
 	}
 </script>
 
-{#snippet toggle(on: boolean, set: (value: boolean) => void)}
+{#snippet toggle(
+	on: boolean,
+	set: (value: boolean) => void,
+	label?: string,
+	activeClass = 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40',
+	title?: string
+)}
 	<button
 		type="button"
 		{disabled}
+		{title}
 		class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {on
-			? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40'
+			? activeClass
 			: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
 		onclick={() => set(!on)}
 	>
-		{on ? 'ON' : 'OFF'}
+		{label ?? (on ? 'ON' : 'OFF')}
 	</button>
 {/snippet}
 
@@ -152,29 +159,19 @@
 						></span>
 						<span class="truncate">{nodeLabels[assignment.node]}</span>
 					</span>
-					<button
-						type="button"
-						{disabled}
-						class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
-							.nodeError[assignment.node]
-							? 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
-							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
-						onclick={() => setNodeError(assignment.node, !scenario.nodeError[assignment.node])}
-					>
-						Error
-					</button>
-					<button
-						type="button"
-						{disabled}
-						title="Show the pulsating loading state for this node"
-						class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario
-							.nodeLoading[assignment.node]
-							? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
-							: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
-						onclick={() => setNodeLoading(assignment.node, !scenario.nodeLoading[assignment.node])}
-					>
-						Load
-					</button>
+					{@render toggle(
+						scenario.nodeError[assignment.node],
+						(v) => setNodeError(assignment.node, v),
+						'Error',
+						'bg-red-500/20 text-red-300 ring-1 ring-red-500/40'
+					)}
+					{@render toggle(
+						scenario.nodeLoading[assignment.node],
+						(v) => setNodeLoading(assignment.node, v),
+						'Load',
+						'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40',
+						'Show the pulsating loading state for this node'
+					)}
 					<select
 						class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none"
 						value={scenario.nodeContext[assignment.node]}
@@ -197,17 +194,13 @@
 		<div class="mt-3 flex flex-col gap-2">
 			<div class="flex items-center gap-2">
 				<span class="flex-1 magi-label">Consensus</span>
-				<button
-					type="button"
-					{disabled}
-					title="Show the strategy-flavoured sweeping verb loader on the consensus pane"
-					class="rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 {scenario.consensusLoading
-						? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40'
-						: 'bg-(--magi-surface-bg) text-(--magi-text-muted) hover:text-(--magi-text)'}"
-					onclick={() => setConsensusLoading(!scenario.consensusLoading)}
-				>
-					Load
-				</button>
+				{@render toggle(
+					scenario.consensusLoading,
+					setConsensusLoading,
+					'Load',
+					'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40',
+					'Show the strategy-flavoured sweeping verb loader on the consensus pane'
+				)}
 				<select
 					class="magi-select focus:ring-1 focus:ring-gray-500 focus:outline-none disabled:opacity-50"
 					value={scenario.consensusContext}

@@ -185,7 +185,7 @@
 	let nodeZoneEl = $state<HTMLElement>();
 	let consensusZoneEl = $state<HTMLElement>();
 
-	// The LayoutToggle is the sole way to change layout focus. The zones resize via
+	// Layout focus changes via the LayoutToggle, the panel headers and auto-layout. The zones resize via
 	// a flex/grid reflow that would otherwise snap, so we FLIP it: measure each
 	// zone's height, apply the new layout, then animate old→new in explicit pixels.
 	// A CSS transition can't do this cleanly — the flex-basis swap (fill ↔ header)
@@ -729,15 +729,15 @@
 		);
 	}
 
-	// Pulse-glow control for a node: null = not thinking (no glow). A stable,
-	// non-null key means "thinking" — the glow runs as ONE continuous heartbeat for
+	// Pulse-glow control for a node: false = not thinking (no glow). True means
+	// "thinking" — the glow runs as ONE continuous heartbeat for
 	// as long as the node is working: phase 1 (pending) and, in a Multi-Round Debate,
 	// straight through every critique/revise round until the synthesis begins. The
-	// key is constant across the whole run (not a per-round counter) so the animation
-	// never restarts mid-flight; it drops to null when the node is done, so the next
+	// flag stays true across the whole run (not a per-round counter) so the animation
+	// never restarts mid-flight; it drops to false when the node is done, so the next
 	// turn re-triggers a fresh glow.
-	function nodePulse(node: MagiNodeName): number | null {
-		return getNodeStatus(node) === 'pending' || nodeDebating(node) ? 1 : null;
+	function nodePulse(node: MagiNodeName): boolean {
+		return getNodeStatus(node) === 'pending' || nodeDebating(node);
 	}
 
 	function getModelDisplayName(assignment: NodeAssignment): string {
@@ -1535,7 +1535,8 @@
 		{statsNonce}
 		ondebugchange={(next) => {
 			debugScenario = next;
-			applyDebugScenario(next);
+			// Dev-only: the guard lets the bundler drop the injector from production.
+			if (import.meta.env.DEV) applyDebugScenario(next);
 		}}
 		onreplaysplash={replaySplash}
 	/>
@@ -1567,7 +1568,6 @@
 					type="button"
 					class="flex shrink-0 cursor-default items-center magi-warn"
 					class:invisible={tier !== 'free'}
-					aria-hidden={tier !== 'free'}
 					aria-label="Free-tier reliability warning"
 					use:tooltip={tier === 'free'
 						? 'Free-tier models can be flaky — retry or swap any node that stalls or fails.'
@@ -1693,6 +1693,7 @@
 						type="button"
 						class="absolute top-1/2 right-3 -translate-y-1/2 text-(--magi-text-faint) transition-colors hover:text-(--magi-text)"
 						onclick={copyQuery}
+						aria-label="Copy prompt"
 						use:tooltip={'Copy prompt'}
 					>
 						{#if copiedQuery}

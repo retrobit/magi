@@ -28,7 +28,7 @@
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { isControlClick } from '$lib/actions/click-guard';
-	import { smoothSnap, prefersReducedMotion } from '$lib/motion';
+	import { snapToTop, prefersReducedMotion } from '$lib/motion';
 	import { createFollowScroll } from '$lib/scroll.svelte';
 	import Markdown from './Markdown.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
@@ -175,20 +175,16 @@
 	// Convenience flag for the placeholder / loader logic below.
 	const consensusSkipped = $derived(strategy === 'none');
 
-	// Single source of truth for the None-strategy placeholder — avoids the
-	// verbatim duplication that existed at the live-turn and transcript sites.
-	const NONE_STRATEGY_PLACEHOLDER =
-		'Strategy: None — consensus skipped. The three responses above stand on their own.';
-
 	// A consensus exists if it's streaming live or was committed to the transcript.
 	// Lets the header's done-check (and the debate banner) survive the live-state
 	// reset that fires when a turn commits.
-	const lastTurnConsensusText = $derived(transcript[transcript.length - 1]?.consensus ?? '');
+	const lastTurn = $derived(transcript.at(-1));
+	const lastTurnConsensusText = $derived(lastTurn?.consensus ?? '');
 	const lastTurnConsensus = $derived(!!lastTurnConsensusText);
 	const hasConsensus = $derived(text !== '' || lastTurnConsensus);
 	// Aborted turns: the last committed turn was stopped mid-stream — suppress
 	// the green check and show a neutral icon instead.
-	const lastTurnAborted = $derived(transcript[transcript.length - 1]?.aborted ?? false);
+	const lastTurnAborted = $derived(lastTurn?.aborted ?? false);
 	// What the copy button actually writes to the clipboard. `fullText` is the
 	// live-state final, which is reset to '' when a turn commits to the
 	// transcript — so without the transcript fallback the button would only
@@ -205,22 +201,17 @@
 	// then the last committed debate turn's verdict once the live turn settles.
 	// Nothing during a fresh debate's streaming (never a stale outcome), for
 	// non-debate turns, or for a walkover.
-	const headerVerdict = $derived(
+	const headerDebate = $derived(
 		debateComplete
-			? debateVerdict
-			: !liveQuery && transcript[transcript.length - 1]?.strategy === 'debate'
-				? transcript[transcript.length - 1]?.debateVerdict
+			? { verdict: debateVerdict, summary: debateSummary }
+			: !liveQuery && lastTurn?.strategy === 'debate'
+				? { verdict: lastTurn.debateVerdict, summary: lastTurn.debateSummary }
 				: undefined
 	);
+	const headerVerdict = $derived(headerDebate?.verdict);
 	// The coalition shape behind a split verdict, paired with `headerVerdict` so the
 	// header badge's tooltip can name who aligned against whom.
-	const headerSummary = $derived(
-		debateComplete
-			? debateSummary
-			: !liveQuery && transcript[transcript.length - 1]?.strategy === 'debate'
-				? transcript[transcript.length - 1]?.debateSummary
-				: undefined
-	);
+	const headerSummary = $derived(headerDebate?.summary);
 
 	// Debate streams its round ledger into `text`, then a `---` divider, then the
 	// synthesized answer. While the rounds are still running (no divider yet) the
@@ -237,7 +228,7 @@
 	// The query paired with whatever `copyTarget` points at — the live turn's
 	// query while a finished turn is still in live state, the last committed
 	// turn's query once it settles into the transcript.
-	const copyQuery = $derived(liveQuery || transcript[transcript.length - 1]?.query || '');
+	const copyQuery = $derived(liveQuery || lastTurn?.query || '');
 
 	// Strategy-shaped copy scopes for the split copy button. The consensus is a
 	// rigid Markdown skeleton we can slice on its SECTION_RULE (`---`) boundaries
@@ -411,10 +402,7 @@
 			// above the prompt rather than pinning it flush to the top edge.
 			const target = liveTurnEl?.firstElementChild ?? liveTurnEl;
 			if (target) {
-				smoothSnap(
-					el,
-					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-				);
+				snapToTop(el, target);
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -428,8 +416,10 @@
 	const debateRoundCount = $derived(
 		strategy === 'debate' ? (text.match(/\*\*Round \d+\*\*/g) ?? []).length : 0
 	);
-	let lastSnappedRound = $state(0);
-	let snappedVerdict = $state(false);
+	// Plain bookkeeping, not reactive: nothing renders these, and the effects below
+	// must not re-run when they are written.
+	let lastSnappedRound = 0;
+	let snappedVerdict = false;
 	$effect(() => {
 		// Reset both watermarks on every new live turn (or when leaving snap mode).
 		if (scrollMode !== 'snap' || !liveQuery) {
@@ -454,10 +444,7 @@
 				}
 			}
 			if (target) {
-				smoothSnap(
-					el,
-					el.scrollTop + target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-				);
+				snapToTop(el, target);
 				lastSnappedRound = desired;
 				observer.disconnect();
 			}
@@ -489,10 +476,7 @@
 		const observer = new ResizeObserver(() => {
 			const hr = content.querySelector('hr');
 			if (!hr) return;
-			smoothSnap(
-				el,
-				el.scrollTop + hr.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
-			);
+			snapToTop(el, hr);
 			snappedVerdict = true;
 			observer.disconnect();
 		});
@@ -579,6 +563,14 @@
 <!-- Partial-data warning, presented like the node panels' "Model unavailable"
      card: icon on top, a short title, then the detail. Keeps the warning's amber
      palette and ⚠ symbol — only the layout/sizing matches the node error card. -->
+{#snippet noneNote(responded: number)}
+	<p class="magi-placeholder">
+		{responded > 0
+			? 'Strategy: None — consensus skipped. The three responses above stand on their own.'
+			: 'No consensus computed — no MAGI responded this turn.'}
+	</p>
+{/snippet}
+
 {#snippet warningCard(message: string)}
 	<div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
 		<AlertTriangle size={24} class="magi-warn" />
@@ -624,23 +616,15 @@
 			     Absolutely centred (pointer-events pass through the wrapper) so the
 			     title and token readout keep their edges. -->
 			{#if headerVerdict === 'consensus' || headerVerdict === 'split'}
-				<div
-					class="pointer-events-none absolute inset-0 flex items-center justify-center"
-					aria-hidden="false"
-				>
-					{#if headerVerdict === 'consensus'}
-						<VerdictPill
-							verdict="consensus"
-							tooltipText="The MAGI converged — they reached consensus."
-						/>
-					{:else}
-						<VerdictPill
-							verdict="split"
-							tooltipText={headerSummary
+				<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+					<VerdictPill
+						verdict={headerVerdict}
+						tooltipText={headerVerdict === 'consensus'
+							? 'The MAGI converged — they reached consensus.'
+							: headerSummary
 								? `No full consensus — ${headerSummary}. The positions are laid out in the answer.`
 								: 'The MAGI did not fully agree — the positions are laid out in the answer.'}
-						/>
-					{/if}
+					/>
 				</div>
 			{/if}
 			<div class="flex items-center gap-2">
@@ -883,11 +867,7 @@
 								<p class="text-xs magi-unknown">Stopped — response truncated.</p>
 							{/if}
 						{:else if turn.strategy === 'none'}
-							{#if (turn.respondedCount ?? 0) > 0}
-								<p class="magi-placeholder">{NONE_STRATEGY_PLACEHOLDER}</p>
-							{:else}
-								<p class="magi-placeholder">No consensus computed — no MAGI responded this turn.</p>
-							{/if}
+							{@render noneNote(turn.respondedCount ?? 0)}
 						{:else}
 							<p class="magi-placeholder">No consensus</p>
 						{/if}
@@ -913,11 +893,7 @@
 							     copy on at least one actual success — erroredCount only
 							     pushes allModelsResponded over the line, so three failures
 							     should not read as "stand on their own". -->
-							{#if respondedCount > 0}
-								<p class="magi-placeholder">{NONE_STRATEGY_PLACEHOLDER}</p>
-							{:else}
-								<p class="magi-placeholder">No consensus computed — no MAGI responded this turn.</p>
-							{/if}
+							{@render noneNote(respondedCount)}
 						{:else if loading && !allModelsResponded}
 							<p class="animate-pulse text-sm text-(--magi-text-faint) motion-reduce:animate-none">
 								{waitingLabel}
@@ -998,10 +974,10 @@
 		animation: pulse-consensus 2s ease-in-out infinite;
 	}
 
-	.pulse-consensus::before {
+	.pulse-consensus::before,
+	.pulse-consensus::after {
 		content: '';
 		position: absolute;
-		bottom: 0;
 		left: 0;
 		right: 0;
 		height: 3px;
@@ -1011,17 +987,12 @@
 		animation: pulse-top-glow 2s ease-in-out infinite;
 	}
 
+	.pulse-consensus::before {
+		bottom: 0;
+	}
+
 	.pulse-consensus::after {
-		content: '';
-		position: absolute;
 		top: 0;
-		left: 0;
-		right: 0;
-		height: 3px;
-		background: var(--magi-consensus-gradient);
-		filter: blur(4px);
-		pointer-events: none;
-		animation: pulse-top-glow 2s ease-in-out infinite;
 	}
 
 	/* Hold the consensus glow still when motion is reduced (OS preference or the
