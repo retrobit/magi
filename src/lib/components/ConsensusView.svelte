@@ -32,6 +32,7 @@
 	import { snapToTop, prefersReducedMotion } from '$lib/motion';
 	import { createFollowScroll } from '$lib/scroll.svelte';
 	import Markdown from './Markdown.svelte';
+	import ThinkingChip from './ThinkingChip.svelte';
 	import StrategyPicker from './StrategyPicker.svelte';
 	import VerdictPill from './VerdictPill.svelte';
 	import TokenCount from './TokenCount.svelte';
@@ -41,6 +42,8 @@
 	interface Props {
 		text: string;
 		fullText: string;
+		/** Set while the synthesizer is visibly thinking and hasn't started answering. */
+		thinkingSince?: number;
 		/** Debate outcome for the in-flight turn — picks the live banner variant. */
 		debateVerdict?: DebateVerdict;
 		/** A split's coalition shape — the live banner subtitle. */
@@ -92,6 +95,7 @@
 	let {
 		text,
 		fullText,
+		thinkingSince,
 		debateVerdict,
 		debateSummary,
 		loading,
@@ -601,6 +605,9 @@
 						class="magi-temperament-badge rounded px-1.5 py-0.5 magi-chip"
 						use:tooltip={consensusLens.description}>{consensusLens.label}</span
 					>
+				{/if}
+				{#if thinkingSince !== undefined}
+					<ThinkingChip since={thinkingSince} />
 				{/if}
 			</div>
 			<!-- Debate verdict at a glance — centred in the header so it's readable no

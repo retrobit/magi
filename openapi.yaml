@@ -57,10 +57,12 @@ paths:
         then runs the requested consensus strategy. Responses are streamed live as SSE
         events — see every `SseEvent_*` schema for the per-event payload shape.
 
-        The event order is: one `config`; then, interleaved, `model-chunk`/`model-response`/
+        The event order is: one `config`; then, interleaved, `model-thinking` (at most
+        once per node, before its first chunk) and `model-chunk`/`model-response`/
         `model-error`/`model-usage` per node; then (unless `strategy: none`) optionally
         `partial-consensus`, one `consensus-seat` (the node that actually synthesizes),
-        then `consensus-chunk` deltas, `consensus-complete`, and `consensus-usage`.
+        then optionally one `consensus-thinking`, `consensus-chunk` deltas,
+        `consensus-complete`, and `consensus-usage`.
         Every consensus run also emits one `run-stats` event; debate runs
         interleave `node-round` events during the multi-round phase. A fatal failure
         emits a single `error` event and closes the stream.
@@ -545,12 +547,14 @@ components:
         should generate one type per `SseEvent_*` variant plus a union of them.
       oneOf:
         - $ref: '#/components/schemas/SseEvent_config'
+        - $ref: '#/components/schemas/SseEvent_model-thinking'
         - $ref: '#/components/schemas/SseEvent_model-chunk'
         - $ref: '#/components/schemas/SseEvent_model-response'
         - $ref: '#/components/schemas/SseEvent_model-error'
         - $ref: '#/components/schemas/SseEvent_model-usage'
         - $ref: '#/components/schemas/SseEvent_partial-consensus'
         - $ref: '#/components/schemas/SseEvent_consensus-seat'
+        - $ref: '#/components/schemas/SseEvent_consensus-thinking'
         - $ref: '#/components/schemas/SseEvent_consensus-chunk'
         - $ref: '#/components/schemas/SseEvent_consensus-complete'
         - $ref: '#/components/schemas/SseEvent_consensus-usage'
@@ -566,6 +570,18 @@ components:
       minItems: 3
       maxItems: 3
       items: { $ref: '#/components/schemas/NodeAssignment' }
+
+    SseEvent_model-thinking:
+      description: |
+        The node's model is visibly thinking and has not started answering. Sent at
+        most once per node, from the first reasoning signal (Claude and GPT reasoning
+        parts, OpenRouter reasoning text). Models that think without a signal
+        (Gemini) never send it.
+      type: object
+      required: [node]
+      additionalProperties: false
+      properties:
+        node: { $ref: '#/components/schemas/MagiNodeName' }
 
     SseEvent_model-chunk:
       description: Streaming text delta from one node.
@@ -633,6 +649,14 @@ components:
       additionalProperties: false
       properties:
         node: { $ref: '#/components/schemas/MagiNodeName' }
+
+    SseEvent_consensus-thinking:
+      description: |
+        The synthesizer is visibly thinking before its first consensus text. Sent at
+        most once per run. Empty payload.
+      type: object
+      additionalProperties: false
+      properties: {}
 
     SseEvent_consensus-chunk:
       description: Streaming consensus text delta.

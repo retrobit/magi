@@ -59,7 +59,7 @@ The consensus engine is pluggable:
 ## ✨ Features
 
 - **Multi-turn conversations** — per-node transcripts, persisted per tier in `localStorage`; each node replays only its own thread.
-- **Live streaming UI** — answers and consensus stream token-by-token, with a "N / 3 responded" progress count and an auto-layout that follows the run (nodes → balanced → consensus).
+- **Live streaming UI** — answers and consensus stream token-by-token, a "Thinking 12s" chip shows while a model is visibly reasoning before it answers, with a "N / 3 responded" progress count and an auto-layout that follows the run (nodes → balanced → consensus).
 - **Token & cost awareness** — per-node and cumulative token counts, per-model context-window gauges, prompt-cache hits, and a per-provider daily spend readout.
 - **Resilient by design** — automatic model-health tracking (recently-failed models are skipped), per-node and consensus stall guards, partial-consensus fallback, and per-node retry that re-runs one node without re-billing the others.
 - **Editable temperaments** — give each MAGI a dispositional lens, or write your own persona (see **Temperaments** below).

@@ -337,6 +337,10 @@
 		debateRounds: Record<MagiNodeName, DebateRoundEntry[]>;
 		consensusStream: string;
 		consensusFinal: string;
+		// When each node (and the synthesizer) first showed visible thinking —
+		// drives the "Thinking Ns" header chip until answer text arrives.
+		thinkingSince: Partial<Record<MagiNodeName, number>>;
+		consensusThinkingSince: number | null;
 		// Debate outcome, set on the consensus-complete event — picks the banner variant.
 		debateVerdict?: DebateVerdict;
 		// A split's coalition shape (e.g. "X & Y aligned; Z dissents") — banner subtitle.
@@ -358,6 +362,8 @@
 			debateRounds: { MAGI_1: [], MAGI_2: [], MAGI_3: [] },
 			consensusStream: '',
 			consensusFinal: '',
+			thinkingSince: {},
+			consensusThinkingSince: null,
 			consensusWarning: '',
 			error: '',
 			streamDone: false,
@@ -1258,6 +1264,12 @@
 		'model-chunk': ({ node, text }) => {
 			if (node in live.modelStreams) live.modelStreams[node] += text;
 		},
+		'model-thinking': ({ node }) => {
+			live.thinkingSince[node] ??= Date.now();
+		},
+		'consensus-thinking': () => {
+			live.consensusThinkingSince ??= Date.now();
+		},
 		'node-round': ({ node, entry }) => {
 			if (node in live.debateRounds) live.debateRounds[node] = [...live.debateRounds[node], entry];
 		},
@@ -1677,6 +1689,10 @@
 					collapsed={nodesCollapsed}
 					error={errorMap.get(assignment.node) ?? ''}
 					status={getNodeStatus(assignment.node)}
+					thinkingSince={getNodeStatus(assignment.node) === 'pending' &&
+					!live.modelStreams[assignment.node]
+						? live.thinkingSince[assignment.node]
+						: undefined}
 					pulse={nodePulse(assignment.node)}
 					temperament={temperaments ? NODE_TEMPERAMENTS[assignment.node] : undefined}
 					temperamentLabel={temperaments ? resolvedTemperaments[assignment.node].label : undefined}
@@ -1702,6 +1718,9 @@
 				onexampleselect={requestExamplePrompt}
 				onheadercycle={() => layout.cycleFrom(CONSENSUS_LAYOUT_CYCLE)}
 				transcript={consensusTranscript}
+				thinkingSince={effectiveLoading && !live.consensusStream && !live.error
+					? (live.consensusThinkingSince ?? undefined)
+					: undefined}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
 				liveOutput={liveConsensusOutput.tokens}

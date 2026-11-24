@@ -35,6 +35,7 @@
 	import { createFollowScroll } from '$lib/scroll.svelte';
 	import { stripSummaryTail } from '$lib/magi/consensus/debate';
 	import Markdown from './Markdown.svelte';
+	import ThinkingChip from './ThinkingChip.svelte';
 	import TokenCount from './TokenCount.svelte';
 	import CopyScopeButton from './CopyScopeButton.svelte';
 	import {
@@ -58,6 +59,8 @@
 		text: string;
 		error: string;
 		status: 'idle' | 'pending' | 'success' | 'error' | 'unknown';
+		/** Set while the model is visibly thinking and hasn't started answering. */
+		thinkingSince?: number;
 		/** Thinking-glow control: null = not thinking (no glow); a non-null value =
 		 *  thinking. The value is a restart key — it stays constant for the whole
 		 *  time the node is working (so the glow is one continuous heartbeat, never
@@ -105,6 +108,7 @@
 		text,
 		error,
 		status,
+		thinkingSince,
 		pulse = false,
 		debateRounds = [],
 		collapsed = false,
@@ -539,6 +543,9 @@
 						use:tooltip={temperamentDescription ?? TEMPERAMENT_TOOLTIPS[temperament]}
 						>{temperamentLabel ?? TEMPERAMENT_LABELS[temperament]}</span
 					>
+				{/if}
+				{#if thinkingSince !== undefined}
+					<ThinkingChip since={thinkingSince} />
 				{/if}
 			</div>
 			<div class="flex items-center gap-2">

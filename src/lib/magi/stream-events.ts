@@ -15,6 +15,9 @@ import type { RunStats } from './consensus/types';
 export interface StreamEventPayloads {
 	config: MagiConfig;
 	'model-chunk': { node: MagiNodeName; text: string };
+	/** Sent once per node, the first time the model is visibly thinking (Claude,
+	 *  GPT and OpenRouter reasoning; Gemini thinks without a signal). */
+	'model-thinking': { node: MagiNodeName };
 	'model-response': MagiResponse;
 	'model-error': { node: MagiNodeName; gateway: GatewayName; provider: string; error: string };
 	'model-usage': {
@@ -31,6 +34,8 @@ export interface StreamEventPayloads {
 	 *  gauge against the right model. */
 	'consensus-seat': { node: MagiNodeName };
 	'consensus-chunk': { text: string };
+	/** Sent once per run, the first time the synthesizer is visibly thinking. */
+	'consensus-thinking': Record<string, never>;
 	'consensus-complete': { text: string; debateVerdict?: DebateVerdict; debateSummary?: string };
 	'consensus-usage': { inputTokens: number; outputTokens: number; cachedInputTokens: number };
 	/** Per-run stats for the stats panel — usage axes for every run, plus the

@@ -36,7 +36,8 @@ import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { logEvent, startTimer } from '$lib/server/logger';
 import { checkApiKey } from '$lib/server/auth';
-import { createStallGuard, isThinkingPart } from '$lib/server/stall-guard';
+import { createStallGuard } from '$lib/server/stall-guard';
+import { isThinkingPart } from '$lib/magi/thinking';
 import { extractErrorMessage, isAuthError, isAvailabilityError } from '$lib/server/upstream-errors';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
@@ -565,6 +566,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// Accumulate via array+join rather than `+=` — long responses
 							// otherwise pay O(n²) for repeated string reallocations.
 							const chunks: string[] = [];
+							let announcedThinking = false;
 							for await (const part of result.fullStream) {
 								if (part.type === 'text-delta') {
 									stall.reset();
@@ -573,6 +575,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									send('model-chunk', { node, text: part.text });
 								} else if (isThinkingPart(part)) {
 									stall.reset(THINKING_WINDOW_MS);
+									// One signal is enough for the panel's indicator; only before the
+									// answer starts, since thinking after it is not worth showing.
+									if (!announcedThinking && ttftMs === null) {
+										announcedThinking = true;
+										send('model-thinking', { node });
+									}
 								} else if (part.type === 'abort') {
 									// fullStream ends quietly on abort; a stall mid-answer must not
 									// pass for a complete reply. The catch labels it.
@@ -801,10 +809,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// genuine consensus stall gets an honest label — a raw AI-SDK abort error
 				// is opaque. Client aborts propagate untouched for the outer catch.
 				try {
+					let consensusThinkingSent = false;
+					let consensusAnswering = false;
 					for await (const event of consensusStrategy.execute(ctx)) {
-						consensusStall.reset();
+						// Thinking gets the long window; anything else the consensus idle window.
+						consensusStall.reset(event.type === 'thinking' ? THINKING_WINDOW_MS : undefined);
 						switch (event.type) {
+							case 'thinking':
+								if (!consensusThinkingSent && !consensusAnswering) {
+									consensusThinkingSent = true;
+									send('consensus-thinking', {});
+								}
+								break;
 							case 'text-delta':
+								consensusAnswering = true;
 								consensusTtftMs ??= consensusTimer();
 								send('consensus-chunk', { text: event.text });
 								break;

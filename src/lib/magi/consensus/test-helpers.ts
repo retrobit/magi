@@ -37,11 +37,13 @@ export async function collect(iter: AsyncIterable<ConsensusEvent>): Promise<Cons
 /** A streamed result, matching the `ai` streamText shape. */
 export function fakeStream(
 	chunks: string[],
-	usage = { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 }
+	usage = { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 },
+	before: { type: string; rawValue?: unknown }[] = []
 ) {
 	return {
-		textStream: (async function* () {
-			for (const c of chunks) yield c;
+		fullStream: (async function* () {
+			yield* before;
+			for (const text of chunks) yield { type: 'text-delta', text };
 		})(),
 		usage: Promise.resolve(usage)
 	};

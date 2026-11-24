@@ -16,6 +16,7 @@ import {
 	toUsage
 } from './deliberation';
 import { consensusFormat } from './format';
+import { answerParts } from '../thinking';
 
 export const synthesisStrategy: ConsensusStrategy = {
 	async *execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent> {
@@ -105,13 +106,15 @@ Do NOT simply concatenate or summarize the responses. Produce a unified answer t
 				opinionated ? `\n\n${OPINIONATED_DIRECTIVE}` : ''
 			}\n\n${consensusFormat(false)}`,
 			messages,
-			abortSignal: signal
+			abortSignal: signal,
+			// OpenRouter's reasoning text only shows up in the raw chunks.
+			includeRawChunks: assignment.gateway === 'openrouter'
 		});
 
 		let fullText = '';
-		for await (const chunk of result.textStream) {
-			fullText += chunk;
-			yield { type: 'text-delta', text: chunk };
+		for await (const event of answerParts(result)) {
+			if (event.type === 'text-delta') fullText += event.text;
+			yield event;
 		}
 		const usage = await result.usage;
 		yield { type: 'complete', fullText };

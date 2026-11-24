@@ -114,6 +114,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] Strategy "None" — only the three raw answers appear, no consensus section
 - [ ] Switching strategy and back keeps the toggles that don't apply showing "N/A" without losing their values
 
+- [ ] Reasoning ON on the Free tier — while a model thinks before answering, its panel header shows "Thinking Ns" counting up, and it disappears when the answer starts or the run ends (Gemini seats think without a signal, so they never show it)
 - [ ] Reasoning OFF on the Free tier — NVIDIA seats start answering within about a second; ERNIE and Flint still think (their reasoning is mandatory) and nothing errors. On a paid tier the toggle reads N/A, and switching back to Free shows the stored value
 
 ## 10. Per-node Retry

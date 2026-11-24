@@ -35,22 +35,3 @@ export function createStallGuard(parent: AbortSignal, idleMs: number, firstMs = 
 		stalledAfterMs: () => stalledAfter
 	};
 }
-
-/** Whether a streamText `fullStream` part shows the model is thinking. Claude and
- *  the GPT Responses API surface reasoning as parts; OpenRouter's chat endpoint
- *  streams it as `delta.reasoning` text that the AI SDK's chat model drops, so it
- *  is read from the raw chunk (requested with `includeRawChunks`). */
-export function isThinkingPart(part: { type: string; rawValue?: unknown }): boolean {
-	if (part.type === 'reasoning-start' || part.type === 'reasoning-delta') return true;
-	if (part.type !== 'raw') return false;
-	const delta = (
-		part.rawValue as {
-			choices?: { delta?: { reasoning?: unknown; reasoning_details?: unknown } }[];
-		}
-	)?.choices?.[0]?.delta;
-	if (!delta) return false;
-	return (
-		(typeof delta.reasoning === 'string' && delta.reasoning.length > 0) ||
-		(Array.isArray(delta.reasoning_details) && delta.reasoning_details.length > 0)
-	);
-}

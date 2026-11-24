@@ -57,13 +57,9 @@ vi.mock('$lib/server/logger', () => ({
 const streamTextMock = vi.mocked(streamText);
 const generateTextMock = vi.mocked(generateText);
 
-// Nodes read `fullStream`; the synthesis strategy reads `textStream`. Both are
-// fresh generators per call, so one mock serves either consumer.
+// Node and consensus calls both read `fullStream`.
 function fakeStream(text: string, before: { type: string; rawValue?: unknown }[] = []) {
 	return {
-		textStream: (async function* () {
-			yield text;
-		})(),
 		fullStream: (async function* () {
 			yield* before;
 			yield { type: 'text-delta', text };
@@ -650,6 +646,30 @@ describe('POST /api/magi — thinking models', () => {
 		expect(chunks.every((t) => t === 'answer')).toBe(true);
 		const nodeCalls = streamTextMock.mock.calls.filter((c) => 'includeRawChunks' in c[0]);
 		expect(nodeCalls.every((c) => c[0].includeRawChunks === false)).toBe(true); // balanced = direct gateways
+		// One thinking signal per node, before its answer — not one per reasoning chunk.
+		const thinking = events
+			.filter((e) => e.event === 'model-thinking')
+			.map((e) => (e.data as { node: string }).node);
+		expect(thinking.sort()).toEqual(['MAGI_1', 'MAGI_2', 'MAGI_3']);
+		const firstChunk = events.findIndex((e) => e.event === 'model-chunk');
+		expect(events.findIndex((e) => e.event === 'model-thinking')).toBeLessThan(firstChunk);
+		// The synthesizer thought too: announced once, before its answer.
+		expect(events.filter((e) => e.event === 'consensus-thinking')).toHaveLength(1);
+	});
+
+	it('does not announce thinking that arrives after the answer started', async () => {
+		streamTextMock.mockImplementation(() => {
+			const s = fakeStream('answer');
+			s.fullStream = (async function* () {
+				yield { type: 'text-delta', text: 'answer' };
+				yield { type: 'reasoning-start' };
+			})();
+			return s as never;
+		});
+		const events = await readEvents(await callPost(validBody));
+		expect(
+			events.some((e) => e.event === 'model-thinking' || e.event === 'consensus-thinking')
+		).toBe(false);
 	});
 
 	it('fails a node whose stream is aborted mid-answer instead of accepting the partial text', async () => {
@@ -698,7 +718,6 @@ describe('POST /api/magi — all-nodes-failure messaging', () => {
 		streamTextMock.mockImplementation((opts) => {
 			opts.onError?.({ error: Object.assign(new Error('User not found'), { statusCode: 401 }) });
 			return {
-				textStream: (async function* () {})(),
 				fullStream: (async function* () {})(),
 				usage: Promise.reject(new Error('No output generated. Check the stream for errors.'))
 			} as never;

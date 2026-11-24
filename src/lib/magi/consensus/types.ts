@@ -90,6 +90,8 @@ export interface RunStats {
 
 export type ConsensusEvent =
 	| { type: 'text-delta'; text: string }
+	// The synthesizer is visibly thinking before (or between) answer text.
+	| { type: 'thinking' }
 	// `debateVerdict` is set only by the debate strategy — the consensus/split
 	// outcome the banner keys off; `debateSummary` carries a split's coalition
 	// shape (e.g. "X & Y aligned; Z dissents"). Other strategies omit both.

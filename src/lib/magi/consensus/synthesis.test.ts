@@ -69,12 +69,24 @@ describe('synthesisStrategy.execute', () => {
 		expect(e.stats.voting).toBeUndefined();
 	});
 
+	it('surfaces visible thinking as an event ahead of the answer, and asks OpenRouter for raw chunks', async () => {
+		streamTextMock.mockImplementation(
+			() => fakeResult(['answer'], undefined, [{ type: 'reasoning-start' }]) as never
+		);
+		const events = await collect(synthesisStrategy.execute(baseContext()));
+		expect(events.slice(0, 2)).toEqual([
+			{ type: 'thinking' },
+			{ type: 'text-delta', text: 'answer' }
+		]);
+		expect(streamTextMock.mock.calls[0][0]).toHaveProperty('includeRawChunks');
+	});
+
 	it('defaults missing usage figures to zero', async () => {
 		streamTextMock.mockImplementation(
 			() =>
 				({
-					textStream: (async function* () {
-						yield 'x';
+					fullStream: (async function* () {
+						yield { type: 'text-delta', text: 'x' };
 					})(),
 					usage: Promise.resolve({})
 				}) as never

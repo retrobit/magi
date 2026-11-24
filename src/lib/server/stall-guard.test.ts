@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createStallGuard, isThinkingPart } from './stall-guard';
+import { createStallGuard } from './stall-guard';
 
 describe('createStallGuard', () => {
 	beforeEach(() => vi.useFakeTimers());
@@ -69,22 +69,5 @@ describe('createStallGuard', () => {
 		guard.cleanup();
 		vi.advanceTimersByTime(2000);
 		expect(guard.signal.aborted).toBe(false);
-	});
-});
-
-describe('isThinkingPart', () => {
-	it('counts reasoning parts from Claude and the GPT Responses API', () => {
-		expect(isThinkingPart({ type: 'reasoning-start' })).toBe(true);
-		expect(isThinkingPart({ type: 'reasoning-delta' })).toBe(true);
-		expect(isThinkingPart({ type: 'text-delta' })).toBe(false);
-	});
-
-	it('reads OpenRouter reasoning from the raw chunk the chat model drops', () => {
-		const raw = (delta: object) => ({ type: 'raw', rawValue: { choices: [{ delta }] } });
-		expect(isThinkingPart(raw({ reasoning: 'Let me think' }))).toBe(true);
-		expect(isThinkingPart(raw({ reasoning_details: [{ type: 'reasoning.text' }] }))).toBe(true);
-		expect(isThinkingPart(raw({ reasoning: '' }))).toBe(false);
-		expect(isThinkingPart(raw({ content: 'answer' }))).toBe(false);
-		expect(isThinkingPart({ type: 'raw', rawValue: 'not json' })).toBe(false);
 	});
 });

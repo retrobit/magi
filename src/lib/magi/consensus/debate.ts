@@ -11,6 +11,7 @@ import {
 } from './types';
 import type { MagiNodeName, DebateVerdict } from '../types';
 import { resolveNodeTemperament } from '../temperaments';
+import { answerParts } from '../thinking';
 import {
 	OPINIONATED_DIRECTIVE,
 	COLLABORATIVE_DIRECTIVE,
@@ -638,11 +639,13 @@ Be clear and faithful to the divide; do NOT smooth it over into one verdict, and
 Do NOT simply concatenate or summarize. Produce a unified answer that is better than any individual response.`
 			}\n\n${consensusFormat(verdict === 'split')}`,
 			messages,
-			abortSignal: signal
+			abortSignal: signal,
+			// OpenRouter's reasoning text only shows up in the raw chunks.
+			includeRawChunks: assignment.gateway === 'openrouter'
 		});
 
-		for await (const chunk of result.textStream) {
-			yield emit(chunk);
+		for await (const event of answerParts(result)) {
+			yield event.type === 'text-delta' ? emit(event.text) : event;
 		}
 		addUsage(await result.usage);
 
