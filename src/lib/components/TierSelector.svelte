@@ -2,7 +2,7 @@
 	import { TIER_NAMES, type TierName } from '$lib/magi/types';
 	import { tooltip } from '$lib/actions/tooltip';
 	import { prefersReducedMotion } from '$lib/motion';
-	import { tick } from 'svelte';
+	import { createSlidingPill } from '$lib/sliding-pill.svelte';
 
 	interface Props {
 		value: TierName;
@@ -40,40 +40,15 @@
 	let containerEl = $state<HTMLDivElement>();
 	let indicatorEl = $state<HTMLDivElement>();
 	let buttonEls = $state<Partial<Record<TierName, HTMLButtonElement>>>({});
-	let pill = $state({ left: 0, width: 0 });
-	// Suppressed for the first paint so the pill appears in place rather than
-	// sliding in from the left edge on load.
-	let ready = $state(false);
-
-	function measure() {
-		const btn = buttonEls[value];
-		if (!btn || !containerEl) return;
-		const c = containerEl.getBoundingClientRect();
-		const r = btn.getBoundingClientRect();
-		pill = { left: r.left - c.left, width: r.width };
-	}
-
-	// Re-place when the active tier changes (await tick so a just-mounted button
-	// ref is available), and whenever the container resizes — a late web-font swap
-	// or layout reflow shifts a button, which would otherwise strand the pill.
-	$effect(() => {
-		void value;
-		tick().then(() => {
-			measure();
-			ready = true;
-		});
-	});
-
-	$effect(() => {
-		if (!containerEl) return;
-		const ro = new ResizeObserver(() => measure());
-		ro.observe(containerEl);
-		return () => ro.disconnect();
+	const pill = createSlidingPill({
+		containerEl: () => containerEl,
+		activeEl: () => buttonEls[value]
 	});
 
 	// Shake just the active pill (the Free highlight) each time `nudge` bumps — a
 	// slower head-shake scoped to the highlight rather than the whole control.
-	// WAAPI transform (independent of the pill's `left` positioning) restarts
+	// Animates the individual `translate` property, which composes with the pill's
+	// `transform: translateX(…)` positioning instead of replacing it; restarts
 	// cleanly on a rapid re-click; suppressed when motion is reduced.
 	let nudgeAnim: Animation | undefined;
 	$effect(() => {
@@ -81,14 +56,14 @@
 		nudgeAnim?.cancel();
 		nudgeAnim = indicatorEl.animate(
 			[
-				{ transform: 'translateX(0)', offset: 0 },
-				{ transform: 'translateX(-4px)', offset: 0.15 },
-				{ transform: 'translateX(4px)', offset: 0.3 },
-				{ transform: 'translateX(-3px)', offset: 0.45 },
-				{ transform: 'translateX(3px)', offset: 0.6 },
-				{ transform: 'translateX(-4px)', offset: 0.75 },
-				{ transform: 'translateX(4px)', offset: 0.9 },
-				{ transform: 'translateX(0)', offset: 1 }
+				{ translate: '0', offset: 0 },
+				{ translate: '-4px', offset: 0.15 },
+				{ translate: '4px', offset: 0.3 },
+				{ translate: '-3px', offset: 0.45 },
+				{ translate: '3px', offset: 0.6 },
+				{ translate: '-4px', offset: 0.75 },
+				{ translate: '4px', offset: 0.9 },
+				{ translate: '0', offset: 1 }
 			],
 			{ duration: 1250, easing: 'ease' }
 		);
@@ -117,9 +92,9 @@
 	<!-- Sliding active indicator -->
 	<div
 		bind:this={indicatorEl}
-		class="tier-indicator pointer-events-none absolute top-1 bottom-1 rounded-md bg-(--magi-btn-bg)"
-		class:animate={ready}
-		style:left="{pill.left}px"
+		class="magi-pill pointer-events-none absolute top-1 bottom-1 left-0 rounded-md bg-(--magi-btn-bg)"
+		class:animate={pill.ready}
+		style:transform="translateX({pill.x}px)"
 		style:width="{pill.width}px"
 		aria-hidden="true"
 	></div>
@@ -141,24 +116,3 @@
 		{/each}
 	</div>
 </div>
-
-<style>
-	/* Slide only after the first measure (`animate`), and hold still entirely
-	   when motion is reduced — OS preference or the in-app class on <html>. */
-	.tier-indicator {
-		transition: none;
-	}
-	.tier-indicator.animate {
-		transition:
-			left 220ms ease,
-			width 220ms ease;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.tier-indicator.animate {
-			transition: none;
-		}
-	}
-	:global(.reduce-motion) .tier-indicator.animate {
-		transition: none;
-	}
-</style>

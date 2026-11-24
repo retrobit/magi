@@ -10,7 +10,7 @@
 	// is set off by a separator, mirroring the tier selector's free/paid divider.
 	import { PanelTop, PanelBottom, Rows2, Wand2 } from 'lucide-svelte';
 	import { tooltip } from '$lib/actions/tooltip';
-	import { tick } from 'svelte';
+	import { createSlidingPill } from '$lib/sliding-pill.svelte';
 
 	type LayoutFocus = 'balanced' | 'nodes' | 'consensus';
 	type LayoutChoice = 'auto' | LayoutFocus;
@@ -43,35 +43,12 @@
 
 	// A single pill slides to whichever segment is active — across the Auto
 	// separator and all — instead of each button toggling its own background, to
-	// match the tier selector. Mirrors TierSelector's measure/observe machinery.
+	// match the tier selector (shared via createSlidingPill).
 	let containerEl = $state<HTMLDivElement>();
 	let buttonEls = $state<Partial<Record<LayoutChoice, HTMLButtonElement>>>({});
-	let pill = $state({ left: 0, width: 0 });
-	// Suppressed for the first paint so the pill appears in place rather than
-	// sliding in from the left edge on load.
-	let ready = $state(false);
-
-	function measure() {
-		const btn = buttonEls[selected];
-		if (!btn || !containerEl) return;
-		const c = containerEl.getBoundingClientRect();
-		const r = btn.getBoundingClientRect();
-		pill = { left: r.left - c.left, width: r.width };
-	}
-
-	$effect(() => {
-		void selected;
-		tick().then(() => {
-			measure();
-			ready = true;
-		});
-	});
-
-	$effect(() => {
-		if (!containerEl) return;
-		const ro = new ResizeObserver(() => measure());
-		ro.observe(containerEl);
-		return () => ro.disconnect();
+	const pill = createSlidingPill({
+		containerEl: () => containerEl,
+		activeEl: () => buttonEls[selected]
 	});
 </script>
 
@@ -81,9 +58,9 @@
 >
 	<!-- Sliding active indicator -->
 	<div
-		class="layout-indicator pointer-events-none absolute top-0.5 bottom-0.5 rounded bg-(--magi-btn-bg)"
-		class:animate={ready}
-		style:left="{pill.left}px"
+		class="magi-pill pointer-events-none absolute top-0.5 bottom-0.5 left-0 rounded bg-(--magi-btn-bg)"
+		class:animate={pill.ready}
+		style:transform="translateX({pill.x}px)"
 		style:width="{pill.width}px"
 		aria-hidden="true"
 	></div>
@@ -120,24 +97,3 @@
 		</button>
 	{/each}
 </div>
-
-<style>
-	/* Slide only after the first measure (`animate`), and hold still entirely when
-	   motion is reduced — OS preference or the in-app class on <html>. */
-	.layout-indicator {
-		transition: none;
-	}
-	.layout-indicator.animate {
-		transition:
-			left 220ms ease,
-			width 220ms ease;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.layout-indicator.animate {
-			transition: none;
-		}
-	}
-	:global(.reduce-motion) .layout-indicator.animate {
-		transition: none;
-	}
-</style>

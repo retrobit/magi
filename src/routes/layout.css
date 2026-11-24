@@ -435,6 +435,27 @@
 		color: var(--magi-text-secondary);
 	}
 
+	/* Sliding pill under the active segment of the tier selector / layout toggle
+	   (createSlidingPill). Positioned by an inline translateX and glides on
+	   `transform` only — never left/width — once `.animate` is set after the first
+	   measure; holds still when motion is reduced (OS preference or the in-app
+	   class on <html>). One global class rather than a scoped copy per component,
+	   so the two controls cannot drift. */
+	.magi-pill {
+		transition: none;
+	}
+	.magi-pill.animate {
+		transition: transform 220ms ease;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.magi-pill.animate {
+			transition: none;
+		}
+	}
+	.reduce-motion .magi-pill.animate {
+		transition: none;
+	}
+
 	.magi-toggle-on {
 		background-color: var(--magi-toggle-on-bg);
 		color: var(--magi-toggle-on-text);
