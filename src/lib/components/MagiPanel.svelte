@@ -140,19 +140,14 @@
 	const labelName = $derived(displayLabel.split('•')[0].trim());
 	const labelUnit = $derived(displayLabel.split('•')[1]?.trim() ?? '');
 
-	// Header-click layout cycling: a click (or Enter/Space) on the header's bare
+	// Header-click layout cycling: a pointer click on the header's bare
 	// surface fires `onheadercycle`; clicks that land on a control inside the
 	// header are ignored so the existing buttons still work.
+	// Pointer-only: keyboard users cycle via the labelled layout toggle, so the row
+	// is deliberately not a role/tab stop (it wraps real controls and the heading).
 	function onHeaderRowClick(e: MouseEvent) {
 		if (!onheadercycle || isControlClick(e)) return;
 		onheadercycle();
-	}
-	function onHeaderRowKeydown(e: KeyboardEvent) {
-		if (!onheadercycle || e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			onheadercycle();
-		}
 	}
 
 	// The latest entry that has actual content for this node. Used to fall back
@@ -513,15 +508,11 @@
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--node-color)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div
 			class="flex items-center justify-between select-none"
 			class:cursor-pointer={onheadercycle}
 			onclick={onHeaderRowClick}
-			onkeydown={onHeaderRowKeydown}
-			role={onheadercycle ? 'button' : undefined}
-			tabindex={onheadercycle ? 0 : undefined}
-			aria-label={onheadercycle ? 'Cycle layout focus' : undefined}
 		>
 			<div class="flex items-center gap-2">
 				{#snippet labelContent()}

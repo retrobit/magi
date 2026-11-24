@@ -4,8 +4,8 @@
 // cycles the layout) ignore clicks really meant for its own controls, while
 // still firing for clicks on the header's bare surface.
 //
-// The listening element itself is excluded: a header given `role="button"`
-// would otherwise match the `[role="button"]` selector and swallow every click.
+// The listening element itself is excluded, so a container that happens to
+// match the selector can never swallow its own clicks.
 const CONTROL_SELECTOR =
 	'button, a, input, select, textarea, [role="button"], [role="menuitem"], [role="dialog"]';
 

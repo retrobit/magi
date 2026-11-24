@@ -14,6 +14,7 @@
 	import TokenCount from '$lib/components/TokenCount.svelte';
 	import { appendRunStat } from '$lib/magi/run-stats';
 	import { tooltip } from '$lib/actions/tooltip';
+	import LabeledToggle from '$lib/components/LabeledToggle.svelte';
 	import {
 		freshDebugScenario,
 		isDebugScenarioActive,
@@ -1393,22 +1394,14 @@
 				</button>
 			</div>
 			<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-				<div class="flex items-center gap-2">
-					<span
-						class="text-xs text-(--magi-chrome-label)"
-						use:tooltip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
-						>TEMPERAMENT</span
-					>
-					<button
-						type="button"
-						onclick={() => (temperaments = !temperaments)}
-						disabled={loading}
-						aria-pressed={temperaments}
-						class="magi-toggle {temperaments ? 'magi-toggle-on' : ''}"
-					>
-						<Brain size={12} />
-						<span class="inline-block w-7 text-left">{temperaments ? 'ON' : 'OFF'}</span>
-					</button>
+				<LabeledToggle
+					label="TEMPERAMENT"
+					tip={`Temperaments — give each MAGI a distinct persona (${activeNodeLabels.MAGI_1} ${resolvedTemperaments.MAGI_1.label}, ${activeNodeLabels.MAGI_2} ${resolvedTemperaments.MAGI_2.label}, ${activeNodeLabels.MAGI_3} ${resolvedTemperaments.MAGI_3.label}), so each answers in its own voice.`}
+					icon={Brain}
+					on={temperaments}
+					disabled={loading}
+					ontoggle={() => (temperaments = !temperaments)}
+				>
 					<button
 						type="button"
 						onclick={() => (showTemperamentEditor = true)}
@@ -1418,69 +1411,42 @@
 					>
 						<Pencil size={12} />
 					</button>
-				</div>
-				<div class="flex items-center gap-2">
-					<span
-						class="text-xs text-(--magi-chrome-label)"
-						use:tooltip={'Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options.'}
-						>OPINIONATED</span
-					>
-					<button
-						type="button"
-						onclick={() => (opinionated = !opinionated)}
-						disabled={loading}
-						aria-pressed={opinionated}
-						class="magi-toggle {opinionated ? 'magi-toggle-on' : ''}"
-					>
-						<Target size={12} />
-						<span class="inline-block w-7 text-left">{opinionated ? 'ON' : 'OFF'}</span>
-					</button>
-				</div>
+				</LabeledToggle>
+				<LabeledToggle
+					label="OPINIONATED"
+					tip="Opinionated — on open-ended questions, push each MAGI to commit to one definitive answer instead of hedging or listing many equally-weighted options."
+					icon={Target}
+					on={opinionated}
+					disabled={loading}
+					ontoggle={() => (opinionated = !opinionated)}
+				/>
 				<!-- Collaborative only does anything in Multi-Round Debate (the only
-				     strategy where models see each other), so it's shown but disabled otherwise. -->
-				<div class="flex items-center gap-2">
-					<span
-						class="text-xs text-(--magi-chrome-label)"
-						use:tooltip={strategy === 'debate'
-							? 'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'
-							: 'Collaborative only applies to Multi-Round Debate — the only strategy where the MAGI see each other’s answers.'}
-						>COLLABORATIVE</span
-					>
-					<button
-						type="button"
-						onclick={() => (collaborative = !collaborative)}
-						disabled={loading || strategy !== 'debate'}
-						aria-pressed={strategy === 'debate' ? collaborative : undefined}
-						class="magi-toggle {collaborative && strategy === 'debate' ? 'magi-toggle-on' : ''}"
-					>
-						<Handshake size={12} />
-						<span class="inline-block w-7 text-left"
-							>{strategy !== 'debate' ? 'N/A' : collaborative ? 'ON' : 'OFF'}</span
-						>
-					</button>
-				</div>
+				     strategy where models see each other), so it reads N/A otherwise. -->
+				<LabeledToggle
+					label="COLLABORATIVE"
+					tip={strategy === 'debate'
+						? 'Collaborative — the MAGI weigh each other’s reasoning and lean toward genuine convergence when warranted, without caving.'
+						: 'Collaborative only applies to Multi-Round Debate — the only strategy where the MAGI see each other’s answers.'}
+					icon={Handshake}
+					on={collaborative}
+					applies={strategy === 'debate'}
+					disabled={loading}
+					ontoggle={() => (collaborative = !collaborative)}
+					naLabel="Collaborative — not applicable to this strategy"
+				/>
 				<!-- Reasoning can only be switched off for the free tier's models. -->
-				<div class="flex items-center gap-2">
-					<span
-						class="text-xs text-(--magi-chrome-label)"
-						use:tooltip={tier === 'free'
-							? 'Reasoning — lets each model think before it answers. Off skips the thinking step on every free model that allows it, so answers start almost at once; models that always reason keep thinking.'
-							: 'Reasoning only applies to the Free tier — the paid models’ thinking can’t be switched off.'}
-						>REASONING</span
-					>
-					<button
-						type="button"
-						onclick={() => (reasoning = !reasoning)}
-						disabled={loading || tier !== 'free'}
-						aria-pressed={tier === 'free' ? reasoning : undefined}
-						class="magi-toggle {reasoning && tier === 'free' ? 'magi-toggle-on' : ''}"
-					>
-						<Lightbulb size={12} />
-						<span class="inline-block w-7 text-left"
-							>{tier !== 'free' ? 'N/A' : reasoning ? 'ON' : 'OFF'}</span
-						>
-					</button>
-				</div>
+				<LabeledToggle
+					label="REASONING"
+					tip={tier === 'free'
+						? 'Reasoning — lets each model think before it answers. Off skips the thinking step on every free model that allows it, so answers start almost at once; models that always reason keep thinking.'
+						: 'Reasoning only applies to the Free tier — the paid models’ thinking can’t be switched off.'}
+					icon={Lightbulb}
+					on={reasoning}
+					applies={tier === 'free'}
+					disabled={loading}
+					ontoggle={() => (reasoning = !reasoning)}
+					naLabel="Reasoning — not applicable to this tier"
+				/>
 			</div>
 		</div>
 	</div>

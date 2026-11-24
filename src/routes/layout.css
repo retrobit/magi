@@ -405,8 +405,8 @@
 	   panel's `.magi-temperament-toggle` and the control strip's inline raw-gray
 	   classes). Sizing/typography are owned here so every toggle matches; `-on`
 	   reads from the shared intensity tokens. Inert state is signalled by either a
-	   native `disabled` or `aria-disabled` (the consensus toggles guard onclick in
-	   JS, so they stay focusable but read as dimmed). */
+	   native `disabled` (run in progress) or `aria-disabled` (not applicable —
+	   LabeledToggle guards onclick, so it stays focusable but reads as dimmed). */
 	.magi-toggle {
 		display: inline-flex;
 		align-items: center;

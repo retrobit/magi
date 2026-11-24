@@ -27,6 +27,7 @@
 		loaderCycleLength
 	} from '$lib/magi/loading-verbs';
 	import { tooltip } from '$lib/actions/tooltip';
+	import LabeledToggle from '$lib/components/LabeledToggle.svelte';
 	import { isControlClick } from '$lib/actions/click-guard';
 	import { snapToTop, prefersReducedMotion } from '$lib/motion';
 	import { createFollowScroll } from '$lib/scroll.svelte';
@@ -130,19 +131,14 @@
 
 	const nodeLabels = $derived(genericLabels ? NODE_LABELS_GENERIC : NODE_LABELS);
 
-	// Header-click layout cycling: a click (or Enter/Space) on the header's bare
+	// Header-click layout cycling: a pointer click on the header's bare
 	// surface fires `onheadercycle`; clicks landing on a control inside it are
 	// ignored so the existing buttons still work.
+	// Pointer-only: keyboard users cycle via the labelled layout toggle, so the row
+	// is deliberately not a role/tab stop (it wraps real controls and the heading).
 	function onHeaderRowClick(e: MouseEvent) {
 		if (!onheadercycle || isControlClick(e)) return;
 		onheadercycle();
-	}
-	function onHeaderRowKeydown(e: KeyboardEvent) {
-		if (!onheadercycle || e.target !== e.currentTarget) return;
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			onheadercycle();
-		}
 	}
 
 	// Temperament awareness only shapes the Synthesis writer. Voting has no
@@ -590,15 +586,11 @@
 	{/if}
 	<div class="h-0.5 shrink-0" style="background: var(--magi-consensus-gradient)"></div>
 	<div class="flex shrink-0 flex-col gap-2 border-b magi-divider px-4 py-3">
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div
 			class="relative flex items-center justify-between select-none"
 			class:cursor-pointer={onheadercycle}
 			onclick={onHeaderRowClick}
-			onkeydown={onHeaderRowKeydown}
-			role={onheadercycle ? 'button' : undefined}
-			tabindex={onheadercycle ? 0 : undefined}
-			aria-label={onheadercycle ? 'Cycle layout focus' : undefined}
 		>
 			<div class="flex items-center gap-2">
 				<h3 class="magi-display text-base font-bold tracking-widest text-(--magi-text)">
@@ -763,57 +755,34 @@
 			{#if onconsensustemperamentchange || onawarenesschange}
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 					{#if onconsensustemperamentchange}
-						<div class="flex items-center gap-1.5">
-							<span
-								class="text-xs text-(--magi-text-muted) uppercase"
-								use:tooltip={consensusTempTip}>Temperament</span
-							>
-							<button
-								type="button"
-								class="magi-toggle {consensusTemperament && consensusTempApplies
-									? 'magi-toggle-on'
-									: ''}"
-								onclick={() =>
-									!disabled &&
-									consensusTempApplies &&
-									onconsensustemperamentchange(!consensusTemperament)}
-								aria-pressed={consensusTempApplies ? consensusTemperament : undefined}
-								aria-disabled={disabled || !consensusTempApplies}
-								aria-label={consensusTempApplies
-									? `Consensus temperament ${consensusTemperament ? 'on' : 'off'}`
-									: 'Consensus temperament — not applicable to this strategy'}
-							>
-								<Brain size={12} />
-								<span class="inline-block w-7 text-left"
-									>{consensusTempApplies ? (consensusTemperament ? 'ON' : 'OFF') : 'N/A'}</span
-								>
-							</button>
-						</div>
+						<LabeledToggle
+							label="Temperament"
+							tip={consensusTempTip}
+							icon={Brain}
+							on={consensusTemperament}
+							applies={consensusTempApplies}
+							{disabled}
+							ontoggle={() => onconsensustemperamentchange(!consensusTemperament)}
+							ariaLabel={`Consensus temperament ${consensusTemperament ? 'on' : 'off'}`}
+							naLabel="Consensus temperament — not applicable to this strategy"
+							labelClass="text-xs text-(--magi-text-muted) uppercase"
+							class="flex items-center gap-1.5"
+						/>
 					{/if}
 					{#if onawarenesschange}
-						<div class="flex items-center gap-1.5">
-							<span class="text-xs text-(--magi-text-muted) uppercase" use:tooltip={awarenessTip}
-								>Awareness</span
-							>
-							<button
-								type="button"
-								class="magi-toggle {temperamentAwareness && awarenessApplies
-									? 'magi-toggle-on'
-									: ''}"
-								onclick={() =>
-									!disabled && awarenessApplies && onawarenesschange(!temperamentAwareness)}
-								aria-pressed={awarenessApplies ? temperamentAwareness : undefined}
-								aria-disabled={disabled || !awarenessApplies}
-								aria-label={awarenessApplies
-									? `Temperament awareness ${temperamentAwareness ? 'on' : 'off'}`
-									: 'Temperament awareness — not applicable to this strategy'}
-							>
-								<Eye size={12} />
-								<span class="inline-block w-7 text-left"
-									>{awarenessApplies ? (temperamentAwareness ? 'ON' : 'OFF') : 'N/A'}</span
-								>
-							</button>
-						</div>
+						<LabeledToggle
+							label="Awareness"
+							tip={awarenessTip}
+							icon={Eye}
+							on={temperamentAwareness}
+							applies={awarenessApplies}
+							{disabled}
+							ontoggle={() => onawarenesschange(!temperamentAwareness)}
+							ariaLabel={`Temperament awareness ${temperamentAwareness ? 'on' : 'off'}`}
+							naLabel="Temperament awareness — not applicable to this strategy"
+							labelClass="text-xs text-(--magi-text-muted) uppercase"
+							class="flex items-center gap-1.5"
+						/>
 					{/if}
 				</div>
 			{/if}
