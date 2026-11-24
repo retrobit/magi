@@ -22,6 +22,7 @@
 	} from '$lib/components/DebugPanel.svelte';
 	import { TIER_CONFIGS, buildDiverseConfig, type NodeAssignment } from '$lib/magi/config';
 	import { assembleRetryPriors } from '$lib/magi/retry';
+	import { MAX_HISTORY_TURNS, MAX_NODE_TEXT_LENGTH, MAX_QUERY_LENGTH } from '$lib/magi/validation';
 	import {
 		DEFAULT_TIER,
 		MAGI_NODE_NAMES,
@@ -1042,13 +1043,18 @@
 	}
 
 	// Replay completed turns as request history (own-thread context per node).
+	// Trimmed to the server's request limits (validation.ts): an over-long thread
+	// or answer would otherwise be rejected with a 400 on every later turn.
 	function buildHistory() {
-		return conversation.map((turn) => ({
-			query: turn.query,
+		return conversation.slice(-MAX_HISTORY_TURNS).map((turn) => ({
+			query: turn.query.slice(0, MAX_QUERY_LENGTH),
 			nodeResponses: MAGI_NODE_NAMES.filter((n) => turn.nodeResponses[n] !== undefined).map(
-				(n) => ({ node: n, text: turn.nodeResponses[n] as string })
+				(n) => ({
+					node: n,
+					text: (turn.nodeResponses[n] as string).slice(0, MAX_NODE_TEXT_LENGTH)
+				})
 			),
-			consensus: turn.consensus
+			consensus: turn.consensus.slice(0, MAX_NODE_TEXT_LENGTH)
 		}));
 	}
 
@@ -1316,7 +1322,10 @@
 					// rather than a generic "slow down" message.
 					live.error = `Too many requests — try again in ${retryAfter}s`;
 				} else {
-					live.error = data.error ?? `Request failed (${res.status})`;
+					// A 400 from validation carries the specific reason in `details`
+					// ("Query too long") — show it rather than a bare "Invalid request".
+					const reason = data.error ?? `Request failed (${res.status})`;
+					live.error = data.details?.[0] ? `${reason}: ${data.details[0]}` : reason;
 				}
 			} else {
 				for await (const { event, data } of decodeStreamEvents(res.body!)) {

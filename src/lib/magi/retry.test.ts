@@ -63,6 +63,17 @@ describe('assembleRetryPriors', () => {
 		expect(out.priorResponses).toEqual([{ node: 'MAGI_3', text: 'cas ok' }]);
 	});
 
+	it('trims an over-long survivor answer to the request limit, but not the displayed copy', () => {
+		const long = 'x'.repeat(50_001);
+		const out = assembleRetryPriors(
+			turn({ nodeResponses: { MAGI_2: long } }),
+			ASSIGNMENTS,
+			'MAGI_1'
+		);
+		expect(out.priorResponses[0].text).toHaveLength(50_000);
+		expect(out.responses[0].text).toHaveLength(50_001);
+	});
+
 	it('omits survivors with no recorded usage from carriedUsage', () => {
 		const last = turn({
 			nodeResponses: { MAGI_2: 'bal ok', MAGI_3: 'cas ok' },

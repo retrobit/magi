@@ -404,7 +404,8 @@ components:
           maximum: 5
           default: 3
           description: |
-            Round ceiling for Multi-Round Debate (clamped into 2–5). Ignored by the
+            Round ceiling for Multi-Round Debate, an integer from 2 to 5; any other
+            value is rejected with a 400. Ignored by the
             other strategies.
         opinionated:
           type: boolean

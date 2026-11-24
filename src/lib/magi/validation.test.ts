@@ -172,6 +172,33 @@ describe('magiRequestSchema', () => {
 	});
 });
 
+describe('magiRequestSchema — bounds', () => {
+	const base = { query: 'q', tier: 'balanced', strategy: 'debate' };
+	const seat = { node: 'MAGI_1', gateway: 'openrouter', provider: 'p', modelId: 'p/m:free' };
+	const seats = (override: object) => [
+		{ ...seat, ...override },
+		{ ...seat, node: 'MAGI_2' },
+		{ ...seat, node: 'MAGI_3' }
+	];
+
+	it.each([2, 3, 5])('accepts debateRounds %d', (debateRounds) => {
+		expect(magiRequestSchema.safeParse({ ...base, debateRounds }).success).toBe(true);
+	});
+
+	it.each([1, 6, 2.5])('rejects debateRounds %d rather than clamping it', (debateRounds) => {
+		expect(magiRequestSchema.safeParse({ ...base, debateRounds }).success).toBe(false);
+	});
+
+	it('rejects an oversized modelId or provider in an assignment', () => {
+		const ok = magiRequestSchema.safeParse({ ...base, assignments: seats({}) });
+		const longModel = { ...base, assignments: seats({ modelId: 'm'.repeat(129) }) };
+		const longProvider = { ...base, assignments: seats({ provider: 'p'.repeat(65) }) };
+		expect(ok.success).toBe(true);
+		expect(magiRequestSchema.safeParse(longModel).success).toBe(false);
+		expect(magiRequestSchema.safeParse(longProvider).success).toBe(false);
+	});
+});
+
 describe('magiRequestSchema — retry surface', () => {
 	function base(extra: Record<string, unknown> = {}) {
 		return magiRequestSchema.safeParse({

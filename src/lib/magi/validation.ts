@@ -15,35 +15,46 @@ const temperamentOverrideSchema = z.object({
 	prompt: z.string().check(z.maxLength(MAX_TEMPERAMENT_PROMPT))
 });
 
+// Request size limits. Exported so the client trims what it sends to the same
+// bounds — otherwise a long thread dead-ends in a 400 on every later turn.
+export const MAX_QUERY_LENGTH = 10_000;
+export const MAX_NODE_TEXT_LENGTH = 50_000;
+export const MAX_HISTORY_TURNS = 50;
+
 export const nodeAssignmentSchema = z.object({
 	node: z.enum(MAGI_NODE_NAMES),
 	gateway: z.enum(GATEWAY_NAMES),
-	provider: z.string().check(z.minLength(1)),
-	modelId: z.string().check(z.minLength(1))
+	// Capped like every other request string: both are echoed into logs, the
+	// `config` event and (for router seats) the health cache.
+	provider: z.string().check(z.minLength(1), z.maxLength(64)),
+	modelId: z.string().check(z.minLength(1), z.maxLength(128))
 });
 
 // One completed conversation turn, replayed as context for the next turn.
 const historyTurnSchema = z.object({
-	query: z.string().check(z.minLength(1), z.maxLength(10_000)),
+	query: z.string().check(z.minLength(1), z.maxLength(MAX_QUERY_LENGTH)),
 	nodeResponses: z
 		.array(
 			z.object({
 				node: z.enum(MAGI_NODE_NAMES),
-				text: z.string().check(z.maxLength(50_000))
+				text: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
 			})
 		)
 		.check(z.maxLength(3)),
-	consensus: z.string().check(z.maxLength(50_000))
+	consensus: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
 });
 
 export const magiRequestSchema = z.object({
 	query: z
 		.string()
-		.check(z.minLength(1, 'Query must not be empty'), z.maxLength(10_000, 'Query too long')),
+		.check(
+			z.minLength(1, 'Query must not be empty'),
+			z.maxLength(MAX_QUERY_LENGTH, 'Query too long')
+		),
 	tier: z.enum(TIER_NAMES),
 	strategy: z.enum(STRATEGY_NAMES),
-	/** Multi-Round Debate round ceiling. Out-of-range values are clamped by the
-	 *  debate runner; absent ⇒ the runner's default. Inert for other strategies. */
+	/** Multi-Round Debate round ceiling. Out-of-range or non-integer values are
+	 *  rejected (400); absent ⇒ the runner's default. Inert for other strategies. */
 	debateRounds: z.optional(
 		z.number().check(z.int(), z.gte(MIN_DEBATE_ROUNDS), z.lte(MAX_DEBATE_ROUNDS))
 	),
@@ -65,7 +76,7 @@ export const magiRequestSchema = z.object({
 	/** Push debaters to weigh peers and lean toward convergence (debate only). */
 	collaborative: z.optional(z.boolean()),
 	genericLabels: z.optional(z.boolean()),
-	history: z.optional(z.array(historyTurnSchema).check(z.maxLength(50))),
+	history: z.optional(z.array(historyTurnSchema).check(z.maxLength(MAX_HISTORY_TURNS))),
 	/** When true, bypasses the pre-flight unhealthy-cache check for every model in
 	 *  this request and clears those cache entries — so a retry actually re-calls
 	 *  a model rather than bouncing off a stale markUnhealthy entry. */
@@ -81,7 +92,10 @@ export const magiRequestSchema = z.object({
 	priorResponses: z.optional(
 		z
 			.array(
-				z.object({ node: z.enum(MAGI_NODE_NAMES), text: z.string().check(z.maxLength(50_000)) })
+				z.object({
+					node: z.enum(MAGI_NODE_NAMES),
+					text: z.string().check(z.maxLength(MAX_NODE_TEXT_LENGTH))
+				})
 			)
 			.check(z.maxLength(3))
 	)

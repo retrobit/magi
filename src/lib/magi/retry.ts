@@ -1,5 +1,6 @@
 import type { NodeAssignment } from './config';
 import type { ConversationTurn, GatewayName, MagiNodeName, MagiResponse, TurnUsage } from './types';
+import { MAX_NODE_TEXT_LENGTH } from './validation';
 
 /** A node that also failed last turn, carried forward unchanged during a
  *  per-node retry — same shape as the page's live model-error entries. */
@@ -18,7 +19,8 @@ export interface RetryPriors {
 	/** Other nodes that ALSO failed last turn — they stay failed; only the
 	 *  retried node re-runs. */
 	modelErrors: RetryCarriedError[];
-	/** Survivor answers sent to the server (text only) so it skips them in phase 1. */
+	/** Survivor answers sent to the server (text only) so it skips them in phase 1.
+	 *  Trimmed to the request limit, like replayed history. */
 	priorResponses: { node: MagiNodeName; text: string }[];
 	/** Token usage carried over for the survivors, so the refreshed turn's totals
 	 *  stay intact rather than dropping the nodes that weren't re-run. */
@@ -49,7 +51,7 @@ export function assembleRetryPriors(
 			modelErrors.push({ node: a.node, gateway: a.gateway, provider: a.provider, error: errored });
 		} else if (text !== undefined) {
 			responses.push({ node: a.node, gateway: a.gateway, provider: a.provider, text });
-			priorResponses.push({ node: a.node, text });
+			priorResponses.push({ node: a.node, text: text.slice(0, MAX_NODE_TEXT_LENGTH) });
 			const usage = last.nodeUsage?.[a.node];
 			if (usage) carriedUsage[a.node] = usage;
 		}

@@ -243,7 +243,7 @@ Streams results via Server-Sent Events.
 | `temperamentAwareness` | boolean | No       | Tell the synthesizer the actual lens each node used (real label + persona). Default `false`       |
 | `genericLabels`        | boolean | No       | Use MAGI 1/2/3 instead of proper names in consensus prompts. Default `true`                       |
 | `history`              | array   | No       | Prior turns for context: `{ query, nodeResponses: [{ node, text }], consensus }`. Max 50          |
-| `debateRounds`         | number  | No       | Debate round ceiling, 2–5 (clamped). Default 3                                                    |
+| `debateRounds`         | number  | No       | Debate round ceiling, 2–5 (else 400). Default 3                                                   |
 | `opinionated`          | boolean | No       | Push each model to commit to one answer on open-ended questions (all strategies). Default `false` |
 | `collaborative`        | boolean | No       | Push debaters toward convergence (debate only). Default `false`                                   |
 | `forceRetry`           | boolean | No       | Bypass and clear the unhealthy-model cache for a real re-call                                     |
