@@ -49,6 +49,18 @@ describe('checkRateLimit — durable Upstash branch', () => {
 		expect(limitMock).toHaveBeenCalledWith('1.2.3.4');
 	});
 
+	it('degrades to the in-memory limiter when Redis times out, instead of allowing everything', async () => {
+		// On timeout the SDK resolves success:true with reason 'timeout' — it does
+		// not throw. Treating that as "allowed" would switch the limiter off for
+		// as long as the store is slow.
+		limitMock.mockResolvedValue({ success: true, reset: 0, reason: 'timeout' });
+		const results = [];
+		for (let i = 0; i < 11; i += 1) results.push(await checkRateLimit('7.7.7.7'));
+		expect(results.slice(0, 10).every((r) => !r.limited)).toBe(true);
+		expect(results[10].limited).toBe(true);
+		expect(logEvent).toHaveBeenCalledWith('warn', 'ratelimit.redis_timeout', {});
+	});
+
 	it('degrades to the in-memory limiter (and warns) when Redis throws', async () => {
 		limitMock.mockRejectedValue(new Error('redis unreachable'));
 		const r = await checkRateLimit('9.9.9.9');

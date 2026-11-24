@@ -43,9 +43,11 @@ function getRedisLimiter(keyed: boolean): Ratelimit | null {
 		standard: new Ratelimit({
 			redis,
 			limiter: Ratelimit.slidingWindow(MAX_REQUESTS, '60 s'),
-			// Fail open fast: without this, a degraded Upstash makes limit() hang up
-			// to the SDK's default before resolving, adding that latency to EVERY
-			// request. 1s cap → a slow store degrades to best-effort, as intended.
+			// Cap the wait: without this, a degraded Upstash makes limit() hang up to
+			// the SDK's default before resolving, adding that latency to EVERY
+			// request. On timeout the SDK does not throw — it resolves `success: true`
+			// with `reason: 'timeout'` — so checkRateLimit watches for that reason and
+			// falls back to the in-memory limiter instead of waving the request through.
 			timeout: 1000,
 			prefix: 'magi:rl'
 		}),
@@ -90,7 +92,7 @@ function checkInMemory(ip: string, keyed: boolean): RateLimitResult {
  *  request carries their own BYOK provider keys (`keyed`: their token spend, our
  *  compute). Uses the durable Upstash store across the serverless fleet when
  *  configured (KV_REST_API_URL + KV_REST_API_TOKEN); otherwise — including if
- *  Redis is momentarily unreachable — falls back to a per-instance in-memory
+ *  Redis is momentarily unreachable or slower than its 1 s cap — falls back to a per-instance in-memory
  *  limiter, so a limiter outage degrades to best-effort rather than blocking
  *  every caller or failing fully open. */
 export async function checkRateLimit(
@@ -101,7 +103,11 @@ export async function checkRateLimit(
 	const limiter = getRedisLimiter(keyed);
 	if (limiter) {
 		try {
-			const { success, reset } = await limiter.limit(ip);
+			const { success, reset, reason } = await limiter.limit(ip);
+			if (reason === 'timeout') {
+				logEvent('warn', 'ratelimit.redis_timeout', {});
+				return checkInMemory(ip, keyed);
+			}
 			return {
 				limited: !success,
 				retryAfterSeconds: success ? 0 : Math.max(0, Math.ceil((reset - Date.now()) / 1000))
