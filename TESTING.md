@@ -114,6 +114,8 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] Strategy "None" — only the three raw answers appear, no consensus section
 - [ ] Switching strategy and back keeps the toggles that don't apply showing "N/A" without losing their values
 
+- [ ] Reasoning OFF on the Free tier — NVIDIA seats start answering within about a second; ERNIE and Flint still think (their reasoning is mandatory) and nothing errors. On a paid tier the toggle reads N/A, and switching back to Free shows the stored value
+
 ## 10. Per-node Retry
 
 - [ ] A failed node shows a retry control; retrying re-runs only that node and the consensus is recomputed over all three answers

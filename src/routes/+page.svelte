@@ -96,6 +96,7 @@
 		Brain,
 		Target,
 		Handshake,
+		Lightbulb,
 		Copy,
 		Check,
 		Dices,
@@ -169,6 +170,8 @@
 	// (Multi-Round Debate only). Independent of each other and of Temperaments.
 	let opinionated = $state(false);
 	let collaborative = $state(false);
+	// Reasoning off → free-tier models that allow it skip their thinking step.
+	let reasoning = $state(true);
 	let bgVariant = $state<BgVariant>('off');
 	let palette = $state<Palette>('nebula');
 	let theme = $state<'dark' | 'light'>('dark');
@@ -635,6 +638,7 @@
 		customTemperaments = s.customTemperaments ?? {};
 		opinionated = s.opinionated ?? false;
 		collaborative = s.collaborative ?? false;
+		reasoning = s.reasoning ?? true;
 		genericLabels = REVEAL_NODE_NAMES ? s.genericLabels : true;
 		theme = s.theme;
 		bgVariant = s.bgVariant;
@@ -739,6 +743,7 @@
 			customTemperaments,
 			opinionated,
 			collaborative,
+			reasoning,
 			genericLabels,
 			theme,
 			bgVariant,
@@ -1074,6 +1079,9 @@
 			temperamentAwareness: temperaments && temperamentAwareness,
 			opinionated,
 			collaborative,
+			// Only the free tier's models can skip reasoning; the stored choice is
+			// kept as-is on the paid tiers (shown N/A there).
+			...(tier === 'free' && !reasoning ? { reasoning: false } : {}),
 			genericLabels,
 			// Only send overrides when some exist (and only matter when temperaments on).
 			...(Object.keys(customTemperaments).length ? { customTemperaments } : {}),
@@ -1448,6 +1456,28 @@
 						<Handshake size={12} />
 						<span class="inline-block w-7 text-left"
 							>{strategy !== 'debate' ? 'N/A' : collaborative ? 'ON' : 'OFF'}</span
+						>
+					</button>
+				</div>
+				<!-- Reasoning can only be switched off for the free tier's models. -->
+				<div class="flex items-center gap-2">
+					<span
+						class="text-xs text-(--magi-chrome-label)"
+						use:tooltip={tier === 'free'
+							? 'Reasoning — lets each model think before it answers. Off skips the thinking step on every free model that allows it, so answers start almost at once; models that always reason keep thinking.'
+							: 'Reasoning only applies to the Free tier — the paid models’ thinking can’t be switched off.'}
+						>REASONING</span
+					>
+					<button
+						type="button"
+						onclick={() => (reasoning = !reasoning)}
+						disabled={loading || tier !== 'free'}
+						aria-pressed={tier === 'free' ? reasoning : undefined}
+						class="magi-toggle {reasoning && tier === 'free' ? 'magi-toggle-on' : ''}"
+					>
+						<Lightbulb size={12} />
+						<span class="inline-block w-7 text-left"
+							>{tier !== 'free' ? 'N/A' : reasoning ? 'ON' : 'OFF'}</span
 						>
 					</button>
 				</div>

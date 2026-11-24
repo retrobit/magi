@@ -90,6 +90,9 @@ export interface AvailableModel {
 	displayName: string;
 	/** Context window in tokens, when known — drives context-budget warnings. */
 	contextLength?: number;
+	/** OpenRouter catalog: true when the model always reasons and rejects a
+	 *  request to switch it off; absent when the catalog doesn't say. */
+	reasoningMandatory?: boolean;
 }
 
 /** Compact token display: 7100 → "7.1k", 200000 → "200k", 1000000 → "1M". */

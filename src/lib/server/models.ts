@@ -1,3 +1,4 @@
+import { wrapLanguageModel, defaultSettingsMiddleware } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -67,9 +68,25 @@ function getClient(gateway: GatewayName) {
  * BYOK-covered gateway — a deployment that never configured its own Anthropic
  * key still serves Anthropic models to callers who bring one.
  */
-export function getModel(gateway: GatewayName, modelId: string, byok?: ByokKeys) {
+export function getModel(
+	gateway: GatewayName,
+	modelId: string,
+	byok?: ByokKeys,
+	opts: { reasoningOff?: boolean } = {}
+) {
 	const byokKey = byok?.[gateway];
 	const client = byokKey ? createByokClient(gateway, byokKey) : getClient(gateway);
-	if (gateway === 'openrouter') return (client as ReturnType<typeof createOpenAI>).chat(modelId);
-	return client(modelId);
+	if (gateway !== 'openrouter') return client(modelId);
+	const model = (client as ReturnType<typeof createOpenAI>).chat(modelId);
+	// Reasoning off: OpenRouter normalises `reasoning_effort: "none"` across its
+	// providers. The caller decides whether the model allows it — a model whose
+	// reasoning is mandatory answers that with a 400.
+	return opts.reasoningOff
+		? wrapLanguageModel({
+				model,
+				middleware: defaultSettingsMiddleware({
+					settings: { providerOptions: { openai: { reasoningEffort: 'none' } } }
+				})
+			})
+		: model;
 }

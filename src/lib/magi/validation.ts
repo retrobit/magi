@@ -83,6 +83,9 @@ export const magiRequestSchema = z.object({
 	opinionated: z.optional(z.boolean()),
 	/** Push debaters to weigh peers and lean toward convergence (debate only). */
 	collaborative: z.optional(z.boolean()),
+	/** false → ask every model that allows it to skip its reasoning step (OpenRouter
+	 *  seats whose catalog entry says reasoning isn't mandatory). Absent ⇒ on. */
+	reasoning: z.optional(z.boolean()),
 	genericLabels: z.optional(z.boolean()),
 	history: z.optional(z.array(historyTurnSchema).check(z.maxLength(MAX_HISTORY_TURNS))),
 	/** When true, bypasses the pre-flight unhealthy-cache check for every model in

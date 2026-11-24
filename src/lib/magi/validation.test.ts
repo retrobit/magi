@@ -189,6 +189,11 @@ describe('magiRequestSchema — bounds', () => {
 		expect(magiRequestSchema.safeParse({ ...base, debateRounds }).success).toBe(false);
 	});
 
+	it('accepts the reasoning toggle as a boolean only', () => {
+		expect(magiRequestSchema.safeParse({ ...base, reasoning: false }).success).toBe(true);
+		expect(magiRequestSchema.safeParse({ ...base, reasoning: 'off' }).success).toBe(false);
+	});
+
 	it('rejects an oversized modelId or provider in an assignment', () => {
 		const ok = magiRequestSchema.safeParse({ ...base, assignments: seats({}) });
 		const longModel = { ...base, assignments: seats({ modelId: 'm'.repeat(129) }) };

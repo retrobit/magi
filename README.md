@@ -63,7 +63,7 @@ The consensus engine is pluggable:
 - **Token & cost awareness** — per-node and cumulative token counts, per-model context-window gauges, prompt-cache hits, and a per-provider daily spend readout.
 - **Resilient by design** — automatic model-health tracking (recently-failed models are skipped), per-node and consensus stall guards, partial-consensus fallback, and per-node retry that re-runs one node without re-billing the others.
 - **Editable temperaments** — give each MAGI a dispositional lens, or write your own persona (see **Temperaments** below).
-- **Deliberation controls** — Opinionated and Collaborative modes, a 2–5 round debate ceiling, and seeded per-turn peer-order shuffling to wash out position bias.
+- **Deliberation controls** — Opinionated and Collaborative modes, a Reasoning switch that lets free-tier models skip their thinking step for near-instant answers, a 2–5 round debate ceiling, and seeded per-turn peer-order shuffling to wash out position bias.
 - **Polish** — dark/light theming with two palettes (three more ship hidden behind a flag) and reduced-motion modes, syntax-highlighted markdown, a filterable run-history panel with JSON export, and an animated ASCII intro.
 - **Bring your own key** — on deployments with `PUBLIC_BYOK_ENABLED=true`, visitors paste their own provider keys to unlock tiers on their own billing; keys stay browser-local and are never logged or stored server-side.
 

@@ -5,6 +5,7 @@ interface OpenRouterApiModel {
 	id: string;
 	name: string;
 	context_length?: number;
+	reasoning?: { mandatory?: boolean };
 	pricing?: { prompt?: string; completion?: string };
 }
 
@@ -44,7 +45,10 @@ export async function getOpenRouterFreeModels(): Promise<AvailableModel[]> {
 				gateway: 'openrouter' as GatewayName,
 				provider: extractProvider(m.id),
 				displayName: cleanDisplayName(m.name),
-				contextLength: m.context_length
+				contextLength: m.context_length,
+				...(typeof m.reasoning?.mandatory === 'boolean' && {
+					reasoningMandatory: m.reasoning.mandatory
+				})
 			}))
 			.sort((a, b) => a.provider.localeCompare(b.provider));
 

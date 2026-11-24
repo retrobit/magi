@@ -3,6 +3,7 @@ import { streamText, generateText } from 'ai';
 import { env as _env } from '$env/dynamic/private';
 import { env as _publicEnv } from '$env/dynamic/public';
 import { getModel } from '$lib/server/models';
+import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { decodeStreamEvents } from '$lib/magi/stream-events';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
@@ -244,7 +245,8 @@ describe('POST /api/magi — BYOK', () => {
 		expect(vi.mocked(getModel)).toHaveBeenCalledWith(
 			expect.any(String),
 			expect.any(String),
-			expect.objectContaining({ anthropic: fullCoverage.anthropic })
+			expect.objectContaining({ anthropic: fullCoverage.anthropic }),
+			expect.anything()
 		);
 	});
 
@@ -283,6 +285,65 @@ describe('POST /api/magi — BYOK', () => {
 		expect(vi.mocked(checkRateLimit)).toHaveBeenLastCalledWith('127.0.0.1', { keyed: true });
 		await callPost(validBody);
 		expect(vi.mocked(checkRateLimit)).toHaveBeenLastCalledWith('127.0.0.1', { keyed: false });
+	});
+});
+
+describe('POST /api/magi — reasoning toggle', () => {
+	const seats = [
+		{ node: 'MAGI_1', gateway: 'openrouter', provider: 'a', modelId: 'a/may:free' },
+		{ node: 'MAGI_2', gateway: 'openrouter', provider: 'b', modelId: 'b/must:free' },
+		{ node: 'MAGI_3', gateway: 'openrouter', provider: 'c', modelId: 'c/unknown:free' }
+	];
+	const catalog = [
+		{
+			id: 'a/may:free',
+			gateway: 'openrouter',
+			provider: 'a',
+			displayName: 'May',
+			reasoningMandatory: false
+		},
+		{
+			id: 'b/must:free',
+			gateway: 'openrouter',
+			provider: 'b',
+			displayName: 'Must',
+			reasoningMandatory: true
+		},
+		{ id: 'c/unknown:free', gateway: 'openrouter', provider: 'c', displayName: 'Unknown' }
+	] as const;
+	const offFor = () =>
+		Object.fromEntries(
+			vi
+				.mocked(getModel)
+				.mock.calls.map((c) => [c[1], (c[3] as { reasoningOff?: boolean })?.reasoningOff])
+		);
+
+	beforeEach(() => {
+		vi.mocked(getOpenRouterFreeModels).mockResolvedValue([...catalog]);
+		vi.mocked(getModel).mockClear();
+	});
+
+	it('switches reasoning off only for models the catalog says may skip it', async () => {
+		const res = await callPost({
+			query: 'q',
+			tier: 'free',
+			strategy: 'synthesis',
+			assignments: seats,
+			reasoning: false
+		});
+		await readEvents(res);
+		expect(offFor()).toEqual({ 'a/may:free': true, 'b/must:free': false, 'c/unknown:free': false });
+		// The consensus seat (MAGI_1 here) gets the same treatment as its node call.
+		expect(
+			vi.mocked(getModel).mock.calls.filter((c) => c[1] === 'a/may:free').length
+		).toBeGreaterThan(1);
+	});
+
+	it('leaves reasoning on when the toggle is absent', async () => {
+		await readEvents(
+			await callPost({ query: 'q', tier: 'free', strategy: 'synthesis', assignments: seats })
+		);
+		expect(Object.values(offFor()).every((v) => v === false)).toBe(true);
 	});
 });
 

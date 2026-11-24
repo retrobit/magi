@@ -35,6 +35,23 @@ describe('getOpenRouterFreeModels', () => {
 		expect(models.some((m) => m.id === 'paid/model-c')).toBe(false);
 	});
 
+	it('carries whether reasoning is mandatory, only when the catalog says', async () => {
+		vi.stubGlobal(
+			'fetch',
+			okFetch({
+				data: [
+					{ id: 'a/must:free', name: 'Must', reasoning: { mandatory: true } },
+					{ id: 'b/may:free', name: 'May', reasoning: { mandatory: false } },
+					{ id: 'c/unknown:free', name: 'Unknown' }
+				]
+			})
+		);
+		const byId = Object.fromEntries((await getOpenRouterFreeModels()).map((m) => [m.id, m]));
+		expect(byId['a/must:free'].reasoningMandatory).toBe(true);
+		expect(byId['b/may:free'].reasoningMandatory).toBe(false);
+		expect('reasoningMandatory' in byId['c/unknown:free']).toBe(false);
+	});
+
 	it('sorts the results by provider', async () => {
 		vi.stubGlobal('fetch', okFetch(sampleApi));
 		const models = await getOpenRouterFreeModels();

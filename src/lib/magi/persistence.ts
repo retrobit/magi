@@ -78,6 +78,8 @@ const persistedSettingsSchema = z.object({
 	/** Opinionated / Collaborative deliberation toggles (both default off). */
 	opinionated: z.optional(z.boolean()),
 	collaborative: z.optional(z.boolean()),
+	/** Reasoning toggle (default on). */
+	reasoning: z.optional(z.boolean()),
 	genericLabels: z.boolean(),
 	theme: z.enum(THEMES),
 	bgVariant: z.enum(BG_VARIANTS),

@@ -224,6 +224,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		customTemperaments,
 		opinionated: useOpinionated,
 		collaborative: useCollaborative,
+		reasoning = true,
 		genericLabels: useGenericLabels,
 		history = [],
 		forceRetry = false,
@@ -435,6 +436,16 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const orModels = config.some((a) => a.gateway === 'openrouter')
 					? await getOpenRouterFreeModels()
 					: [];
+				// Reasoning off reaches only models the catalog says may skip it: a
+				// mandatory reasoner rejects the request with a 400, and a model the
+				// catalog doesn't describe (e.g. a paid BYOK slug) is left alone.
+				const modelFor = (gateway: GatewayName, modelId: string) =>
+					getModel(gateway, modelId, byok, {
+						reasoningOff:
+							!reasoning &&
+							gateway === 'openrouter' &&
+							orModels.find((m) => m.id === modelId)?.reasoningMandatory === false
+					});
 				const nodeHealth = dispatchConfig.map((assignment) => {
 					const { gateway, modelId } = assignment;
 					// The health cache describes the OPERATOR's access to a model. A seat
@@ -528,7 +539,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							THINKING_WINDOW_MS
 						);
 						try {
-							const model = getModel(gateway, modelId, byok);
+							const model = modelFor(gateway, modelId);
 							const temperamentPrompt = useTemperaments
 								? resolveNodeTemperament(node, customTemperaments).prompt
 								: undefined;
@@ -763,9 +774,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					responses,
 					query,
 					history: history.map((t) => ({ query: t.query, consensus: t.consensus })),
-					// Curried so BYOK keys ride along into every strategy's model calls
-					// without widening the ConsensusContext signature.
-					getModel: (gateway, modelId) => getModel(gateway, modelId, byok),
+					// Curried so BYOK keys and the reasoning choice ride along into every
+					// strategy's model calls without widening the ConsensusContext signature.
+					getModel: modelFor,
 					nodeAssignments: config,
 					consensusNodeIndex: effectiveConsensusIndex,
 					consensusTemperament: useConsensusTemperament,

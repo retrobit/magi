@@ -421,6 +421,14 @@ components:
           type: boolean
           default: false
           description: Nudge debaters toward convergence (Multi-Round Debate only).
+        reasoning:
+          type: boolean
+          default: true
+          description: |
+            `false` asks every OpenRouter model whose catalog entry says reasoning is
+            optional to skip its thinking step (`reasoning_effort: "none"`), for a much
+            faster first token. Models whose reasoning is mandatory, and direct-gateway
+            models, are unaffected.
         customTemperaments:
           type: object
           description: |
@@ -497,6 +505,11 @@ components:
           type: integer
           minimum: 0
           description: Context window in tokens, when reported by the provider.
+        reasoningMandatory:
+          type: boolean
+          description: |
+            Free tier only: true when the model always reasons and cannot be asked to
+            skip it. Absent when the OpenRouter catalog doesn't say.
 
     ProviderBudget:
       type: object
