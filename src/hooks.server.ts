@@ -9,8 +9,8 @@ import type { Handle } from '@sveltejs/kit';
 const SECURITY_HEADERS: Record<string, string> = {
 	// Block MIME-sniffing (a stripped Content-Type can't be reinterpreted as HTML/JS).
 	'X-Content-Type-Options': 'nosniff',
-	// Clickjacking: refuse to be framed. frame-ancestors isn't set — it's ignored
-	// in the <meta> CSP SvelteKit injects — so X-Frame-Options is the framing guard.
+	// Clickjacking: refuse to be framed. Belt and braces with the CSP's
+	// frame-ancestors 'none' (svelte.config.js), for anything that reads only this.
 	'X-Frame-Options': 'DENY',
 	// Don't leak full URLs (which can carry the query) to cross-origin destinations.
 	'Referrer-Policy': 'strict-origin-when-cross-origin',

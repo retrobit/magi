@@ -20,8 +20,9 @@ const config = {
 		// style-src keeps 'unsafe-inline': Svelte `style:` directives and Tailwind set
 		// element styles at runtime, and the XSS surface of styles is far smaller than
 		// scripts. All resources are same-origin (self-hosted fonts, no external CDNs);
-		// data: covers inline SVG/img data URIs. Framing stays on X-Frame-Options
-		// (frame-ancestors is ignored in the <meta> CSP SvelteKit injects).
+		// data: covers inline SVG/img data URIs. The page is not prerendered, so the
+		// policy ships as a response header (not a <meta> tag) and frame-ancestors
+		// applies; X-Frame-Options in hooks.server.ts backs it up.
 		csp: {
 			mode: 'hash',
 			directives: {
@@ -33,6 +34,7 @@ const config = {
 				'connect-src': ['self'],
 				'base-uri': ['self'],
 				'form-action': ['self'],
+				'frame-ancestors': ['none'],
 				'object-src': ['none']
 			}
 		}
