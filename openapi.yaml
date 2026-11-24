@@ -116,11 +116,11 @@ paths:
                     - node: MAGI_1
                       gateway: anthropic
                       provider: anthropic
-                      modelId: claude-sonnet-5
+                      modelId: claude-sonnet-5-5
                     - node: MAGI_2
                       gateway: openai
                       provider: openai
-                      modelId: gpt-5.4
+                      modelId: gpt-6.2-sol
                     - node: MAGI_3
                       gateway: google
                       provider: google

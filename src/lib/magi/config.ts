@@ -66,8 +66,8 @@ export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
 }
 
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-5' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
+	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-5-5' },
+	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-6.2-sol' },
 	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-4-hydrogen' }
 ];
 
@@ -82,14 +82,14 @@ export const FREE_MAGI_CONFIG = MAGI_NODE_NAMES.map((node, i) => {
 /** Maps each tier to its node configuration. */
 export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
 	frontier: [
-		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-8' },
-		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
+		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-5-5' },
+		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-6.2-astra' },
 		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-4-carbon' }
 	],
 	balanced: DEFAULT_MAGI_CONFIG,
 	budget: [
-		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
-		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4-mini' },
+		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-5-5' },
+		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-6-luna' },
 		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash-lite' }
 	],
 	free: FREE_MAGI_CONFIG

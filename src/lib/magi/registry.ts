@@ -12,55 +12,57 @@ export interface ModelEntry {
 }
 
 export const MODEL_REGISTRY: readonly ModelEntry[] = [
-	// Anthropic (direct)
+	// Anthropic (direct). Opus is the frontier seat on purpose: Fable costs 2×
+	// and needs 30-day data retention (see ROADMAP → Paid-tier model freshness).
 	{
-		id: 'claude-opus-4-8',
+		id: 'claude-opus-5-5',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'frontier',
-		displayName: 'Claude Opus 4.8',
+		displayName: 'Claude Opus 5.5',
 		contextLength: 1_000_000
 	},
 	{
-		id: 'claude-sonnet-5',
+		id: 'claude-sonnet-5-5',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'balanced',
-		displayName: 'Claude Sonnet 5',
+		displayName: 'Claude Sonnet 5.5',
 		contextLength: 1_000_000
 	},
 	{
-		id: 'claude-haiku-4-5',
+		id: 'claude-haiku-5-5',
 		gateway: 'anthropic',
 		provider: 'anthropic',
 		tier: 'budget',
-		displayName: 'Claude Haiku 4.5',
-		contextLength: 200_000
+		displayName: 'Claude Haiku 5.5',
+		contextLength: 1_000_000
 	},
-	// OpenAI (direct)
+	// OpenAI (direct). Since GPT-6 the name is the tier and the number moves per
+	// tier: Astra flagship, Sol everyday, Terra ≈ old "mini", Luna ≈ old "nano".
 	{
-		id: 'gpt-5.5',
+		id: 'gpt-6.2-astra',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'frontier',
-		displayName: 'GPT-5.5',
+		displayName: 'GPT-6.2 Astra',
 		contextLength: 1_050_000
 	},
 	{
-		id: 'gpt-5.4',
+		id: 'gpt-6.2-sol',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'balanced',
-		displayName: 'GPT-5.4',
+		displayName: 'GPT-6.2 Sol',
 		contextLength: 1_050_000
 	},
 	{
-		id: 'gpt-5.4-mini',
+		id: 'gpt-6-luna',
 		gateway: 'openai',
 		provider: 'openai',
 		tier: 'budget',
-		displayName: 'GPT-5.4 Mini',
-		contextLength: 400_000
+		displayName: 'GPT-6 Luna',
+		contextLength: 1_050_000
 	},
 	// Google (direct). Gemini 4 names don't encode the tier: carbon is the
 	// flagship, hydrogen Google's mid-tier default. Flash-Lite is still a 3.x
