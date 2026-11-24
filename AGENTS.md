@@ -5,7 +5,7 @@ Three AI models answer in parallel; a pluggable consensus strategy (synthesis / 
 The repo **is** the project: durable knowledge lives in its docs, not in agent memory. Canonical homes — link to them, don't restate them:
 
 - [README.md](README.md) — features, tiers, API summary, env vars, dev commands
-- [ROADMAP.md](ROADMAP.md) — shipped, planned and parked work (client build order, gateways)
+- [ROADMAP.md](ROADMAP.md) — shipped, planned and parked work (CLI client, model freshness)
 - [DEPLOY.md](DEPLOY.md) — Vercel runbook, `main` → `production` release model, env vars, smoke test
 - [TESTING.md](TESTING.md) — test projects + manual checklist · [openapi.yaml](openapi.yaml) — API contract
 

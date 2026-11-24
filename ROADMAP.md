@@ -28,33 +28,14 @@ Planned features, improvements, and known items for the MAGI project.
 
 ## Clients
 
-Build order matters here — each step forces the right abstraction for the next.
-
-1. **CLI with TUI** _(build first)_ — Separate repo, consumes the MAGI API over HTTP/SSE. Split-pane streaming, interactive tier/temperament selection, piped input for scripting. npm-publishable (`npx magi`). **Why first:** works everywhere, easiest to demo/distribute, and proves the API is a complete client interface before investing in native.
-2. **Native macOS app** _(build later)_ — Swift/SwiftUI, calls provider APIs directly (Anthropic, OpenAI, Google, OpenRouter) with consensus logic ported to Swift. No embedded server, no webview — a true native single binary. **Why later:** requires maintaining core logic in two languages (TS + Swift). Only worth it once the consensus engine and feature set stabilize.
-
-**Architecture note:** Don't extract a `@magi/core` shared package yet. Build the CLI as a plain API consumer first. Once both clients exist and the real shared surface is clear, then extract — premature abstraction is worse than duplication.
-
-## Gateways
-
-Support more model routers beyond OpenRouter. The dynamic model discovery pattern (`GET /api/magi/models`) already supports this — each new gateway needs a fetcher module like `openrouter.ts` and an AI SDK client in `models.ts`.
-
-**Candidates:**
-
-| Gateway                                                                | Free tier?       | Discovery API?                 | Fit | Notes                                                   |
-| ---------------------------------------------------------------------- | ---------------- | ------------------------------ | --- | ------------------------------------------------------- |
-| [Portkey](https://portkey.ai)                                          | ✅ Limited       | ✅ 1,600+ models               | 🟢  | Unified catalog, observability, routing rules           |
-| [AI/ML API](https://aimlapi.com)                                       | ✅ Credits       | ✅ OpenAI-compatible `/models` | 🟢  | 400+ models across text/image/audio, one key            |
-| [LiteLLM](https://github.com/BerriAI/litellm)                          | ✅ Self-hosted   | ✅ `/model/info`               | 🟢  | Open source, zero markup, 100+ providers                |
-| [Eden AI](https://www.edenai.co)                                       | ✅ Pay-as-you-go | ✅ Model listing               | 🟡  | Broader than LLMs (OCR, speech), GDPR-native            |
-| [Together AI](https://together.ai)                                     | Trial credits    | ✅ `/models`                   | 🟡  | Open-source models only — no Anthropic/OpenAI relay     |
-| [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) | ✅ Free plan     | ❌ No discovery                | 🟠  | Pass-through/cache layer, not a model router            |
-| [Bifrost](https://github.com/maximhq/bifrost)                          | ✅ Self-hosted   | ❌ Config-driven               | 🟠  | 11µs overhead — ultra-low latency, no dynamic discovery |
+- **CLI with TUI** — Separate repo, consumes the MAGI API over HTTP/SSE. Split-pane streaming, interactive tier/temperament selection, piped input for scripting. npm-publishable (`npx magi`). It also proves the API is a complete client interface.
 
 ## Parked & considered
 
 Assessed and deliberately not scheduled — recorded so they aren't re-litigated from scratch.
 
+- **More gateways / model routers** _(dropped 2026-11-24)_ — Portkey, AI/ML API, LiteLLM and others were evaluated as additions to OpenRouter. Not needed: OpenRouter plus the three direct provider APIs cover every tier.
+- **Native macOS app** _(dropped 2026-11-24)_ — a Swift/SwiftUI client with the consensus logic ported to Swift. Not needed: it would mean maintaining the core logic in two languages, and the web app and planned CLI cover the use.
 - **Loader-animation dedup** — `MagiPanel` and `ConsensusView` each carry their own loader wiring around `loaderFrame` (the follow-scroll core is already shared via `scroll.svelte.ts`). Available as a cleanup.
 - **Voting jurors are history-blind** — on follow-up turns, jurors score only the current answers (`voting.ts` takes no history). Giving them history would change voting output, so it's left as-is.
 - **BYOK keyed bucket** — the 30 req/min bucket is granted when a valid `x-magi-byok` header is present, not when its keys actually cover the request. Checking coverage first would move work ahead of the rate limit; left as-is.
