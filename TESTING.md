@@ -43,7 +43,7 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] Submit a query — all three direct-provider models respond
 - [ ] Switch to Budget tier — models change to cheaper variants
 - [ ] Switch to Frontier tier — models change to top-tier variants
-- [ ] Switch back to Free — previous Free tier results are restored from cache
+- [ ] Switch back to Free — the previous Free conversation and seats come back
 
 ## 2. Temperaments
 
@@ -100,11 +100,11 @@ Open http://localhost:5173/ in a browser with DevTools console visible.
 - [ ] Panels freeze at their current state (no further chunks arrive)
 - [ ] Can submit a new query after aborting
 
-## 8. Tier Caching
+## 8. Per-tier state
 
 - [ ] Submit a query on Free tier
 - [ ] Switch to Balanced tier — Free results disappear, Balanced shows clean state
-- [ ] Switch back to Free — previous Free results are fully restored (responses, consensus, errors, assignments)
+- [ ] Switch back to Free — the Free conversation (responses, consensus) and its seat assignments come back; an error banner from a turn that failed before streaming does not
 - [ ] Cache is per-tier, not global
 
 ## 9. Strategies

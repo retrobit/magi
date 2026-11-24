@@ -63,6 +63,17 @@
 		SECTION_RULE,
 		type StrategyName
 	} from '$lib/magi/consensus/types';
+	import {
+		committedUsage,
+		latestCommittedConsensusInput,
+		latestCommittedNodeInput
+	} from '$lib/magi/usage';
+	import {
+		createLayoutFocus,
+		NODE_LAYOUT_CYCLE,
+		CONSENSUS_LAYOUT_CYCLE,
+		type RunPhase
+	} from '$lib/layout-focus.svelte';
 	import { decodeStreamEvents } from '$lib/magi/stream-events';
 	import type { StreamEventName, StreamEventPayloads } from '$lib/magi/stream-events';
 	import {
@@ -169,88 +180,12 @@
 	// `reduced` stills all motion. Drives two <html> classes downstream: `.calm-bg`
 	// (normal) and `.reduce-motion` (reduced).
 	let motionMode = $state<MotionMode>('normal');
-	// Focus accordion between the node row and the consensus. The status-bar layout
-	// control sets one of three states: nodes expanded, consensus expanded, or a
-	// balanced split (the default — both zones share the view so neither buries
-	// the other before the user has decided where to focus).
-	let layoutFocus = $state<'balanced' | 'nodes' | 'consensus'>('balanced');
-	// Auto-layout: when on (the default), the focus accordion follows the run
-	// lifecycle — nodes while they think, balanced while the consensus streams,
-	// consensus once it lands. Picking any manual segment turns it off; the Auto
-	// segment turns it back on and immediately reasserts the current phase.
-	let autoLayout = $state(true);
-	const nodesCollapsed = $derived(layoutFocus === 'consensus');
-	const consensusCollapsed = $derived(layoutFocus === 'nodes');
-	// The two resizable layout zones, tweened on a focus change.
+	// The two resizable layout zones (bound below); the controller tweens them on a
+	// focus change.
 	let nodeZoneEl = $state<HTMLElement>();
 	let consensusZoneEl = $state<HTMLElement>();
 
-	// Layout focus changes via the LayoutToggle, the panel headers and auto-layout. The zones resize via
-	// a flex/grid reflow that would otherwise snap, so we FLIP it: measure each
-	// zone's height, apply the new layout, then animate old→new in explicit pixels.
-	// A CSS transition can't do this cleanly — the flex-basis swap (fill ↔ header)
-	// snaps mid-tween. WAAPI height reverts to the flex height on finish, so there's
-	// no end-state jump. Skipped under reduced motion.
-	function setLayoutFocus(focus: 'balanced' | 'nodes' | 'consensus') {
-		// Any layout change revokes the header-cycle claim (see cycleLayoutFrom,
-		// which re-stamps it immediately after calling this).
-		lastHeaderActor = null;
-		const reduced =
-			motionMode === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		const zones = [nodeZoneEl, consensusZoneEl].filter((z): z is HTMLElement => !!z);
-		if (reduced || zones.length === 0) {
-			layoutFocus = focus;
-			return;
-		}
-		const before = zones.map((z) => z.getBoundingClientRect().height);
-		layoutFocus = focus;
-		void tick().then(() => {
-			// Pass 1: cancel any in-flight tween from a previous rapid change AND clear
-			// its leftover inline flex/height, so the after-heights measured next are
-			// the NEW layout's natural sizes — not a stale tween's target (which showed
-			// as a dead click followed by a snap).
-			for (const z of zones) {
-				z.getAnimations().forEach((a) => a.cancel());
-				z.style.flex = '';
-				z.style.height = '';
-			}
-			// Pass 2: measure the settled after-heights.
-			const after = zones.map((z) => z.getBoundingClientRect().height);
-			// Pass 3: tween each zone that actually changed. A `flex-1` zone ignores an
-			// animated `height` (flex-grow wins), so pin flex off + an explicit height
-			// for the tween, then hand back to flex on finish (lands on the same height
-			// the fill holds, so no end jump).
-			zones.forEach((z, i) => {
-				if (Math.abs(after[i] - before[i]) < 1) return;
-				z.style.flex = 'none';
-				z.style.height = `${before[i]}px`;
-				const anim = z.animate([{ height: `${before[i]}px` }, { height: `${after[i]}px` }], {
-					duration: 280,
-					easing: 'ease',
-					fill: 'forwards'
-				});
-				let cleaned = false;
-				const restore = () => {
-					if (cleaned) return;
-					cleaned = true;
-					anim.cancel();
-					z.style.flex = '';
-					z.style.height = '';
-				};
-				anim.onfinish = restore;
-				anim.oncancel = restore;
-			});
-		});
-	}
-
-	// Coarse run lifecycle, used to drive auto-layout. `thinking` = some MAGI is
-	// still generating (phase-1 answer or a debate round) and the consensus hasn't
-	// emitted yet; `synthesizing` = a MAGI is still working while the consensus
-	// streams alongside (the debate ledger); `reviewing` = every MAGI is done but
-	// the consensus is still streaming — hand it the full panel now rather than
-	// waiting for it to finish; `done` = the committed turn has a consensus; `idle`
-	// = nothing has run yet.
-	type RunPhase = 'idle' | 'thinking' | 'synthesizing' | 'reviewing' | 'done';
+	// Run lifecycle for auto-layout (phases: see RunPhase in layout-focus.svelte.ts).
 	const runPhase = $derived.by<RunPhase>(() => {
 		if (effectiveLoading) {
 			const nodesThinking = MAGI_NODE_NAMES.some(
@@ -265,78 +200,15 @@
 		return 'idle';
 	});
 
-	const PHASE_FOCUS: Record<RunPhase, 'balanced' | 'nodes' | 'consensus' | null> = {
-		idle: null,
-		thinking: 'nodes',
-		synthesizing: 'balanced',
-		reviewing: 'consensus',
-		done: 'consensus'
-	};
-
-	// None strategy produces no consensus, so auto-layout must never drift toward
-	// the (empty) consensus panel: keep the nodes expanded for every active phase
-	// instead of collapsing them at reviewing/done. Idle stays a no-op (null).
-	function autoFocusForPhase(phase: RunPhase): 'balanced' | 'nodes' | 'consensus' | null {
-		const base = PHASE_FOCUS[phase];
-		if (strategy === 'none' && base !== null) return 'nodes';
-		return base;
-	}
-
-	// Header-click layout cycling with a last-actor rule: a header only CONTINUES
-	// its cycle (max→shared→other→wrap) when that same header zone made the
-	// previous layout change. After anything else moves the layout — the other
-	// header, the LayoutToggle, auto-layout, the new-conversation reset — the
-	// claim is revoked (setLayoutFocus clears it) and the next header click
-	// restarts by expanding its own zone, regardless of the current focus. The
-	// one exception: if the layout is already sitting on that zone's max, the
-	// restart would be a dead click, so it advances instead.
-	// Routed through setLayoutFocus (not a raw assignment) so the FLIP runs AND the
-	// auto/manual split falls out for free: with auto on, the accordion keeps showing
-	// "Auto" and the next phase reclaims the focus (a temporary nudge); with auto off,
-	// the manual focus persists and the accordion reflects it.
-	const NODE_LAYOUT_CYCLE = ['nodes', 'balanced', 'consensus'] as const;
-	const CONSENSUS_LAYOUT_CYCLE = ['consensus', 'balanced', 'nodes'] as const;
-	// Plain `let` (not $state) — handler-local bookkeeping, never rendered.
-	let lastHeaderActor: 'nodes' | 'consensus' | null = null;
-	function cycleLayoutFrom(order: typeof NODE_LAYOUT_CYCLE | typeof CONSENSUS_LAYOUT_CYCLE) {
-		const actor = order[0]; // each cycle leads with its own zone's max state
-		const next =
-			lastHeaderActor !== actor && layoutFocus !== actor
-				? actor
-				: order[(order.indexOf(layoutFocus) + 1) % order.length];
-		setLayoutFocus(next);
-		lastHeaderActor = actor;
-	}
-
-	// Auto-layout: when on, move the focus accordion as the run progresses. Only
-	// fires on a *phase change* (so a manual nudge between phases sticks until the
-	// next transition), and stays disarmed until the first real `thinking` phase so
-	// a restored conversation doesn't yank the layout on load. Plain `let` (not
-	// $state) — these are effect-local bookkeeping, never rendered.
-	let lastRunPhase: RunPhase | null = null;
-	let autoLayoutArmed = false;
-	$effect(() => {
-		const phase = runPhase;
-		const prev = lastRunPhase;
-		lastRunPhase = phase;
-		if (phase === 'thinking') autoLayoutArmed = true;
-		if (!autoLayout || !autoLayoutArmed || phase === prev) return;
-		const focus = autoFocusForPhase(phase);
-		if (focus) setLayoutFocus(focus);
+	const layout = createLayoutFocus({
+		runPhase: () => runPhase,
+		strategy: () => strategy,
+		motionMode: () => motionMode,
+		nodeZone: () => nodeZoneEl,
+		consensusZone: () => consensusZoneEl
 	});
-
-	// LayoutToggle dispatch: the Auto segment re-arms auto-follow and snaps to the
-	// current phase's focus; any manual segment turns auto off and pins that focus.
-	function handleLayoutChoice(choice: 'auto' | 'balanced' | 'nodes' | 'consensus') {
-		if (choice === 'auto') {
-			autoLayout = true;
-			autoLayoutArmed = true;
-			setLayoutFocus(autoFocusForPhase(runPhase) ?? layoutFocus);
-		} else {
-			autoLayout = false;
-			setLayoutFocus(choice);
-		}
-	}
+	const nodesCollapsed = $derived(layout.focus === 'consensus');
+	const consensusCollapsed = $derived(layout.focus === 'nodes');
 
 	let debugScenario = $state<DebugScenario>(freshDebugScenario());
 	// Bumped each time a fresh `run-stats` event lands, so the panel re-reads
@@ -489,17 +361,6 @@
 		};
 	}
 
-	interface TierSnapshot {
-		live: LiveState;
-		assignments: [NodeAssignment, NodeAssignment, NodeAssignment];
-		configuredNodes: Set<number>;
-		consensusNode: MagiNodeName;
-		conversation: ConversationTurn[];
-	}
-
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- non-reactive cache, never triggers UI updates
-	const tierCache = new Map<TierName, TierSnapshot>();
-
 	// Per-tier config hydrated from localStorage on mount. `prefsHydrated` gates
 	// the persistence effect so it can't overwrite storage before the load runs.
 	let persistedSnapshots: Partial<Record<TierName, PersistedSnapshot>> = {};
@@ -552,21 +413,7 @@
 	// Cumulative token usage across the conversation, including the in-flight
 	// turn so the running total climbs live.
 	const conversationUsage = $derived.by(() => {
-		let input = 0;
-		let output = 0;
-		for (const turn of conversation) {
-			for (const node of MAGI_NODE_NAMES) {
-				const u = turn.nodeUsage[node];
-				if (u) {
-					input += u.inputTokens;
-					output += u.outputTokens;
-				}
-			}
-			if (turn.consensusUsage) {
-				input += turn.consensusUsage.inputTokens;
-				output += turn.consensusUsage.outputTokens;
-			}
-		}
+		let { input, output } = committedUsage(conversation);
 		for (const node of MAGI_NODE_NAMES) {
 			input += liveNodeUsage[node]?.inputTokens ?? 0;
 			output += liveNodeOutputs[node].tokens;
@@ -595,21 +442,13 @@
 	// last completed turn. Tracks how full that model's context is running.
 	function latestNodeInput(node: MagiNodeName): number {
 		const usage = liveNodeUsage[node];
-		if (usage) return usage.inputTokens;
-		for (let i = conversation.length - 1; i >= 0; i--) {
-			const u = conversation[i].nodeUsage[node];
-			if (u) return u.inputTokens;
-		}
-		return 0;
+		return usage ? usage.inputTokens : latestCommittedNodeInput(conversation, node);
 	}
 
 	function latestConsensusInput(): number {
-		if (liveConsensusUsage) return liveConsensusUsage.inputTokens;
-		for (let i = conversation.length - 1; i >= 0; i--) {
-			const u = conversation[i].consensusUsage;
-			if (u) return u.inputTokens;
-		}
-		return 0;
+		return liveConsensusUsage
+			? liveConsensusUsage.inputTokens
+			: latestCommittedConsensusInput(conversation);
 	}
 
 	// Nodes / consensus whose latest prompt is nearing their model's window.
@@ -805,7 +644,7 @@
 		// balanced/shared layout (the in-code default) regardless of how it was left,
 		// so a fresh session always opens neutral. Auto-layout then takes over once a
 		// run begins.
-		autoLayout = s.autoLayout ?? true;
+		layout.auto = s.autoLayout ?? true;
 		motionMode = s.motionMode ?? 'normal';
 	}
 
@@ -837,9 +676,9 @@
 				availableModels = getStaticModels(t);
 			}
 
-			// No in-session snapshot: restore the saved per-tier config when we
-			// have a usable one, else fall back to this tier's default assignments.
-			if (!tierCache.has(t) && availableModels.length >= 3) {
+			// Restore the saved per-tier config when we have a usable one, else fall
+			// back to this tier's default assignments.
+			if (availableModels.length >= 3) {
 				const persisted = persistedSnapshots[t];
 				if (persisted && persistedSnapshotUsable(persisted, t, availableModels)) {
 					applyPersistedSnapshot(persisted);
@@ -905,8 +744,8 @@
 			bgVariant,
 			palette,
 			scrollMode,
-			layoutFocus,
-			autoLayout,
+			layoutFocus: layout.focus,
+			autoLayout: layout.auto,
 			motionMode
 		};
 		if (!prefsHydrated) return;
@@ -943,57 +782,27 @@
 		saveConversations(conversationsByTier);
 	});
 
-	// Capture and restore the full per-tier snapshot. Kept as a symmetric
-	// pair so a new field is added to both sides at once, not threaded
-	// through twelve scattered assignments.
-	function captureTierSnapshot(): TierSnapshot {
-		return {
-			live: $state.snapshot(live),
-			assignments: [...assignments] as [NodeAssignment, NodeAssignment, NodeAssignment],
-			configuredNodes: new Set(configuredNodes),
-			consensusNode,
-			conversation: [...conversation]
-		};
-	}
-
-	function applyTierSnapshot(snap: TierSnapshot) {
-		// Clone so streaming into the restored tier can't mutate the cache entry.
-		live = structuredClone(snap.live);
-		assignments = [...snap.assignments] as [NodeAssignment, NodeAssignment, NodeAssignment];
-		configuredNodes.clear();
-		for (const v of snap.configuredNodes) configuredNodes.add(v);
-		consensusNode = snap.consensusNode;
-		conversation = snap.conversation;
-	}
-
-	function saveTierSnapshot() {
-		tierCache.set(tier, captureTierSnapshot());
-	}
-
+	// Restore a tier from the persisted per-tier maps (kept current in memory by the
+	// two persist effects above, whether or not localStorage works).
 	function loadTierSnapshot(t: TierName) {
-		const cached = tierCache.get(t);
-		if (cached) {
-			applyTierSnapshot(cached);
+		resetLiveState();
+		// Seat this tier's OWN config now, synchronously. fetchModels awaits the
+		// free-tier catalog, and the persist effect runs during that await: left
+		// holding the previous tier's seats it would save them as this tier's
+		// snapshot, overwriting the user's saved one. fetchModels re-validates
+		// against the live pool once it resolves.
+		const persisted = persistedSnapshots[t];
+		if (persisted) {
+			applyPersistedSnapshot(persisted);
 		} else {
-			resetLiveState();
-			// Seat this tier's OWN config now, synchronously. fetchModels awaits the
-			// free-tier catalog, and the persist effect runs during that await: left
-			// holding the previous tier's seats it would save them as this tier's
-			// snapshot, overwriting the user's saved one. fetchModels re-validates
-			// against the live pool once it resolves.
-			const persisted = persistedSnapshots[t];
-			if (persisted) {
-				applyPersistedSnapshot(persisted);
-			} else {
-				assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
-				configuredNodes.clear();
-				configuredNodes.add(0);
-				configuredNodes.add(1);
-				configuredNodes.add(2);
-				consensusNode = 'MAGI_1';
-			}
-			conversation = conversationsByTier[t] ?? [];
+			assignments = [...TIER_CONFIGS[t]] as [NodeAssignment, NodeAssignment, NodeAssignment];
+			configuredNodes.clear();
+			configuredNodes.add(0);
+			configuredNodes.add(1);
+			configuredNodes.add(2);
+			consensusNode = 'MAGI_1';
 		}
+		conversation = conversationsByTier[t] ?? [];
 		activeTurnQuery = '';
 		// A server-reseat override belongs to one run on the previous tier — drop it
 		// so it can't leak into this tier's seat picker.
@@ -1020,7 +829,6 @@
 			tierErrorTimer = setTimeout(() => (tierError = null), 2500);
 			return;
 		}
-		saveTierSnapshot();
 		tier = newTier;
 		loadTierSnapshot(newTier);
 		fetchModels(newTier);
@@ -1239,7 +1047,7 @@
 		// Back to a clean slate: when auto-layout is on, return the focus accordion
 		// to the balanced/shared view so the next turn starts from neutral ground
 		// (rather than lingering on the previous turn's expanded-consensus layout).
-		if (autoLayout) setLayoutFocus('balanced');
+		layout.reset();
 	}
 
 	// Build the POST body for a MAGI request. Extracted so the retry paths can
@@ -1767,7 +1575,7 @@
 				>
 					<MessageSquarePlus size={12} /> New conversation
 				</button>
-				<LayoutToggle focus={layoutFocus} auto={autoLayout} onchange={handleLayoutChoice} />
+				<LayoutToggle focus={layout.focus} auto={layout.auto} onchange={layout.choose} />
 			</div>
 			<div class="-mx-4 border-t border-(--magi-chrome-border) sm:hidden" aria-hidden="true"></div>
 			<div
@@ -1887,7 +1695,7 @@
 					onretry={() => retryNode(assignment.node)}
 					onchange={(gw, prov, model) => handleNodeChange(i, gw, prov, model)}
 					onlabelclick={REVEAL_NODE_NAMES ? () => (genericLabels = !genericLabels) : undefined}
-					onheadercycle={() => cycleLayoutFrom(NODE_LAYOUT_CYCLE)}
+					onheadercycle={() => layout.cycleFrom(NODE_LAYOUT_CYCLE)}
 				/>
 			{/each}
 		</div>
@@ -1896,7 +1704,7 @@
 		<div bind:this={consensusZoneEl} class={consensusCollapsed ? 'shrink-0' : 'flex-1 lg:min-h-0'}>
 			<ConsensusView
 				onexampleselect={requestExamplePrompt}
-				onheadercycle={() => cycleLayoutFrom(CONSENSUS_LAYOUT_CYCLE)}
+				onheadercycle={() => layout.cycleFrom(CONSENSUS_LAYOUT_CYCLE)}
 				transcript={consensusTranscript}
 				liveQuery={activeTurnQuery}
 				liveInput={liveConsensusUsage?.inputTokens ?? 0}
