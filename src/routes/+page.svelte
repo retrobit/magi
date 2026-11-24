@@ -1888,6 +1888,9 @@
 				consensusProvider={consensusAssignment.provider}
 				consensusModelDisplayName={getModelDisplayName(consensusAssignment)}
 				{consensusTemperament}
+				consensusLens={temperaments && consensusTemperament
+					? resolvedTemperaments[effectiveConsensusNode ?? consensusNode]
+					: undefined}
 				{temperamentAwareness}
 				{genericLabels}
 				{scrollMode}

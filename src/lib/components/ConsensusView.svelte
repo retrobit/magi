@@ -7,14 +7,12 @@
 		ScrollMode
 	} from '$lib/magi/types';
 	import { SECTION_RULE } from '$lib/magi/consensus/types';
+	import type { ResolvedTemperament } from '$lib/magi/temperaments';
 	import {
 		MAGI_NODE_NAMES,
 		GATEWAY_LABELS,
 		NODE_LABELS,
 		NODE_LABELS_GENERIC,
-		NODE_TEMPERAMENTS,
-		TEMPERAMENT_LABELS,
-		TEMPERAMENT_TOOLTIPS,
 		contextUsageClass,
 		formatTokenCount,
 		tokenUsageTooltip,
@@ -68,6 +66,10 @@
 		consensusProvider?: string;
 		consensusModelDisplayName?: string;
 		consensusTemperament?: boolean;
+		/** The lens the synthesizer will actually run with — the consensus seat's
+		 *  resolved (possibly edited) temperament. Undefined when none applies,
+		 *  including when the master Temperaments switch is off. Display only. */
+		consensusLens?: Pick<ResolvedTemperament, 'label' | 'description'>;
 		temperamentAwareness?: boolean;
 		genericLabels?: boolean;
 		scrollMode?: ScrollMode;
@@ -112,6 +114,7 @@
 		consensusProvider,
 		consensusModelDisplayName,
 		consensusTemperament = false,
+		consensusLens,
 		temperamentAwareness = false,
 		genericLabels = false,
 		scrollMode = 'follow',
@@ -610,11 +613,10 @@
 				<h3 class="magi-display text-base font-bold tracking-widest text-(--magi-text)">
 					MAGI CONSENSUS
 				</h3>
-				{#if consensusTemperament && consensusNodeApplies && consensusTempApplies}
+				{#if consensusLens && consensusNodeApplies && consensusTempApplies}
 					<span
 						class="magi-temperament-badge rounded px-1.5 py-0.5 magi-chip"
-						use:tooltip={TEMPERAMENT_TOOLTIPS[NODE_TEMPERAMENTS[consensusNode]]}
-						>{TEMPERAMENT_LABELS[NODE_TEMPERAMENTS[consensusNode]]}</span
+						use:tooltip={consensusLens.description}>{consensusLens.label}</span
 					>
 				{/if}
 			</div>
