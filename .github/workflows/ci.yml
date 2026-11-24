@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# The job only reads the repo — no token write scopes.
+permissions:
+  contents: read
+
 # A newer push to the same branch cancels an in-flight run.
 concurrency:
   group: ci-${{ github.ref }}
