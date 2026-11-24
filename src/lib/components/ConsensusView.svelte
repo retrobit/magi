@@ -586,9 +586,9 @@
 {/snippet}
 
 <div
-	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg md:max-h-none {collapsed
+	class="magi-panel flex h-full max-h-[70vh] flex-col overflow-hidden rounded-lg lg:max-h-none {collapsed
 		? 'min-h-0'
-		: 'min-h-72 md:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
+		: 'min-h-72 lg:min-h-0'} {loading && allModelsResponded ? 'pulse-consensus' : ''}"
 >
 	{#if loading && allModelsResponded}
 		<!-- Static side-glow overlay; only its opacity animates (see <style>). -->
