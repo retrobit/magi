@@ -12,14 +12,13 @@ describe('markUnhealthy', () => {
 		markUnhealthy('test-model', 'connection refused');
 		const entry = getHealthStatus('test-model');
 		expect(entry).toBeDefined();
-		expect(entry!.status).toBe('unhealthy');
 		expect(entry!.lastError).toBe('connection refused');
 	});
 
-	it('overwrites previous health status', () => {
-		healthCache.set('test-model', { status: 'healthy', lastChecked: Date.now() });
+	it('overwrites the previous mark', () => {
+		markUnhealthy('test-model', 'first');
 		markUnhealthy('test-model', 'timeout');
-		expect(getHealthStatus('test-model')!.status).toBe('unhealthy');
+		expect(getHealthStatus('test-model')!.lastError).toBe('timeout');
 	});
 });
 
@@ -29,14 +28,12 @@ describe('getHealthStatus', () => {
 	});
 
 	it('returns cached entry', () => {
-		healthCache.set('cached-model', { status: 'healthy', lastChecked: Date.now() });
-		const entry = getHealthStatus('cached-model');
-		expect(entry!.status).toBe('healthy');
+		healthCache.set('cached-model', { lastChecked: Date.now(), lastError: 'cached' });
+		expect(getHealthStatus('cached-model')!.lastError).toBe('cached');
 	});
 
 	it('clears expired unhealthy entries', () => {
 		healthCache.set('expired-model', {
-			status: 'unhealthy',
 			lastChecked: Date.now() - 5 * 60_000,
 			lastError: 'old failure'
 		});
@@ -56,7 +53,6 @@ describe('isModelHealthy', () => {
 
 	it('returns true after unhealthy TTL expires', () => {
 		healthCache.set('recovering-model', {
-			status: 'unhealthy',
 			lastChecked: Date.now() - 5 * 60_000,
 			lastError: 'old failure'
 		});

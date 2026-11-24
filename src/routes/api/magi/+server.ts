@@ -3,10 +3,9 @@ import type { RequestHandler } from './$types';
 import { streamText, type ModelMessage } from 'ai';
 import { getModel } from '$lib/server/models';
 import { getStrategy } from '$lib/magi/consensus';
-import type { ConsensusContext } from '$lib/magi/consensus/types';
+import type { ConsensusContext, RunStats } from '$lib/magi/consensus/types';
 import {
 	TIER_CONFIGS,
-	DEFAULT_MAGI_CONFIG,
 	FREE_MAGI_CONFIG,
 	validateConfig,
 	buildDiverseConfig,
@@ -22,8 +21,8 @@ import {
 	type StreamEventPayloads
 } from '$lib/magi/stream-events';
 import { resolveNodeTemperament } from '$lib/magi/temperaments';
-import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
 import { scrubErrorMessage } from '$lib/magi/scrub-error';
+import { OPINIONATED_DIRECTIVE, toUsage } from '$lib/magi/consensus/deliberation';
 import { findModelEntry } from '$lib/magi/registry';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import {
@@ -37,115 +36,15 @@ import { getOpenRouterFreeModels } from '$lib/server/openrouter';
 import { markCacheBreakpoint } from '$lib/magi/prompt-cache';
 import { logEvent, startTimer } from '$lib/server/logger';
 import { checkApiKey } from '$lib/server/auth';
+import { createStallGuard, isThinkingPart } from '$lib/server/stall-guard';
+import { extractErrorMessage, isAuthError, isAvailabilityError } from '$lib/server/upstream-errors';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 
-// Validate hardcoded configs once at module load
-validateConfig(DEFAULT_MAGI_CONFIG);
-validateConfig(FREE_MAGI_CONFIG);
-
-/** Classify an error message to decide whether to poison the health cache.
- *  Only availability-shaped failures (HTTP 404/410/5xx, "No endpoints found",
- *  model-not-found variants) should mark a model unhealthy — context-window
- *  overflows, auth rejections, and rate-limits are per-request conditions that
- *  don't indicate the model itself is down, so caching them blocks retries for
- *  2 min on every turn for no gain. Exported for unit tests. */
-export function _isAvailabilityError(message: string): boolean {
-	const lower = message.toLowerCase();
-	// Exclusions run FIRST: per-request failures must never poison the cache,
-	// and their messages routinely contain 3-digit numbers ("maximum context
-	// length is 512 tokens", "limit of 500 requests per day") that the
-	// status-code patterns below would otherwise match.
-	if (
-		lower.includes('context') ||
-		lower.includes('token') ||
-		// An empty response is a per-request fluke, not a down endpoint — a model
-		// that returns nothing once usually answers fine on the next turn, so never
-		// poison its health for it.
-		lower.includes('empty response') ||
-		/\b(401|403|429)\b/.test(message) ||
-		lower.includes('unauthorized') ||
-		lower.includes('forbidden') ||
-		lower.includes('rate limit') ||
-		lower.includes('rate_limit')
-	)
-		return false;
-	// OpenRouter "no endpoints" fires when no provider serves the model right now
-	if (lower.includes('no endpoints found')) return true;
-	// Model-not-found and similar gone/missing phrases
-	if (lower.includes('model not found') || lower.includes('does not exist')) return true;
-	// HTTP 5xx surfaced as text (some providers include the status in the message)
-	if (/\b5\d{2}\b/.test(message)) return true;
-	// HTTP 404 / 410 surfaced as text
-	if (/\b(404|410)\b/.test(message)) return true;
-	// Default: treat unknown errors as availability failures so genuinely broken
-	// models are still cached (conservative — avoids hammering a down endpoint).
-	return true;
-}
-
-/** True when an error is an auth/config rejection (a 401/403 — missing, invalid,
- *  or expired API key) rather than model flakiness. Walks the raw error tree
- *  (status code + body + nested cause/lastError) because streamText hands the
- *  caller a generic NoOutputGeneratedError while the real 401 only carries a
- *  status code on the underlying APICallError. Used so an all-nodes-failed turn
- *  caused by a dead key reads as a server config problem, not "models failed".
- *  Takes the raw error object (not a message) so the status code is available. */
-export function _isAuthError(err: unknown, depth = 0, seen = new Set<unknown>()): boolean {
-	if (!err || typeof err !== 'object' || depth > 5 || seen.has(err)) return false;
-	seen.add(err);
-	const e = err as {
-		statusCode?: number;
-		responseBody?: string;
-		message?: string;
-		cause?: unknown;
-		lastError?: unknown;
-	};
-	if (e.statusCode === 401 || e.statusCode === 403) return true;
-	const text = `${e.responseBody ?? ''} ${e.message ?? ''}`.toLowerCase();
-	if (
-		/\b(401|403)\b/.test(text) ||
-		text.includes('unauthorized') ||
-		text.includes('forbidden') ||
-		text.includes('user not found') ||
-		text.includes('invalid api key') ||
-		text.includes('no auth credentials') ||
-		text.includes('authentication')
-	)
-		return true;
-	return _isAuthError(e.cause, depth + 1, seen) || _isAuthError(e.lastError, depth + 1, seen);
-}
-
-// Exported for unit testing — the nested unwrap is brittle enough to warrant
-// direct coverage of each error shape. SvelteKit reserves bare exports from
-// route files for handler names, so this is prefixed with `_` per its convention.
-export function _extractErrorMessage(err: unknown): string {
-	if (err && typeof err === 'object') {
-		// AI SDK wraps upstream errors — dig into responseBody for the real message
-		const apiErr = err as { responseBody?: string };
-		if (apiErr.responseBody) {
-			try {
-				const body = JSON.parse(apiErr.responseBody);
-				const raw = body?.error?.metadata?.raw;
-				if (raw) {
-					try {
-						return JSON.parse(raw).error ?? raw;
-					} catch {
-						return raw;
-					}
-				}
-				if (body?.error?.message) return body.error.message;
-			} catch {
-				// fall through
-			}
-		}
-		// RetryError — dig into the last error
-		const retryErr = err as { lastError?: unknown };
-		if (retryErr.lastError) return _extractErrorMessage(retryErr.lastError);
-	}
-	if (err instanceof Error) return err.message;
-	return 'Unknown error';
-}
+// Validate every hardcoded config once at module load (the tier presets include
+// the default and the static free config).
+Object.values(TIER_CONFIGS).forEach(validateConfig);
 
 // Replay a node's own past turns as an alternating user/assistant message list.
 // "Own thread only" — a node never sees the other nodes or the consensus. Turns
@@ -166,6 +65,42 @@ function buildNodeMessages(
 	return messages;
 }
 
+// Only voting runs carry the rich winner/juror metrics worth a dedicated log line —
+// synthesis already logged consensus.complete.
+function logVote(requestId: string, s: RunStats) {
+	const v = s.voting;
+	if (!v) return;
+	// Flatten the nested per-juror grid into greppable key=value lines
+	// (`MAGI_1_A=MAGI_2:7`) so a tail of dev logs reads cleanly without needing a
+	// JSON parser.
+	const jurorPairs = v.jurors.flatMap((j) => {
+		const out = [`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`];
+		if (j.candidateB) out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
+		return out;
+	});
+	logEvent('info', 'vote.complete', {
+		requestId,
+		strategy: s.strategy,
+		tier: s.tier,
+		synthesizerAwareness: s.synthesizerAwareness,
+		consensusTemperament: s.consensusTemperament,
+		winner: v.winner,
+		winnerModel: v.winnerModel,
+		winnerTotal: v.winnerTotal,
+		tiebreak: v.tiebreak,
+		totals: Object.entries(v.totals)
+			.map(([n, t]) => `${n}:${t}`)
+			.join(','),
+		lengths: Object.entries(v.lengths)
+			.map(([n, l]) => `${n}:${l}`)
+			.join(','),
+		avgA: v.positionBias.avgA.toFixed(2),
+		avgB: v.positionBias.avgB.toFixed(2),
+		biasN: v.positionBias.n,
+		jurors: jurorPairs.join(',')
+	});
+}
+
 // Stall guards bound a model call that has gone quiet, turning a hang into a
 // clean failure the turn can route around (well inside the maxDuration cap
 // below). Thinking models answer only after a silent think — measured on the
@@ -174,7 +109,7 @@ function buildNodeMessages(
 // - THINKING_WINDOW_MS while it is (or may be) thinking: every call starts in
 //   it, because some providers think with no visible signal (Gemini), and any
 //   visible thinking re-arms it (Claude and GPT reasoning blocks, OpenRouter
-//   reasoning text — see _isThinkingPart).
+//   reasoning text — see isThinkingPart).
 // - The short idle window once it is answering: each answer chunk re-arms it,
 //   so a model that goes silent mid-answer is caught quickly. Consensus emits
 //   events sparsely between (non-streamed) debate rounds, so its idle window is
@@ -182,64 +117,6 @@ function buildNodeMessages(
 const THINKING_WINDOW_MS = 120_000;
 const NODE_STALL_TIMEOUT_MS = 40_000;
 const CONSENSUS_STALL_TIMEOUT_MS = 90_000;
-
-/** A child abort signal that fires when `parent` aborts OR when `reset()` hasn't
- *  been called within the current window — `firstMs` at the start, then the
- *  window passed to each `reset(ms)` (default `idleMs`). Call `cleanup()` when the
- *  stream ends. `stalledAfterMs()` is the window that tripped (null if the idle
- *  timer never fired), so a stall can be labelled distinctly from a client
- *  teardown and with its real length. The timer self-clears whenever the signal
- *  aborts. Exported for unit tests; `_`-prefixed per the route's bare-export
- *  convention. */
-export function _createStallGuard(parent: AbortSignal, idleMs: number, firstMs = idleMs) {
-	const controller = new AbortController();
-	let stalledAfter: number | null = null;
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const onParentAbort = () => controller.abort(parent.reason);
-	if (parent.aborted) controller.abort(parent.reason);
-	else parent.addEventListener('abort', onParentAbort, { once: true });
-	// Whatever aborts the call (idle fire or client), stop the pending timer.
-	controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
-	const reset = (ms = idleMs) => {
-		if (controller.signal.aborted) return;
-		clearTimeout(timer);
-		timer = setTimeout(() => {
-			stalledAfter = ms;
-			controller.abort(new Error(`Stalled — no output for ${Math.round(ms / 1000)}s`));
-		}, ms);
-	};
-	const cleanup = () => {
-		clearTimeout(timer);
-		parent.removeEventListener('abort', onParentAbort);
-	};
-	reset(firstMs);
-	return {
-		signal: controller.signal,
-		reset,
-		cleanup,
-		timedOut: () => stalledAfter !== null,
-		stalledAfterMs: () => stalledAfter
-	};
-}
-
-/** Whether a streamText `fullStream` part shows the model is thinking. Claude and
- *  the GPT Responses API surface reasoning as parts; OpenRouter's chat endpoint
- *  streams it as `delta.reasoning` text that the AI SDK's chat model drops, so it
- *  is read from the raw chunk (requested with `includeRawChunks`). */
-export function _isThinkingPart(part: { type: string; rawValue?: unknown }): boolean {
-	if (part.type === 'reasoning-start' || part.type === 'reasoning-delta') return true;
-	if (part.type !== 'raw') return false;
-	const delta = (
-		part.rawValue as {
-			choices?: { delta?: { reasoning?: unknown; reasoning_details?: unknown } }[];
-		}
-	)?.choices?.[0]?.delta;
-	if (!delta) return false;
-	return (
-		(typeof delta.reasoning === 'string' && delta.reasoning.length > 0) ||
-		(Array.isArray(delta.reasoning_details) && delta.reasoning_details.length > 0)
-	);
-}
 
 // Vercel serverless function config for this route. The MAGI run streams SSE for
 // the whole debate/synthesis — on slow free-tier models that routinely exceeds
@@ -453,7 +330,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 	} else if (tier === 'free') {
 		// Resolve free tier dynamically from OpenRouter. Gate on the RESULTING
-		// config arity, not the pool size: buildDiverseConfig now backfills to three
+		// config arity, not the pool size: buildDiverseConfig backfills to three
 		// whenever the pool has >=3 models, but fall back to the static free config
 		// if it ever yields fewer than a full three seats rather than casting a short
 		// array to the 3-tuple MagiConfig (which consensus assumes is exactly 3).
@@ -500,6 +377,24 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				})
 		: [];
 
+	// The current query as every node sees it. The suffixes go on this turn only
+	// (never the replayed history), Opinionated before the debate SUMMARY ask so
+	// that line stays at the very end where the parser expects it.
+	// - Opinionated: nudge each model to commit to a single answer on open-ended
+	//   questions.
+	// - Debate: Multi-Round Debate uses each model's opening answer as round 0, so
+	//   each model seals its reply with a `SUMMARY:` line — those become the
+	//   "Initial positions" ledger entries (rather than a heuristic first-sentence
+	//   gist).
+	const nodeQuery = [
+		query,
+		useOpinionated && OPINIONATED_DIRECTIVE,
+		strategyName === 'debate' &&
+			'At the very end of your reply, on its own line, write:\nSUMMARY: <one short sentence stating your position on the question>'
+	]
+		.filter(Boolean)
+		.join('\n\n');
+
 	const abortController = new AbortController();
 	request.signal.addEventListener('abort', () => abortController.abort(), { once: true });
 
@@ -540,7 +435,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				const orModels = config.some((a) => a.gateway === 'openrouter')
 					? await getOpenRouterFreeModels()
 					: [];
-				const nodeHealth = dispatchConfig.map(({ node, gateway, provider, modelId }) => {
+				const nodeHealth = dispatchConfig.map((assignment) => {
+					const { gateway, modelId } = assignment;
 					// The health cache describes the OPERATOR's access to a model. A seat
 					// running on a visitor's own key neither reads it here nor writes it on
 					// failure (below): one caller's bad key or missing model access must
@@ -551,39 +447,31 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						// auto-retry window opens, so the UI can show a concrete wait.
 						const agoMs = entry ? Date.now() - entry.lastChecked : 0;
 						const agoS = Math.round(agoMs / 1000);
-						const remainMs = entry ? Math.max(0, UNHEALTHY_TTL - agoMs) : 0;
-						const remainS = Math.ceil(remainMs / 1000);
+						const remainS = Math.ceil((entry ? Math.max(0, UNHEALTHY_TTL - agoMs) : 0) / 1000);
 						const lastErr = entry?.lastError ?? 'unknown error';
-						const reason = `Skipped: failed ${agoS}s ago (${lastErr}); auto-retries in ${remainS}s`;
 						return {
-							node,
-							gateway,
-							provider,
-							modelId,
+							...assignment,
 							healthy: false,
-							reason
+							reason: `Skipped: failed ${agoS}s ago (${lastErr}); auto-retries in ${remainS}s`
 						};
 					}
+					// The catalog only lists `:free` variants, so only free slugs can be
+					// membership-checked against it. A paid OpenRouter slug (BYOK, or a
+					// dev/operator run) isn't in the list and must fall through to fail
+					// loudly at call time — not get rejected here as "no longer available".
 					if (
 						gateway === 'openrouter' &&
-						// The catalog only lists `:free` variants, so only free slugs can be
-						// membership-checked against it. A paid OpenRouter slug (BYOK, or a
-						// dev/operator run) isn't in the list and must fall through to fail
-						// loudly at call time — not get rejected here as "no longer available".
 						modelId.endsWith(':free') &&
 						orModels.length > 0 &&
 						!orModels.some((m) => m.id === modelId)
 					) {
 						return {
-							node,
-							gateway,
-							provider,
-							modelId,
+							...assignment,
 							healthy: false,
 							reason: 'Model no longer available on OpenRouter'
 						};
 					}
-					return { node, gateway, provider, modelId, healthy: true, reason: '' };
+					return { ...assignment, healthy: true, reason: '' };
 				});
 
 				// Emit model-error immediately for unhealthy nodes (no API call)
@@ -634,7 +522,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						// Abort THIS node if it goes quiet for too long (windows above) — a hung
 						// free model would otherwise keep the whole turn pending. A timed-out node
 						// fails cleanly and the turn proceeds with the survivors.
-						const stall = _createStallGuard(
+						const stall = createStallGuard(
 							abortController.signal,
 							NODE_STALL_TIMEOUT_MS,
 							THINKING_WINDOW_MS
@@ -647,35 +535,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// OpenRouter models may not support the system role —
 							// prepend temperament to the first user message instead
 							const useSystem = temperamentPrompt && gateway !== 'openrouter';
-							const messages = buildNodeMessages(node, history, query);
+							const messages = buildNodeMessages(node, history, nodeQuery);
 							if (temperamentPrompt && gateway === 'openrouter') {
 								const first = messages[0];
 								messages[0] = {
 									role: 'user',
 									content: `${temperamentPrompt}\n\n---\n\n${first.content as string}`
-								};
-							}
-							// Opinionated mode: nudge each model to commit to a single answer on
-							// open-ended questions. Appended to the current query only (never the
-							// replayed history) and before the debate SUMMARY line so that line
-							// stays at the very end where the parser expects it.
-							if (useOpinionated) {
-								const last = messages[messages.length - 1];
-								messages[messages.length - 1] = {
-									role: 'user',
-									content: `${last.content as string}\n\n${OPINIONATED_DIRECTIVE}`
-								};
-							}
-							// Multi-Round Debate uses each model's opening answer as round 0, so we
-							// ask each model to seal its reply with a `SUMMARY:` line — those become
-							// the "Initial positions" ledger entries (rather than a heuristic first-
-							// sentence gist). Only attached to the current query, so prior turns'
-							// replayed history isn't mutated.
-							if (strategyName === 'debate') {
-								const last = messages[messages.length - 1];
-								messages[messages.length - 1] = {
-									role: 'user',
-									content: `${last.content as string}\n\nAt the very end of your reply, on its own line, write:\nSUMMARY: <one short sentence stating your position on the question>`
 								};
 							}
 							// Cache the replayed thread — a no-op for non-Anthropic gateways.
@@ -702,7 +567,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									ttftMs ??= nodeTimer();
 									chunks.push(part.text);
 									send('model-chunk', { node, text: part.text });
-								} else if (_isThinkingPart(part)) {
+								} else if (isThinkingPart(part)) {
 									stall.reset(THINKING_WINDOW_MS);
 								} else if (part.type === 'abort') {
 									// fullStream ends quietly on abort; a stall mid-answer must not
@@ -711,20 +576,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								}
 							}
 							const fullText = chunks.join('');
-							const usage = await result.usage;
-							const cached = usage.cachedInputTokens ?? 0;
+							const usage = toUsage(await result.usage);
 							// A node that streamed nothing usable can't take part in consensus.
 							// Count its token usage, then treat the empty answer as a failure so
 							// it's excluded from the debate/vote rather than seeding a phantom
 							// position — an empty stance agrees with no one, which on its own can
 							// manufacture a stalemate. It surfaces as a model-error via the catch.
 							if (fullText.trim() === '') {
-								send('model-usage', {
-									node,
-									inputTokens: usage.inputTokens ?? 0,
-									outputTokens: usage.outputTokens ?? 0,
-									cachedInputTokens: cached
-								});
+								send('model-usage', { node, ...usage });
 								throw new Error('The model returned an empty response.');
 							}
 							logEvent('info', 'node.complete', {
@@ -733,19 +592,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								model: modelId,
 								ttftMs: ttftMs ?? nodeTimer(),
 								totalMs: nodeTimer(),
-								inputTokens: usage.inputTokens ?? 0,
-								outputTokens: usage.outputTokens ?? 0,
-								cachedTokens: cached,
+								inputTokens: usage.inputTokens,
+								outputTokens: usage.outputTokens,
+								cachedTokens: usage.cachedInputTokens,
 								chars: fullText.length
 							});
 							const response: MagiResponse = { node, gateway, provider, text: fullText };
 							send('model-response', response);
-							send('model-usage', {
-								node,
-								inputTokens: usage.inputTokens ?? 0,
-								outputTokens: usage.outputTokens ?? 0,
-								cachedInputTokens: cached
-							});
+							send('model-usage', { node, ...usage });
 							return response;
 						} catch (err) {
 							// A client abort tears down every in-flight node at once — that
@@ -761,7 +615,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							const message =
 								stalledAfter !== null
 									? `The model stalled — no output for ${stalledAfter / 1000}s.`
-									: _extractErrorMessage(rootErr);
+									: extractErrorMessage(rootErr);
 							logEvent('error', 'node.failed', {
 								requestId,
 								node,
@@ -772,11 +626,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// context-length overflows, auth rejections, and rate-limits are
 							// per-request, so marking the model unhealthy would block every
 							// subsequent turn for 2 minutes for no reason.
-							// Also gate on the raw error: _isAvailabilityError only excludes auth
+							// Also gate on the raw error: isAvailabilityError only excludes auth
 							// failures whose MESSAGE shows 401/403, but an opaque body like "User
 							// not found." slips through and would wrongly poison health for 2 min —
 							// burying the auth message on every following turn.
-							if (!byok?.[gateway] && !_isAuthError(rootErr) && _isAvailabilityError(message)) {
+							if (!byok?.[gateway] && !isAuthError(rootErr) && isAvailabilityError(message)) {
 								markUnhealthy(modelId, message);
 							}
 							send('model-error', { node, gateway, provider, error: scrubErrorMessage(message) });
@@ -830,7 +684,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					// empty they are all rejections.
 					const allAuth =
 						results.length > 0 &&
-						results.every((r) => r.status === 'rejected' && _isAuthError(r.reason));
+						results.every((r) => r.status === 'rejected' && isAuthError(r.reason));
 					logEvent('error', 'request.aborted', {
 						requestId,
 						reason: allAuth
@@ -882,28 +736,25 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				// failed model for the final answer — likely to fail again. So if the
 				// seat node didn't respond, reseat consensus onto the first node that
 				// did. (Voting ignores the seat — it crowns by tally — so this is a
-				// no-op there.) When nothing responded, keep the original index and let
-				// the strategy emit its own empty-set handling.
+				// no-op there.) At least one node responded here, so a survivor always exists.
 				let effectiveConsensusIndex = consensusNodeIndex;
 				const seatResponded = responses.some((r) => r.node === config[consensusNodeIndex].node);
-				if (responses.length > 0 && !seatResponded) {
+				if (!seatResponded) {
 					const fallbackIndex = config.findIndex((c) => responses.some((r) => r.node === c.node));
-					if (fallbackIndex !== -1) {
-						logEvent('info', 'consensus.reseat', {
-							requestId,
-							from: config[consensusNodeIndex].node,
-							to: config[fallbackIndex].node,
-							reason: 'consensus seat did not respond in phase 1'
-						});
-						effectiveConsensusIndex = fallbackIndex;
-					}
+					logEvent('info', 'consensus.reseat', {
+						requestId,
+						from: config[consensusNodeIndex].node,
+						to: config[fallbackIndex].node,
+						reason: 'consensus seat did not respond in phase 1'
+					});
+					effectiveConsensusIndex = fallbackIndex;
 				}
 
 				const consensusSeat = config[effectiveConsensusIndex];
 				// Same stall guard for the consensus stream: the thinking window until its
 				// first event, then a longer idle window than a node's, since debate emits
 				// events sparsely between its (non-streamed) rounds.
-				const consensusStall = _createStallGuard(
+				const consensusStall = createStallGuard(
 					abortController.signal,
 					CONSENSUS_STALL_TIMEOUT_MS,
 					THINKING_WINDOW_MS
@@ -917,13 +768,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					getModel: (gateway, modelId) => getModel(gateway, modelId, byok),
 					nodeAssignments: config,
 					consensusNodeIndex: effectiveConsensusIndex,
-					consensusTemperament: useConsensusTemperament ?? false,
-					synthesizerAwareness: useAwareness ?? false,
-					nodeTemperaments: useTemperaments ?? false,
+					consensusTemperament: useConsensusTemperament,
+					synthesizerAwareness: useAwareness,
+					nodeTemperaments: useTemperaments,
 					customTemperaments,
-					opinionated: useOpinionated ?? false,
-					collaborative: useCollaborative ?? false,
-					genericLabels: useGenericLabels ?? true,
+					opinionated: useOpinionated,
+					collaborative: useCollaborative,
+					genericLabels: useGenericLabels,
 					signal: consensusStall.signal,
 					tier,
 					// Fresh per-request seed so voting/debate rotate which peer sits in
@@ -978,48 +829,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 									cachedInputTokens: event.cachedInputTokens
 								});
 								break;
-							case 'run-stats': {
-								const s = event.stats;
-								const v = s.voting;
-								// Only voting runs carry the rich winner/juror metrics worth a
-								// dedicated log line — synthesis already logged consensus.complete.
-								if (v) {
-									// Flatten the nested per-juror grid into greppable key=value
-									// lines (`MAGI_1_A=MAGI_2:7`) so a tail of dev logs reads
-									// cleanly without needing a JSON parser.
-									const jurorPairs = v.jurors.flatMap((j) => {
-										const out: string[] = [];
-										out.push(`${j.juror}_A=${j.candidateA.node}:${j.candidateA.score ?? '∅'}`);
-										if (j.candidateB) {
-											out.push(`${j.juror}_B=${j.candidateB.node}:${j.candidateB.score ?? '∅'}`);
-										}
-										return out;
-									});
-									logEvent('info', 'vote.complete', {
-										requestId,
-										strategy: s.strategy,
-										tier: s.tier,
-										synthesizerAwareness: s.synthesizerAwareness,
-										consensusTemperament: s.consensusTemperament,
-										winner: v.winner,
-										winnerModel: v.winnerModel,
-										winnerTotal: v.winnerTotal,
-										tiebreak: v.tiebreak,
-										totals: Object.entries(v.totals)
-											.map(([n, t]) => `${n}:${t}`)
-											.join(','),
-										lengths: Object.entries(v.lengths)
-											.map(([n, l]) => `${n}:${l}`)
-											.join(','),
-										avgA: v.positionBias.avgA.toFixed(2),
-										avgB: v.positionBias.avgB.toFixed(2),
-										biasN: v.positionBias.n,
-										jurors: jurorPairs.join(',')
-									});
-								}
-								send('run-stats', s);
+							case 'run-stats':
+								logVote(requestId, event.stats);
+								send('run-stats', event.stats);
 								break;
-							}
 							case 'node-round':
 								send('node-round', { node: event.node, entry: event.entry });
 								break;

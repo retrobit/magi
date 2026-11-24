@@ -1,5 +1,5 @@
+/** An entry in the cache means the model is unhealthy until it ages out. */
 export interface ModelHealthEntry {
-	status: 'healthy' | 'unhealthy' | 'unknown';
 	lastChecked: number;
 	lastError?: string;
 }
@@ -12,7 +12,6 @@ const CLEANUP_INTERVAL = 15 * 60_000;
 
 export function markUnhealthy(modelId: string, reason: string): void {
 	healthCache.set(modelId, {
-		status: 'unhealthy',
 		lastChecked: Date.now(),
 		lastError: reason
 	});
@@ -21,7 +20,7 @@ export function markUnhealthy(modelId: string, reason: string): void {
 export function getHealthStatus(modelId: string): ModelHealthEntry | undefined {
 	const entry = healthCache.get(modelId);
 	if (!entry) return undefined;
-	if (entry.status === 'unhealthy' && Date.now() - entry.lastChecked > UNHEALTHY_TTL) {
+	if (Date.now() - entry.lastChecked > UNHEALTHY_TTL) {
 		healthCache.delete(modelId);
 		return undefined;
 	}
@@ -29,8 +28,7 @@ export function getHealthStatus(modelId: string): ModelHealthEntry | undefined {
 }
 
 export function isModelHealthy(modelId: string): boolean {
-	const entry = getHealthStatus(modelId);
-	return !entry || entry.status !== 'unhealthy';
+	return !getHealthStatus(modelId);
 }
 
 /** Remove a model's unhealthy entry so the next pre-flight check actually calls

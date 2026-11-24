@@ -7,14 +7,9 @@ import { decodeStreamEvents } from '$lib/magi/stream-events';
 import { checkRateLimit } from '$lib/server/rate-limit';
 import { isModelHealthy, markUnhealthy } from '$lib/server/health';
 import { logEvent } from '$lib/server/logger';
-import {
-	POST,
-	_createStallGuard,
-	_isThinkingPart,
-	_extractErrorMessage,
-	_isAvailabilityError,
-	_isAuthError
-} from './+server';
+import { POST } from './+server';
+import { OPINIONATED_DIRECTIVE } from '$lib/magi/consensus/deliberation';
+import { resolveNodeTemperament } from '$lib/magi/temperaments';
 import { scrubErrorMessage } from '$lib/magi/scrub-error';
 
 interface MutableEnv {
@@ -541,41 +536,6 @@ describe('POST /api/magi — streaming', () => {
 	});
 });
 
-describe('_extractErrorMessage', () => {
-	it('unwraps a JSON provider error nested in responseBody.metadata.raw', () => {
-		const raw = JSON.stringify({ error: 'rate limit exceeded' });
-		const err = { responseBody: JSON.stringify({ error: { metadata: { raw } } }) };
-		expect(_extractErrorMessage(err)).toBe('rate limit exceeded');
-	});
-
-	it('returns the raw string when metadata.raw is not JSON', () => {
-		const err = { responseBody: JSON.stringify({ error: { metadata: { raw: 'upstream 503' } } }) };
-		expect(_extractErrorMessage(err)).toBe('upstream 503');
-	});
-
-	it('falls back to error.message inside responseBody', () => {
-		const err = { responseBody: JSON.stringify({ error: { message: 'bad request' } }) };
-		expect(_extractErrorMessage(err)).toBe('bad request');
-	});
-
-	it('recurses into a RetryError lastError', () => {
-		expect(_extractErrorMessage({ lastError: new Error('final attempt failed') })).toBe(
-			'final attempt failed'
-		);
-	});
-
-	it('uses the Error message when there is no wrapping', () => {
-		expect(_extractErrorMessage(new Error('plain boom'))).toBe('plain boom');
-	});
-
-	it('returns a default for unrecognised or malformed values', () => {
-		expect(_extractErrorMessage({})).toBe('Unknown error');
-		expect(_extractErrorMessage(null)).toBe('Unknown error');
-		// Malformed responseBody JSON falls through; a plain object is not an Error.
-		expect(_extractErrorMessage({ responseBody: '{not json', message: 'x' })).toBe('Unknown error');
-	});
-});
-
 describe('scrubErrorMessage', () => {
 	it('redacts request URLs that could carry keys in the query string', () => {
 		const out = scrubErrorMessage('failed calling https://api.provider.com/v1/chat?key=abc123');
@@ -610,179 +570,6 @@ describe('scrubErrorMessage', () => {
 		expect(scrubErrorMessage('   ')).toBe('The model failed to respond.');
 	});
 });
-
-describe('_isAvailabilityError', () => {
-	it('classifies OpenRouter "no endpoints" as an availability error', () => {
-		expect(_isAvailabilityError('No endpoints found for this model')).toBe(true);
-	});
-
-	it('classifies model-not-found messages as availability errors', () => {
-		expect(_isAvailabilityError('model not found: gpt-foo')).toBe(true);
-		expect(_isAvailabilityError('The model does not exist')).toBe(true);
-	});
-
-	it('classifies HTTP 5xx in the message as availability errors', () => {
-		expect(_isAvailabilityError('upstream returned 500')).toBe(true);
-		expect(_isAvailabilityError('503 Service Unavailable')).toBe(true);
-	});
-
-	it('classifies HTTP 404/410 in the message as availability errors', () => {
-		expect(_isAvailabilityError('404 not found')).toBe(true);
-		expect(_isAvailabilityError('410 gone')).toBe(true);
-	});
-
-	it('does NOT classify context-length errors as availability errors', () => {
-		expect(_isAvailabilityError('context length exceeded')).toBe(false);
-		expect(_isAvailabilityError('maximum token limit reached')).toBe(false);
-	});
-
-	it('does NOT classify auth errors as availability errors', () => {
-		expect(_isAvailabilityError('401 Unauthorized')).toBe(false);
-		expect(_isAvailabilityError('403 Forbidden')).toBe(false);
-		expect(_isAvailabilityError('unauthorized access')).toBe(false);
-	});
-
-	it('does NOT classify rate-limit errors as availability errors', () => {
-		expect(_isAvailabilityError('429 Too Many Requests')).toBe(false);
-		expect(_isAvailabilityError('rate limit exceeded')).toBe(false);
-		expect(_isAvailabilityError('rate_limit_error')).toBe(false);
-	});
-
-	it('excludes per-request errors even when they contain status-code-shaped numbers', () => {
-		// Real upstream messages embed 3-digit numbers that look like 5xx/404
-		// codes; the exclusion categories must win over the numeric patterns.
-		expect(_isAvailabilityError('maximum context length is 512 tokens')).toBe(false);
-		expect(_isAvailabilityError('max_tokens must be at most 512')).toBe(false);
-		expect(_isAvailabilityError('You requested 576 tokens but the context window is full')).toBe(
-			false
-		);
-		expect(_isAvailabilityError('Rate limit exceeded: limit of 500 requests per day')).toBe(false);
-	});
-});
-
-describe('_isAuthError', () => {
-	it('detects a 401/403 status code on the raw error object', () => {
-		expect(_isAuthError({ statusCode: 401 })).toBe(true);
-		expect(_isAuthError({ statusCode: 403 })).toBe(true);
-		expect(_isAuthError({ statusCode: 500 })).toBe(false);
-	});
-
-	it('detects auth-shaped text in the response body or message', () => {
-		expect(
-			_isAuthError({ responseBody: '{"error":{"message":"User not found","code":401}}' })
-		).toBe(true);
-		expect(_isAuthError({ message: 'Unauthorized' })).toBe(true);
-		expect(_isAuthError({ message: 'invalid api key' })).toBe(true);
-		expect(_isAuthError({ message: 'No auth credentials found' })).toBe(true);
-	});
-
-	it('unwraps a nested cause — the AI SDK buries the APICallError there', () => {
-		expect(_isAuthError({ message: 'No output generated', cause: { statusCode: 401 } })).toBe(true);
-	});
-
-	it('returns false for non-auth failures and non-objects', () => {
-		expect(_isAuthError({ statusCode: 429, message: 'rate limit' })).toBe(false);
-		expect(_isAuthError(new Error('model not found'))).toBe(false);
-		expect(_isAuthError(null)).toBe(false);
-		// Strings aren't walked — the classifier needs the raw error object.
-		expect(_isAuthError('401 unauthorized')).toBe(false);
-	});
-
-	it('does not infinitely recurse on a cyclic cause chain', () => {
-		const cyclic: { cause?: unknown } = {};
-		cyclic.cause = cyclic;
-		expect(_isAuthError(cyclic)).toBe(false);
-	});
-});
-
-describe('_createStallGuard', () => {
-	beforeEach(() => vi.useFakeTimers());
-	afterEach(() => vi.useRealTimers());
-
-	it('aborts after the idle window when reset is not called', () => {
-		const parent = new AbortController();
-		const guard = _createStallGuard(parent.signal, 1000);
-		expect(guard.signal.aborted).toBe(false);
-		vi.advanceTimersByTime(1000);
-		expect(guard.signal.aborted).toBe(true);
-		expect(guard.timedOut()).toBe(true);
-	});
-
-	it('stays open while reset keeps being called before the window elapses', () => {
-		const parent = new AbortController();
-		const guard = _createStallGuard(parent.signal, 1000);
-		vi.advanceTimersByTime(700);
-		guard.reset();
-		vi.advanceTimersByTime(700);
-		guard.reset();
-		vi.advanceTimersByTime(700);
-		expect(guard.signal.aborted).toBe(false);
-		guard.cleanup();
-	});
-
-	it('propagates a later client abort and does NOT flag it as a stall', () => {
-		const parent = new AbortController();
-		const guard = _createStallGuard(parent.signal, 10_000);
-		parent.abort();
-		expect(guard.signal.aborted).toBe(true);
-		expect(guard.timedOut()).toBe(false);
-		guard.cleanup();
-	});
-
-	it('is already aborted when the parent aborted first', () => {
-		const parent = new AbortController();
-		parent.abort();
-		const guard = _createStallGuard(parent.signal, 1000);
-		expect(guard.signal.aborted).toBe(true);
-		expect(guard.timedOut()).toBe(false);
-	});
-
-	it('starts with the first window, then uses the idle window or the one passed to reset', () => {
-		const parent = new AbortController();
-		const guard = _createStallGuard(parent.signal, 1000, 5000);
-		vi.advanceTimersByTime(4000);
-		expect(guard.signal.aborted).toBe(false); // still inside the first window
-		guard.reset(5000); // visible thinking re-arms the long window
-		vi.advanceTimersByTime(4000);
-		expect(guard.signal.aborted).toBe(false);
-		guard.reset(); // answering: the short idle window
-		vi.advanceTimersByTime(1000);
-		expect(guard.signal.aborted).toBe(true);
-		expect(guard.stalledAfterMs()).toBe(1000);
-	});
-
-	it('reports the first window as the stall length when nothing ever arrived', () => {
-		const guard = _createStallGuard(new AbortController().signal, 1000, 5000);
-		vi.advanceTimersByTime(5000);
-		expect(guard.stalledAfterMs()).toBe(5000);
-	});
-
-	it('cleanup() stops the timer from firing', () => {
-		const parent = new AbortController();
-		const guard = _createStallGuard(parent.signal, 1000);
-		guard.cleanup();
-		vi.advanceTimersByTime(2000);
-		expect(guard.signal.aborted).toBe(false);
-	});
-});
-
-describe('_isThinkingPart', () => {
-	it('counts reasoning parts from Claude and the GPT Responses API', () => {
-		expect(_isThinkingPart({ type: 'reasoning-start' })).toBe(true);
-		expect(_isThinkingPart({ type: 'reasoning-delta' })).toBe(true);
-		expect(_isThinkingPart({ type: 'text-delta' })).toBe(false);
-	});
-
-	it('reads OpenRouter reasoning from the raw chunk the chat model drops', () => {
-		const raw = (delta: object) => ({ type: 'raw', rawValue: { choices: [{ delta }] } });
-		expect(_isThinkingPart(raw({ reasoning: 'Let me think' }))).toBe(true);
-		expect(_isThinkingPart(raw({ reasoning_details: [{ type: 'reasoning.text' }] }))).toBe(true);
-		expect(_isThinkingPart(raw({ reasoning: '' }))).toBe(false);
-		expect(_isThinkingPart(raw({ content: 'answer' }))).toBe(false);
-		expect(_isThinkingPart({ type: 'raw', rawValue: 'not json' })).toBe(false);
-	});
-});
-
 describe('POST /api/magi — thinking models', () => {
 	it('keeps thinking out of the answer and asks OpenRouter for raw chunks only', async () => {
 		streamTextMock.mockImplementation(
@@ -891,9 +678,9 @@ describe('POST /api/magi — health cache & forceRetry', () => {
 
 	it('does not poison health for an auth error whose message is opaque (statusCode only)', async () => {
 		// The 2026-07-05 incident: OpenRouter's expired-key 401 body is just "User
-		// not found." — no 401 digits in the MESSAGE, so _isAvailabilityError alone
+		// not found." — no 401 digits in the MESSAGE, so isAvailabilityError alone
 		// would poison the cache and bury the auth message on every following turn.
-		// The status-code gate (_isAuthError on the raw error) is what prevents it.
+		// The status-code gate (isAuthError on the raw error) is what prevents it.
 		vi.mocked(markUnhealthy).mockClear();
 		streamTextMock.mockImplementationOnce(() => {
 			throw Object.assign(new Error('User not found.'), {
@@ -980,11 +767,10 @@ describe('POST /api/magi — per-node retry', () => {
 });
 
 describe('POST /api/magi — awareness→consensus remap', () => {
-	// Documented footgun: `temperamentAwareness` in the request is remapped to
-	// `ctx.temperaments` in the ConsensusContext (not ctx.temperamentAwareness).
-	// That flag is what gates the dispositional-lens guidance paragraph in the
-	// synthesis system prompt. The `temperaments` request field maps to
-	// `ctx.nodeTemperaments` instead and does NOT affect the consensus prompt.
+	// `temperamentAwareness` in the request becomes `ctx.synthesizerAwareness`,
+	// which gates the dispositional-lens guidance paragraph in the synthesis system
+	// prompt. The `temperaments` request field maps to `ctx.nodeTemperaments`
+	// instead and does NOT affect the consensus prompt.
 
 	it('includes the dispositional-lens guidance when temperamentAwareness is true', async () => {
 		await readEvents(await callPost({ ...validBody, temperamentAwareness: true }));
@@ -1013,5 +799,121 @@ describe('POST /api/magi — rate limit Retry-After', () => {
 		vi.mocked(checkRateLimit).mockResolvedValue({ limited: true, retryAfterSeconds: 30 });
 		const res = await callPost(validBody);
 		expect(res.headers.get('X-Request-Id')).toBeTruthy();
+	});
+});
+
+describe('POST /api/magi — per-node prompt assembly', () => {
+	type Call = { system?: string; messages: { role: string; content: string }[] };
+	const nodes = ['MAGI_1', 'MAGI_2', 'MAGI_3'] as const;
+	// Phase 1 dispatches one streamText per node, in node order, before consensus.
+	// Roles and content only — the Anthropic seat also carries a cache breakpoint.
+	const phase1Calls = () =>
+		streamTextMock.mock.calls.slice(0, 3).map((c) => {
+			const { system, messages } = c[0] as unknown as Call;
+			return { system, messages: messages.map(({ role, content }) => ({ role, content })) };
+		});
+
+	const turn = (query: string, answers: Record<string, string>) => ({
+		query,
+		nodeResponses: Object.entries(answers).map(([node, text]) => ({ node, text })),
+		consensus: 'CONSENSUS TEXT'
+	});
+	const earlier = [turn('earlier q', { MAGI_1: 'a', MAGI_2: 'b', MAGI_3: 'c' })];
+
+	it("replays each node only its own prior answers, skipping turns it didn't answer", async () => {
+		const history = [
+			turn('first q', { MAGI_1: 'one-a', MAGI_2: 'two-a', MAGI_3: 'three-a' }),
+			turn('second q', { MAGI_2: 'two-b', MAGI_3: 'three-b' }), // MAGI_1 failed this turn
+			turn('third q', { MAGI_1: 'one-c', MAGI_2: 'two-c', MAGI_3: 'three-c' })
+		];
+		await readEvents(await callPost({ ...validBody, strategy: 'none', history }));
+		const [m1, m2] = phase1Calls().map((c) => c.messages);
+		expect(m1).toEqual([
+			{ role: 'user', content: 'first q' },
+			{ role: 'assistant', content: 'one-a' },
+			{ role: 'user', content: 'third q' },
+			{ role: 'assistant', content: 'one-c' },
+			{ role: 'user', content: 'Hello MAGI' }
+		]);
+		expect(m2.map((m) => m.content)).toEqual([
+			'first q',
+			'two-a',
+			'second q',
+			'two-b',
+			'third q',
+			'two-c',
+			'Hello MAGI'
+		]);
+		// Nobody sees another node's answer or the consensus.
+		expect(JSON.stringify(m1)).not.toMatch(/two-|three-/);
+		expect(JSON.stringify(phase1Calls())).not.toContain('CONSENSUS TEXT');
+	});
+
+	it('sends the temperament as `system` on direct gateways', async () => {
+		await readEvents(await callPost({ ...validBody, strategy: 'none', temperaments: true }));
+		phase1Calls().forEach((call, i) => {
+			expect(call.system).toBe(resolveNodeTemperament(nodes[i]).prompt);
+			expect(call.messages).toEqual([{ role: 'user', content: 'Hello MAGI' }]);
+		});
+	});
+
+	it('prepends the temperament to the first user message on OpenRouter (no system role)', async () => {
+		await readEvents(
+			await callPost({
+				...validBody,
+				tier: 'free',
+				strategy: 'none',
+				temperaments: true,
+				history: earlier
+			})
+		);
+		phase1Calls().forEach((call, i) => {
+			expect(call.system).toBeUndefined();
+			expect(call.messages[0].content).toBe(
+				`${resolveNodeTemperament(nodes[i]).prompt}\n\n---\n\nearlier q`
+			);
+			// Only the first message carries the persona — the current query stays bare.
+			expect(call.messages.at(-1)?.content).toBe('Hello MAGI');
+		});
+	});
+
+	it('applies customTemperaments to phase 1', async () => {
+		await readEvents(
+			await callPost({
+				...validBody,
+				strategy: 'none',
+				temperaments: true,
+				customTemperaments: { MAGI_2: { label: 'Skeptic', prompt: 'Doubt everything.' } }
+			})
+		);
+		const [c1, c2] = phase1Calls();
+		expect(c1.system).toBe(resolveNodeTemperament('MAGI_1').prompt);
+		expect(c2.system).toBe('Doubt everything.');
+	});
+
+	it('sends no temperament when the toggle is off, even with custom personas', async () => {
+		await readEvents(
+			await callPost({
+				...validBody,
+				strategy: 'none',
+				customTemperaments: { MAGI_2: { label: 'Skeptic', prompt: 'Doubt everything.' } }
+			})
+		);
+		phase1Calls().forEach((call) => expect(call.system).toBeUndefined());
+	});
+
+	it('appends the Opinionated directive to the current query only, before the debate SUMMARY ask', async () => {
+		await readEvents(
+			await callPost({ ...validBody, strategy: 'debate', opinionated: true, history: earlier })
+		);
+		for (const call of phase1Calls()) {
+			const [replayed, , current] = call.messages;
+			expect(replayed.content).toBe('earlier q');
+			expect(current.content.startsWith(`Hello MAGI\n\n${OPINIONATED_DIRECTIVE}\n\n`)).toBe(true);
+			expect(current.content.indexOf('SUMMARY:')).toBeGreaterThan(
+				current.content.indexOf(OPINIONATED_DIRECTIVE)
+			);
+			expect(current.content.endsWith('position on the question>')).toBe(true);
+		}
 	});
 });
