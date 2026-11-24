@@ -260,6 +260,10 @@ components:
           schema: { $ref: '#/components/schemas/ErrorBody' }
     Unauthorized:
       description: Bearer token missing or wrong (only when `MAGI_API_KEY` is set).
+      headers:
+        X-Request-Id:
+          description: Request id, the same one that appears in the server logs.
+          schema: { type: string }
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorBody' }

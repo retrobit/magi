@@ -135,8 +135,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	// All JSON error responses carry X-Request-Id so callers can quote it when
 	// reporting bugs. The SSE response sets the header separately.
-	const errResp = (body: object, status: number): Response =>
-		json(body, { status, headers: { 'X-Request-Id': requestId } });
+	const errResp = (body: object, status: number, headers: Record<string, string> = {}) =>
+		json(body, { status, headers: { ...headers, 'X-Request-Id': requestId } });
 
 	// BYOK: visitor-supplied provider keys (feature-flagged via PUBLIC_BYOK_ENABLED).
 	// Parsed before the rate limit so keyed callers land in the larger bucket. When
@@ -165,6 +165,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const authFail = checkApiKey(request);
 	if (authFail) {
 		logEvent('warn', 'request.unauthorized', { requestId, ip });
+		authFail.headers.set('X-Request-Id', requestId);
 		return authFail;
 	}
 
@@ -173,18 +174,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const rateLimit = await checkRateLimit(ip, { keyed: !!byok });
 	if (rateLimit.limited) {
 		logEvent('warn', 'request.rate_limited', { requestId, ip });
-		return json(
-			{ error: 'Too many requests' },
-			{
-				status: 429,
-				headers: {
-					'X-Request-Id': requestId,
-					// Standard header so clients can surface a concrete wait time
-					// rather than showing a generic "slow down" message.
-					'Retry-After': String(rateLimit.retryAfterSeconds)
-				}
-			}
-		);
+		// Retry-After lets clients show a concrete wait instead of "slow down".
+		return errResp({ error: 'Too many requests' }, 429, {
+			'Retry-After': String(rateLimit.retryAfterSeconds)
+		});
 	}
 
 	// Content-Type validation

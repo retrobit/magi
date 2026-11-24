@@ -26,6 +26,7 @@ export const GET: RequestHandler = async ({ request, url, getClientAddress }) =>
 	const authFail = checkApiKey(request);
 	if (authFail) {
 		logEvent('warn', 'budget.unauthorized', { requestId, ip: getClientAddress() });
+		authFail.headers.set('X-Request-Id', requestId);
 		return authFail;
 	}
 

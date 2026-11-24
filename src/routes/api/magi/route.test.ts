@@ -397,6 +397,8 @@ describe('POST /api/magi — API key auth', () => {
 		env.MAGI_API_KEY = 'secret';
 		const res = await callPost(validBody);
 		expect(res.status).toBe(401);
+		// Like every other error, so an operator can match it to its log line.
+		expect(res.headers.get('X-Request-Id')).toMatch(/^[0-9a-f]{8}$/);
 	});
 
 	it('rejects a request bearing the wrong token', async () => {
@@ -854,6 +856,7 @@ describe('POST /api/magi — rate limit Retry-After', () => {
 		expect(res.status).toBe(429);
 		// The mock resolves retryAfterSeconds: 30 when limited.
 		expect(res.headers.get('Retry-After')).toBe('30');
+		expect(res.headers.get('X-Request-Id')).toMatch(/^[0-9a-f]{8}$/);
 	});
 
 	it('includes X-Request-Id on the 429 response', async () => {

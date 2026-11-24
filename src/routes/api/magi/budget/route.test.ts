@@ -80,6 +80,7 @@ describe('GET /api/magi/budget', () => {
 		env.MAGI_API_KEY = 'secret';
 		const res = await call();
 		expect(res.status).toBe(401);
+		expect(res.headers.get('X-Request-Id')).toBeTruthy();
 		expect(getProviderBudgets).not.toHaveBeenCalled();
 	});
 
