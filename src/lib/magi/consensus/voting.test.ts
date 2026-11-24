@@ -2,36 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateText } from 'ai';
 import { votingStrategy } from './voting';
 import { seededShuffle } from './peer-order';
-import type { ConsensusContext, ConsensusEvent } from './types';
-import type { NodeAssignment } from '../config';
-import type { MagiResponse } from '../types';
+import type { ConsensusEvent } from './types';
+import { CONSENSUS_CALL_TIMEOUT_MS } from './deliberation';
+import {
+	collect,
+	completeText,
+	consensusContext as context,
+	captureDeadlines,
+	hangUntilAborted,
+	threeResponses
+} from './test-helpers';
 
 vi.mock('ai', () => ({ generateText: vi.fn() }));
 
 const generateTextMock = vi.mocked(generateText);
-
-const assignments: NodeAssignment[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
-];
-
-const threeResponses: MagiResponse[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MAGI_1' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', text: 'Answer from MAGI_2' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', text: 'Answer from MAGI_3' }
-];
-
-function context(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
-	return {
-		responses: threeResponses,
-		query: 'Which answer is best?',
-		getModel: vi.fn(() => ({}) as never),
-		nodeAssignments: assignments,
-		consensusNodeIndex: 0,
-		...overrides
-	};
-}
 
 // A juror's plain-text reply: one "<label>: <score>" line per candidate.
 function jurorReply(
@@ -42,18 +26,6 @@ function jurorReply(
 		text: scores.map((s) => `${s.candidate}: ${s.score} — solid reasoning`).join('\n'),
 		usage
 	};
-}
-
-async function collect(iter: AsyncIterable<ConsensusEvent>): Promise<ConsensusEvent[]> {
-	const out: ConsensusEvent[] = [];
-	for await (const event of iter) out.push(event);
-	return out;
-}
-
-function completeText(events: ConsensusEvent[]): string {
-	const complete = events.find((e) => e.type === 'complete');
-	if (!complete || complete.type !== 'complete') throw new Error('no complete event emitted');
-	return complete.fullText;
 }
 
 beforeEach(() => {
@@ -223,17 +195,51 @@ describe('votingStrategy.execute', () => {
 		expect(text).not.toContain('api.provider.com');
 	});
 
-	it('forwards the abort signal to every juror call', async () => {
+	it('aborts every juror call when the parent signal aborts', async () => {
 		generateTextMock.mockResolvedValue(
 			jurorReply([
 				{ candidate: 'A', score: 5 },
 				{ candidate: 'B', score: 5 }
 			]) as never
 		);
-		const signal = new AbortController().signal;
-		await collect(votingStrategy.execute(context({ signal })));
+		const parent = new AbortController();
+		await collect(votingStrategy.execute(context({ signal: parent.signal })));
+		expect(generateTextMock.mock.calls).toHaveLength(3);
 		for (const call of generateTextMock.mock.calls) {
-			expect(call[0].abortSignal).toBe(signal);
+			expect(call[0].abortSignal?.aborted).toBe(false);
+		}
+		parent.abort();
+		for (const call of generateTextMock.mock.calls) {
+			expect(call[0].abortSignal?.aborted).toBe(true);
+		}
+	});
+
+	it('gives each juror its own deadline: one hung juror times out, the others still count', async () => {
+		const deadlines = captureDeadlines();
+		try {
+			generateTextMock.mockImplementationOnce(hangUntilAborted as never).mockResolvedValue(
+				jurorReply([
+					{ candidate: 'A', score: 7 },
+					{ candidate: 'B', score: 3 }
+				]) as never
+			);
+			const pending = collect(votingStrategy.execute(context()));
+			await vi.waitFor(() => expect(generateTextMock).toHaveBeenCalledTimes(3));
+			expect(deadlines.requested).toEqual([
+				CONSENSUS_CALL_TIMEOUT_MS,
+				CONSENSUS_CALL_TIMEOUT_MS,
+				CONSENSUS_CALL_TIMEOUT_MS
+			]);
+			deadlines.expire(0);
+			const events = await pending;
+			// MAGI_2 and MAGI_3 each gave MAGI_1 a 7; the hung MAGI_1 juror adds nothing.
+			expect(completeText(events)).toContain('wins (14 / 20)');
+			const calls = generateTextMock.mock.calls;
+			expect(calls[0][0].abortSignal?.aborted).toBe(true);
+			expect(calls[1][0].abortSignal?.aborted).toBe(false);
+			expect(calls[2][0].abortSignal?.aborted).toBe(false);
+		} finally {
+			deadlines.restore();
 		}
 	});
 

@@ -1,6 +1,5 @@
 import { generateText } from 'ai';
 import {
-	nodeIdentities,
 	type ConsensusStrategy,
 	type ConsensusContext,
 	type ConsensusEvent,
@@ -8,10 +7,10 @@ import {
 	type VotingJurorBreakdown,
 	SECTION_RULE
 } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
 import type { MagiNodeName, MagiResponse } from '../types';
 import { makePeerOrderer } from './peer-order';
 import { scrubErrorMessage } from '../scrub-error';
+import { baseRunStats, callSignal, labelsFor, toUsage } from './deliberation';
 
 interface Candidate {
 	label: string;
@@ -30,12 +29,12 @@ interface Tally {
 	best: number;
 }
 
-function buildJurorPrompt(query: string, candidates: Candidate[], lens?: string): string {
+function buildJurorPrompt(query: string, candidates: Candidate[]): string {
 	const blocks = candidates.map((c) => `Candidate ${c.label}:\n${c.response.text}`).join('\n\n');
 	const format = candidates
 		.map((c) => `${c.label}: <score 0-10> — <one-sentence reason>`)
 		.join('\n');
-	const instructions = `Several AI models answered the same question. Score each candidate answer from 0 to 10, weighing accuracy, completeness, clarity, and usefulness. Judge substance, not length or style.
+	return `Several AI models answered the same question. Score each candidate answer from 0 to 10, weighing accuracy, completeness, clarity, and usefulness. Judge substance, not length or style.
 
 Question:
 ${query}
@@ -44,10 +43,6 @@ ${blocks}
 
 Reply with exactly one line per candidate, in this format and nothing else:
 ${format}`;
-	// A temperament lens shapes how this juror weighs the answers. It describes
-	// only the juror's own disposition — never the candidates' — so the A/B
-	// anonymity holds.
-	return lens ? `${lens}${SECTION_RULE}${instructions}` : instructions;
 }
 
 // Round and clamp a raw score into the 0–10 band a juror was asked for.
@@ -98,25 +93,10 @@ function buildVoteMarkdown(
 }
 
 export const votingStrategy: ConsensusStrategy = {
-	name: 'voting',
-	description: 'Each model scores its peers and the highest-scoring response becomes the consensus',
-
 	async *execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent> {
-		const {
-			responses,
-			query,
-			getModel,
-			nodeAssignments,
-			consensusTemperament,
-			synthesizerAwareness,
-			genericLabels,
-			signal,
-			tier,
-			peerOrderSeed
-		} = ctx;
-		// Default to numbered labels; proper names only on an explicit opt-in (the
-		// reveal path), so node names stay de-lored everywhere by default.
-		const labels = genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
+		const { responses, query, getModel, nodeAssignments, genericLabels, signal, peerOrderSeed } =
+			ctx;
+		const labels = labelsFor(genericLabels);
 		const modelOf = (node: MagiNodeName): string =>
 			nodeAssignments.find((a) => a.node === node)?.modelId ?? 'unknown';
 		// This turn's seat order — rotates which peer is Candidate A/B so the
@@ -124,49 +104,35 @@ export const votingStrategy: ConsensusStrategy = {
 		// when no seed is supplied. Fixed for the whole vote, so every juror agrees.
 		const orderPeers = makePeerOrderer(responses, peerOrderSeed);
 
+		const lengths = Object.fromEntries(responses.map((r) => [r.node, r.text.length]));
+		const models = Object.fromEntries(responses.map((r) => [r.node, modelOf(r.node)]));
+
 		// With a single response there is nothing to vote on — it wins outright.
-		if (responses.length <= 1) {
-			const text = responses[0]
-				? `### 🗳️ Structured vote\n\nOnly ${labels[responses[0].node]} responded — no vote was held.${SECTION_RULE}${responses[0].text}`
-				: 'No responses were available to vote on.';
+		// (The route closes before consensus when nobody responded, so this is
+		// never an empty list.)
+		if (responses.length === 1) {
+			const sole = responses[0];
+			const text = `### 🗳️ Structured vote\n\nOnly ${labels[sole.node]} responded — no vote was held.${SECTION_RULE}${sole.text}`;
 			yield { type: 'text-delta', text };
 			yield { type: 'complete', fullText: text };
 			yield { type: 'usage', inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
-			if (responses[0]) {
-				const sole = responses[0];
-				const totals = Object.fromEntries(responses.map((r) => [r.node, 0])) as Record<
-					MagiNodeName,
-					number
-				>;
-				const lengths = Object.fromEntries(responses.map((r) => [r.node, r.text.length])) as Record<
-					MagiNodeName,
-					number
-				>;
-				const models = Object.fromEntries(
-					responses.map((r) => [r.node, modelOf(r.node)])
-				) as Record<MagiNodeName, string>;
-				yield {
-					type: 'run-stats',
-					stats: {
-						strategy: 'voting',
-						tier: tier ?? 'unknown',
-						synthesizerAwareness: synthesizerAwareness ?? false,
-						consensusTemperament: consensusTemperament ?? false,
-						nodes: nodeIdentities(responses, nodeAssignments),
-						voting: {
-							winner: sole.node,
-							winnerModel: modelOf(sole.node),
-							winnerTotal: 0,
-							tiebreak: 'walkover',
-							totals,
-							lengths,
-							models,
-							jurors: [],
-							positionBias: { avgA: 0, avgB: 0, n: 0 }
-						}
+			yield {
+				type: 'run-stats',
+				stats: {
+					...baseRunStats(ctx, 'voting'),
+					voting: {
+						winner: sole.node,
+						winnerModel: modelOf(sole.node),
+						winnerTotal: 0,
+						tiebreak: 'walkover',
+						totals: { [sole.node]: 0 },
+						lengths,
+						models,
+						jurors: [],
+						positionBias: { avgA: 0, avgB: 0, n: 0 }
 					}
-				};
-			}
+				}
+			};
 			return;
 		}
 
@@ -186,7 +152,7 @@ export const votingStrategy: ConsensusStrategy = {
 				const { text, usage } = await generateText({
 					model: getModel(assignment.gateway, assignment.modelId),
 					prompt: buildJurorPrompt(query, candidates),
-					abortSignal: signal
+					abortSignal: callSignal(signal)
 				});
 				return { juror: juror.node, candidates, text, usage };
 			})
@@ -220,9 +186,10 @@ export const votingStrategy: ConsensusStrategy = {
 				continue;
 			}
 			const { juror, candidates, text, usage } = run.value;
-			inputTokens += usage.inputTokens ?? 0;
-			outputTokens += usage.outputTokens ?? 0;
-			cachedInputTokens += usage.cachedInputTokens ?? 0;
+			const u = toUsage(usage);
+			inputTokens += u.inputTokens;
+			outputTokens += u.outputTokens;
+			cachedInputTokens += u.cachedInputTokens;
 			const parsed = parseJurorScores(text, candidates);
 
 			// Always record the breakdown, even when nothing parsed — the absence
@@ -287,18 +254,7 @@ export const votingStrategy: ConsensusStrategy = {
 			tiebreak = winnerTally.best > runnerUp.best ? 'best-score' : 'node-order';
 		}
 
-		const totals = Object.fromEntries(ranked.map((t) => [t.response.node, t.total])) as Record<
-			MagiNodeName,
-			number
-		>;
-		const lengths = Object.fromEntries(responses.map((r) => [r.node, r.text.length])) as Record<
-			MagiNodeName,
-			number
-		>;
-		const models = Object.fromEntries(responses.map((r) => [r.node, modelOf(r.node)])) as Record<
-			MagiNodeName,
-			string
-		>;
+		const totals = Object.fromEntries(ranked.map((t) => [t.response.node, t.total]));
 
 		const voting: VotingStats = {
 			winner: winnerTally.response.node,
@@ -317,14 +273,7 @@ export const votingStrategy: ConsensusStrategy = {
 		};
 		yield {
 			type: 'run-stats',
-			stats: {
-				strategy: 'voting',
-				tier: tier ?? 'unknown',
-				synthesizerAwareness: synthesizerAwareness ?? false,
-				consensusTemperament: consensusTemperament ?? false,
-				nodes: nodeIdentities(responses, nodeAssignments),
-				voting
-			}
+			stats: { ...baseRunStats(ctx, 'voting'), voting }
 		};
 	}
 };

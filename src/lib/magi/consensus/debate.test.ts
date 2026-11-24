@@ -8,8 +8,17 @@ import {
 } from './debate';
 import { seededShuffle } from './peer-order';
 import type { ConsensusContext, ConsensusEvent } from './types';
-import type { NodeAssignment } from '../config';
 import type { MagiResponse } from '../types';
+import { CONSENSUS_CALL_TIMEOUT_MS } from './deliberation';
+import {
+	collect,
+	completeText,
+	consensusContext,
+	fakeStream,
+	captureDeadlines,
+	hangUntilAborted,
+	threeResponses
+} from './test-helpers';
 
 vi.mock('ai', () => ({ generateText: vi.fn(), streamText: vi.fn() }));
 
@@ -51,27 +60,8 @@ describe('parseDebaterReply', () => {
 const generateTextMock = vi.mocked(generateText);
 const streamTextMock = vi.mocked(streamText);
 
-const assignments: NodeAssignment[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
-];
-
-const threeResponses: MagiResponse[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Answer from MAGI_1' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', text: 'Answer from MAGI_2' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', text: 'Answer from MAGI_3' }
-];
-
 function context(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
-	return {
-		responses: threeResponses,
-		query: 'What is the best approach?',
-		getModel: vi.fn(() => ({}) as never),
-		nodeAssignments: assignments,
-		consensusNodeIndex: 0,
-		...overrides
-	};
+	return consensusContext({ query: 'What is the best approach?', ...overrides });
 }
 
 // A debater's structured reply: CHANGED flag, optional AGREE value, one-line NOTE,
@@ -94,31 +84,6 @@ function verdictOf(events: ConsensusEvent[]): string | undefined {
 	const e = events.find((ev) => ev.type === 'complete');
 	if (!e || e.type !== 'complete') throw new Error('no complete event emitted');
 	return e.debateVerdict;
-}
-
-// A streamed synthesis result, matching the `ai` streamText shape.
-function fakeStream(
-	chunks: string[],
-	usage = { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 }
-) {
-	return {
-		textStream: (async function* () {
-			for (const c of chunks) yield c;
-		})(),
-		usage: Promise.resolve(usage)
-	};
-}
-
-async function collect(iter: AsyncIterable<ConsensusEvent>): Promise<ConsensusEvent[]> {
-	const out: ConsensusEvent[] = [];
-	for await (const event of iter) out.push(event);
-	return out;
-}
-
-function completeText(events: ConsensusEvent[]): string {
-	const e = events.find((ev) => ev.type === 'complete');
-	if (!e || e.type !== 'complete') throw new Error('no complete event emitted');
-	return e.fullText;
 }
 
 beforeEach(() => {
@@ -233,12 +198,46 @@ describe('debateStrategy.execute', () => {
 
 	it('forwards the abort signal to every debater and the synthesis', async () => {
 		generateTextMock.mockResolvedValue(debaterReply('no') as never);
-		const signal = new AbortController().signal;
+		const parent = new AbortController();
+		const { signal } = parent;
 		await collect(debateStrategy.execute(context({ signal })));
-		for (const call of generateTextMock.mock.calls) {
-			expect(call[0].abortSignal).toBe(signal);
-		}
+		// The synthesis stream gets the parent signal itself; each debater gets it
+		// combined with its own deadline, so aborting the parent aborts them all.
 		expect(streamTextMock.mock.calls.at(-1)?.[0].abortSignal).toBe(signal);
+		expect(generateTextMock.mock.calls.length).toBeGreaterThan(0);
+		for (const call of generateTextMock.mock.calls) {
+			expect(call[0].abortSignal?.aborted).toBe(false);
+		}
+		parent.abort();
+		for (const call of generateTextMock.mock.calls) {
+			expect(call[0].abortSignal?.aborted).toBe(true);
+		}
+	});
+
+	it('gives each debater its own deadline: one hung debater times out, the others are kept', async () => {
+		const deadlines = captureDeadlines();
+		try {
+			generateTextMock
+				.mockImplementationOnce(hangUntilAborted as never)
+				.mockResolvedValue(debaterReply('no') as never);
+			const pending = collect(debateStrategy.execute(context()));
+			await vi.waitFor(() => expect(generateTextMock).toHaveBeenCalledTimes(3));
+			expect(deadlines.requested).toEqual([
+				CONSENSUS_CALL_TIMEOUT_MS,
+				CONSENSUS_CALL_TIMEOUT_MS,
+				CONSENSUS_CALL_TIMEOUT_MS
+			]);
+			deadlines.expire(0);
+			const text = completeText(await pending);
+			expect(text.match(/: no response/g)).toHaveLength(1);
+			expect(text.match(/: held/g)).toHaveLength(2);
+			expect(streamTextMock).toHaveBeenCalledTimes(1);
+			const calls = generateTextMock.mock.calls;
+			expect(calls[0][0].abortSignal?.aborted).toBe(true);
+			expect(calls[1][0].abortSignal?.aborted).toBe(false);
+		} finally {
+			deadlines.restore();
+		}
 	});
 
 	it('gives each debater its own temperament lens when the MAGI are in-character', async () => {

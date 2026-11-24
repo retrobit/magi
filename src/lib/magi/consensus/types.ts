@@ -29,10 +29,10 @@ export interface VotingStats {
 	/** Decisive | best-score-tiebreak | node-order-tiebreak | walkover (1 response). */
 	tiebreak: 'none' | 'best-score' | 'node-order' | 'walkover';
 	/** Aggregate score per node from all jurors combined. */
-	totals: Record<MagiNodeName, number>;
+	totals: Partial<Record<MagiNodeName, number>>;
 	/** Response length in characters per node — lets you check length-vs-win correlation. */
-	lengths: Record<MagiNodeName, number>;
-	models: Record<MagiNodeName, string>;
+	lengths: Partial<Record<MagiNodeName, number>>;
+	models: Partial<Record<MagiNodeName, string>>;
 	/** Per-juror, per-candidate score grid (the richest signal — position bias lives here). */
 	jurors: VotingJurorBreakdown[];
 	/** Average score given to Candidate A across all jurors — vs Candidate B. */
@@ -173,8 +173,6 @@ export const MIN_DEBATE_ROUNDS = DEBATE_ROUND_OPTIONS[0];
 export const MAX_DEBATE_ROUNDS = DEBATE_ROUND_OPTIONS[DEBATE_ROUND_OPTIONS.length - 1];
 
 export interface ConsensusStrategy {
-	name: string;
-	description: string;
 	execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent>;
 }
 

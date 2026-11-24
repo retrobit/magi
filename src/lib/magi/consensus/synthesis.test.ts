@@ -1,31 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { streamText, type ModelMessage } from 'ai';
 import { synthesisStrategy } from './synthesis';
-import type { ConsensusContext, ConsensusEvent } from './types';
-import type { NodeAssignment } from '../config';
+import type { ConsensusContext } from './types';
 import type { MagiResponse } from '../types';
+import { collect, consensusContext, fakeStream as fakeResult } from './test-helpers';
 
 vi.mock('ai', () => ({ streamText: vi.fn() }));
 
 const streamTextMock = vi.mocked(streamText);
-
-function fakeResult(
-	chunks: string[],
-	usage = { inputTokens: 100, outputTokens: 50, cachedInputTokens: 10 }
-) {
-	return {
-		textStream: (async function* () {
-			for (const c of chunks) yield c;
-		})(),
-		usage: Promise.resolve(usage)
-	};
-}
-
-const assignments: NodeAssignment[] = [
-	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-x' },
-	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-x' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-x' }
-];
 
 const responses: MagiResponse[] = [
 	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', text: 'Response A' },
@@ -34,20 +16,11 @@ const responses: MagiResponse[] = [
 ];
 
 function baseContext(overrides: Partial<ConsensusContext> = {}): ConsensusContext {
-	return {
+	return consensusContext({
 		responses: [...responses],
 		query: 'What is truth?',
-		getModel: vi.fn(() => ({}) as never),
-		nodeAssignments: assignments,
-		consensusNodeIndex: 0,
 		...overrides
-	};
-}
-
-async function collect(iter: AsyncIterable<ConsensusEvent>): Promise<ConsensusEvent[]> {
-	const out: ConsensusEvent[] = [];
-	for await (const event of iter) out.push(event);
-	return out;
+	});
 }
 
 function lastArgs() {

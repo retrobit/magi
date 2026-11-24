@@ -1,3 +1,15 @@
+import type { ModelMessage } from 'ai';
+import { markCacheBreakpoint } from '../prompt-cache';
+import { NODE_LABELS, NODE_LABELS_GENERIC } from '../types';
+import type { MagiNodeName } from '../types';
+import {
+	nodeIdentities,
+	type ConsensusContext,
+	type ConsensusHistoryTurn,
+	type RunStats,
+	type StrategyName
+} from './types';
+
 /** Optional deliberation directives, appended to model prompts when the matching
  *  toggle is on. Single-sourced so the phase-1 dispatch, the debate rounds, and
  *  the synthesizer all speak with one voice.
@@ -27,4 +39,82 @@ export function missingClause(missingLabels: string[], context: string): string 
 	} briefly so the reader knows the consensus is missing ${
 		one ? 'a perspective' : 'perspectives'
 	} — do not let absent MAGI vanish silently.`;
+}
+
+/** Per-call deadline for the non-streamed inner calls (debate rounds, voting
+ *  jurors). They run in parallel under the one consensus stall guard, which only
+ *  resets when the strategy yields — so without their own cap a single hung call
+ *  burns the whole window and discards its siblings' work. Must stay below
+ *  CONSENSUS_STALL_TIMEOUT_MS (90 s, src/routes/api/magi/+server.ts) so a hung seat
+ *  times out alone and the strategy degrades as it does on any rejection. 80 s, not
+ *  less: thinking models can legitimately take over a minute on a non-streamed answer. */
+export const CONSENSUS_CALL_TIMEOUT_MS = 80_000;
+
+/** The request signal combined with the per-call deadline. */
+export function callSignal(signal?: AbortSignal): AbortSignal {
+	const deadline = AbortSignal.timeout(CONSENSUS_CALL_TIMEOUT_MS);
+	return signal ? AbortSignal.any([signal, deadline]) : deadline;
+}
+
+/** Default to numbered labels; proper names only on an explicit opt-in (the
+ *  reveal path), so node names stay de-lored everywhere by default. */
+export function labelsFor(genericLabels?: boolean): Record<MagiNodeName, string> {
+	return genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
+}
+
+/** Labels of the assigned nodes that did not respond — named so the synthesizer
+ *  can acknowledge them in the reply. Feed to [[missingClause]]. */
+export function absentLabels(
+	ctx: Pick<ConsensusContext, 'responses' | 'nodeAssignments'>,
+	labels: Record<MagiNodeName, string>
+): string[] {
+	return ctx.nodeAssignments
+		.filter((a) => !ctx.responses.some((r) => r.node === a.node))
+		.map((a) => labels[a.node]);
+}
+
+/** The run-stats envelope every strategy shares; each adds its own block. */
+export function baseRunStats(ctx: ConsensusContext, strategy: StrategyName): RunStats {
+	return {
+		strategy,
+		tier: ctx.tier ?? 'unknown',
+		synthesizerAwareness: ctx.synthesizerAwareness ?? false,
+		consensusTemperament: ctx.consensusTemperament ?? false,
+		nodes: nodeIdentities(ctx.responses, ctx.nodeAssignments)
+	};
+}
+
+/** Replay prior consensus turns, then the current prompt, so follow-ups
+ *  ("expand on that") stay coherent. Past turns carry only the bare question +
+ *  consensus; the current turn carries the full prompt with this round's fresh
+ *  responses. The last message gets the cache breakpoint (a no-op for
+ *  non-Anthropic gateways). */
+export function consensusThread(history: ConsensusHistoryTurn[], prompt: string): ModelMessage[] {
+	const messages: ModelMessage[] = [];
+	for (const turn of history) {
+		// A failed or aborted turn commits with an empty consensus — skip the
+		// pair rather than replay an empty assistant message, which some
+		// providers reject outright.
+		if (!turn.consensus) continue;
+		messages.push({ role: 'user', content: turn.query });
+		messages.push({ role: 'assistant', content: turn.consensus });
+	}
+	messages.push({ role: 'user', content: prompt });
+	markCacheBreakpoint(messages);
+	return messages;
+}
+
+/** Normalise an AI SDK usage report into the three figures the stream carries.
+ *  Confines the SDK's deprecated `cachedInputTokens` to this one read. */
+export function toUsage(u?: {
+	inputTokens?: number;
+	outputTokens?: number;
+	inputTokenDetails?: { cacheReadTokens?: number };
+	cachedInputTokens?: number;
+}): { inputTokens: number; outputTokens: number; cachedInputTokens: number } {
+	return {
+		inputTokens: u?.inputTokens ?? 0,
+		outputTokens: u?.outputTokens ?? 0,
+		cachedInputTokens: u?.inputTokenDetails?.cacheReadTokens ?? u?.cachedInputTokens ?? 0
+	};
 }

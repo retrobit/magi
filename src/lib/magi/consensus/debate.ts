@@ -1,6 +1,5 @@
-import { generateText, streamText, type ModelMessage } from 'ai';
+import { generateText, streamText } from 'ai';
 import {
-	nodeIdentities,
 	type ConsensusStrategy,
 	type ConsensusContext,
 	type ConsensusEvent,
@@ -10,11 +9,20 @@ import {
 	MIN_DEBATE_ROUNDS,
 	MAX_DEBATE_ROUNDS
 } from './types';
-import { NODE_LABELS, NODE_LABELS_GENERIC, type MagiNodeName, type DebateVerdict } from '../types';
+import type { MagiNodeName, DebateVerdict } from '../types';
 import { resolveNodeTemperament } from '../temperaments';
-import { OPINIONATED_DIRECTIVE, COLLABORATIVE_DIRECTIVE, missingClause } from './deliberation';
+import {
+	OPINIONATED_DIRECTIVE,
+	COLLABORATIVE_DIRECTIVE,
+	absentLabels,
+	baseRunStats,
+	callSignal,
+	consensusThread,
+	labelsFor,
+	missingClause,
+	toUsage
+} from './deliberation';
 import { consensusFormat } from './format';
-import { markCacheBreakpoint } from '../prompt-cache';
 import { makePeerOrderer } from './peer-order';
 
 // Default upper bound on debate rounds when the request doesn't pick one. Each
@@ -22,12 +30,6 @@ import { makePeerOrderer } from './peer-order';
 // round produces no material change (convergence), so most runs use fewer. The
 // final synthesis pass is one additional call. The ceiling is user-selectable
 // per request (the "Rounds" picker) within [MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS].
-
-interface UsageTotals {
-	inputTokens: number;
-	outputTokens: number;
-	cachedInputTokens: number;
-}
 
 interface DebaterReply {
 	/** Did this debater materially revise its answer this round? */
@@ -330,10 +332,6 @@ function coalitionPhrase(
 }
 
 export const debateStrategy: ConsensusStrategy = {
-	name: 'debate',
-	description:
-		'Models critique and revise across multiple rounds until they converge, then one synthesizes the final answer',
-
 	async *execute(ctx: ConsensusContext): AsyncIterable<ConsensusEvent> {
 		const {
 			responses,
@@ -342,13 +340,10 @@ export const debateStrategy: ConsensusStrategy = {
 			getModel,
 			nodeAssignments,
 			consensusNodeIndex,
-			consensusTemperament,
-			synthesizerAwareness,
 			nodeTemperaments,
 			customTemperaments,
 			genericLabels,
 			signal,
-			tier,
 			peerOrderSeed,
 			debateRounds,
 			opinionated,
@@ -363,22 +358,17 @@ export const debateStrategy: ConsensusStrategy = {
 			Math.max(MIN_DEBATE_ROUNDS, Math.round(debateRounds ?? DEFAULT_DEBATE_ROUNDS))
 		);
 
-		// Default to numbered labels; proper names only on an explicit opt-in (the
-		// reveal path), so node names stay de-lored everywhere by default.
-		const labels = genericLabels === false ? NODE_LABELS : NODE_LABELS_GENERIC;
+		const labels = labelsFor(genericLabels);
 		// This turn's seat order for the anonymized Peer A/B presentation. Built once
 		// so every round assigns the same letter to the same peer (a stable mapping
 		// matters across rounds); identity (node order) when no seed is supplied.
 		const orderPeers = makePeerOrderer(responses, peerOrderSeed);
-		const usage: UsageTotals = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
-		const addUsage = (u?: {
-			inputTokens?: number;
-			outputTokens?: number;
-			cachedInputTokens?: number;
-		}) => {
-			usage.inputTokens += u?.inputTokens ?? 0;
-			usage.outputTokens += u?.outputTokens ?? 0;
-			usage.cachedInputTokens += u?.cachedInputTokens ?? 0;
+		const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+		const addUsage = (reported: Parameters<typeof toUsage>[0]) => {
+			const u = toUsage(reported);
+			usage.inputTokens += u.inputTokens;
+			usage.outputTokens += u.outputTokens;
+			usage.cachedInputTokens += u.cachedInputTokens;
 		};
 
 		// Accumulate the full markdown as we stream it, so the `complete` event
@@ -399,7 +389,7 @@ export const debateStrategy: ConsensusStrategy = {
 		const revisionCounts: Partial<Record<MagiNodeName, number>> = {};
 
 		const buildDebateStats = (): DebateStats | undefined => {
-			if (responses.length === 0 || !verdictForStats) return undefined;
+			if (!verdictForStats) return undefined;
 			const models: Partial<Record<MagiNodeName, string>> = {};
 			for (const r of responses) {
 				const a = nodeAssignments.find((a) => a.node === r.node);
@@ -417,24 +407,11 @@ export const debateStrategy: ConsensusStrategy = {
 
 		const runStats = (): ConsensusEvent => ({
 			type: 'run-stats',
-			stats: {
-				strategy: 'debate',
-				tier: tier ?? 'unknown',
-				synthesizerAwareness: synthesizerAwareness ?? false,
-				consensusTemperament: consensusTemperament ?? false,
-				nodes: nodeIdentities(responses, nodeAssignments),
-				debate: buildDebateStats()
-			}
+			stats: { ...baseRunStats(ctx, 'debate'), debate: buildDebateStats() }
 		});
 
-		// Nothing to debate or synthesize.
-		if (responses.length === 0) {
-			yield emit('No responses were available to debate.');
-			yield { type: 'complete', fullText };
-			yield { type: 'usage', ...usage };
-			yield runStats();
-			return;
-		}
+		// The route closes before consensus when nobody responded, so `responses`
+		// is never empty here.
 
 		// Each node's current answer — round 0 is the Phase-1 responses.
 		const current = new Map<MagiNodeName, string>();
@@ -501,7 +478,7 @@ export const debateStrategy: ConsensusStrategy = {
 						const { text, usage: u } = await generateText({
 							model: getModel(assignment.gateway, assignment.modelId),
 							prompt: buildDebaterPrompt(query, ownAnswer, peers, lens, collaborative),
-							abortSignal: signal
+							abortSignal: callSignal(signal)
 						});
 						return {
 							reply: parseDebaterReply(text, ownAnswer, peerNodes.length),
@@ -614,10 +591,7 @@ export const debateStrategy: ConsensusStrategy = {
 		// Name the absentees so the synthesizer can acknowledge them in the
 		// reply — readers expect three perspectives, and a silent two-of-three
 		// consensus reads as if nothing went wrong.
-		const missingLabels = nodeAssignments
-			.filter((a) => !responses.some((r) => r.node === a.node))
-			.map((a) => labels[a.node]);
-		const missing = missingClause(missingLabels, 'debate');
+		const missing = missingClause(absentLabels(ctx, labels), 'debate');
 
 		const synthesisPrompt = `Original query: ${query}
 
@@ -635,17 +609,7 @@ Do not paper over the disagreement: state what they agree on, then lay out each 
 		: `Provide the synthesized consensus response.${opinionated ? ` ${OPINIONATED_DIRECTIVE}` : ''}`
 }`;
 
-		const messages: ModelMessage[] = [];
-		for (const turn of history) {
-			// A failed or aborted turn commits with an empty consensus — skip the
-			// pair rather than replay an empty assistant message, which some
-			// providers reject outright.
-			if (!turn.consensus) continue;
-			messages.push({ role: 'user', content: turn.query });
-			messages.push({ role: 'assistant', content: turn.consensus });
-		}
-		messages.push({ role: 'user', content: synthesisPrompt });
-		markCacheBreakpoint(messages);
+		const messages = consensusThread(history, synthesisPrompt);
 
 		yield emit(SECTION_RULE);
 

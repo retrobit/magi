@@ -1,22 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { getStrategy } from './index';
+import { synthesisStrategy } from './synthesis';
+import { votingStrategy } from './voting';
+import { debateStrategy } from './debate';
 
 describe('getStrategy', () => {
 	it('returns the synthesis strategy', () => {
-		const strategy = getStrategy('synthesis');
-		expect(strategy).toBeDefined();
-		expect(strategy.name).toBe('synthesis');
+		expect(getStrategy('synthesis')).toBe(synthesisStrategy);
 	});
 
 	it('returns the voting strategy', () => {
-		const strategy = getStrategy('voting');
-		expect(strategy).toBeDefined();
-		expect(strategy.name).toBe('voting');
+		expect(getStrategy('voting')).toBe(votingStrategy);
 	});
 
 	it('returns the debate strategy', () => {
-		const strategy = getStrategy('debate');
-		expect(strategy).toBeDefined();
-		expect(strategy.name).toBe('debate');
+		expect(getStrategy('debate')).toBe(debateStrategy);
 	});
 });
