@@ -19,10 +19,16 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	let models: AvailableModel[];
+	let headers: Record<string, string> = {};
 
 	if (tier === 'free') {
 		const orModels = await getOpenRouterFreeModels();
 		models = orModels.filter((m) => isModelHealthy(m.id));
+		// Let the CDN absorb repeat visits — but never an empty list: that is what a
+		// failed catalog fetch looks like, and it would be served to everyone.
+		if (models.length > 0) {
+			headers = { 'cache-control': 'public, s-maxage=60, stale-while-revalidate=300' };
+		}
 	} else {
 		models = getModelsForTier(tier).map((m) => ({
 			id: m.id,
@@ -32,5 +38,5 @@ export const GET: RequestHandler = async ({ url }) => {
 		}));
 	}
 
-	return json({ models });
+	return json({ models }, { headers });
 };

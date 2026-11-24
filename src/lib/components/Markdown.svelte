@@ -32,44 +32,34 @@
 		})
 	);
 
-	// Detection uses a non-global pattern; a /g/ regex carries `lastIndex` between
-	// .test() calls and would skip matches across successive text nodes.
+	// Emoji get a not-italic wrapper so an <em> reply doesn't slant them. This is done
+	// in the marked renderer, on the token's raw text before any HTML exists, so no
+	// DOM is parsed or re-serialised and nothing decoded can become markup: the text
+	// is escaped first and the only tag added is our own span. DOMPurify still runs
+	// last over the result. Emoji inside code spans / fences / raw HTML keep their
+	// own rendering and are not wrapped.
 	const emojiTest = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
 	const emojiReplace = /([\p{Emoji_Presentation}\p{Extended_Pictographic}])/gu;
 
-	function wrapEmojisInTextNodes(html: string): string {
-		// Fast path: most chunks contain no emoji at all, so skip the DOMParser build
-		// and the full text-node walk entirely when there's nothing to wrap.
-		if (!emojiTest.test(html)) return html;
-		const doc = new DOMParser().parseFromString(html, 'text/html');
-		const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-		const textNodes: Text[] = [];
-		let node: Text | null;
-		while ((node = walker.nextNode() as Text | null)) textNodes.push(node);
-		for (const tn of textNodes) {
-			if (!emojiTest.test(tn.data)) continue;
-			// SECURITY: build replacement nodes via textContent only. `tn.data` is
-			// DECODED text — a text node like `<img onerror=…>` (escaped in the
-			// sanitized HTML, e.g. from inline code) would become live markup if it
-			// ever passed through innerHTML, re-opening XSS after DOMPurify ran.
-			// Splitting on the capture group alternates [text, emoji, text, …].
-			const frag = document.createDocumentFragment();
-			const parts = tn.data.split(emojiReplace);
-			for (let i = 0; i < parts.length; i += 1) {
-				if (parts[i] === '') continue;
-				if (i % 2 === 1) {
-					const span = document.createElement('span');
-					span.className = 'not-italic';
-					span.textContent = parts[i];
-					frag.appendChild(span);
-				} else {
-					frag.appendChild(document.createTextNode(parts[i]));
-				}
+	marked.use({
+		renderer: {
+			text(token) {
+				// Returning false falls back to marked's own text renderer: nested
+				// inline tokens, verbatim raw-block text, and any text with no emoji.
+				if (('tokens' in token && token.tokens) || ('escaped' in token && token.escaped))
+					return false;
+				if (!emojiTest.test(token.text)) return false;
+				// Same escaping marked applies: leave existing entities (&amp;) alone.
+				return token.text
+					.replace(/&(?!#?\w+;)/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#39;')
+					.replace(emojiReplace, '<span class="not-italic">$1</span>');
 			}
-			tn.replaceWith(frag);
 		}
-		return doc.body.innerHTML;
-	}
+	});
 
 	// Model HTML may carry only the classes this pipeline itself emits: highlight.js
 	// tokens (`hljs`, `hljs-*`, sub-scopes such as `function_`), the fence's
@@ -109,10 +99,8 @@
 
 	function render(src: string): string {
 		const raw = marked.parse(src, { async: false, breaks: true, gfm: true }) as string;
-		// Sanitize LAST so no DOM transform runs after it (the emoji wrap re-parses
-		// and re-serializes, so doing it first keeps DOMPurify the final word — no
-		// mXSS re-open).
-		return DOMPurify.sanitize(wrapEmojisInTextNodes(raw), SANITIZE_CONFIG);
+		// Sanitize LAST so no transform runs after it.
+		return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 	}
 
 	// A streamed `source` grows one chunk at a time; re-parsing the whole string on

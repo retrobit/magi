@@ -100,6 +100,9 @@
 							{formatMoney(p.usage)} <span class="text-(--magi-text-faint)">spent</span>
 						</span>
 					{/if}
+					{#if p.provider !== 'openrouter' && p.label}
+						<span class="magi-meta">{p.label}</span>
+					{/if}
 					{#if ratio !== null}
 						<div class="h-1 w-full overflow-hidden rounded-sm bg-(--magi-surface-bg)">
 							<div

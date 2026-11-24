@@ -22,9 +22,27 @@ interface OpenRouterKeyResponse {
 	};
 }
 
-// Display order — OpenRouter first, unlike GATEWAY_NAMES.
-const PROVIDERS: readonly GatewayName[] = ['openrouter', 'anthropic', 'openai', 'google'];
 const CACHE_TTL = 60_000;
+// Both admin cost APIs return one bucket per day; a UTC month never has more than 31.
+const MAX_MONTH_BUCKETS = 31;
+// Safety stop for the page loop — a month fits in a single page at the limit above,
+// so more than this means the upstream is misbehaving, not that there is more data.
+const MAX_PAGES = 5;
+
+// Display order — OpenRouter first, unlike GATEWAY_NAMES (object keys keep insertion order).
+const FETCHERS: Record<GatewayName, () => Promise<ProviderBudget>> = {
+	openrouter: fetchOpenRouterBudget,
+	anthropic: fetchAnthropicBudget,
+	openai: fetchOpenAIBudget,
+	// Google AI Studio exposes no per-key usage. Vertex AI has usage only through
+	// Cloud Billing, which needs a service account with roles/billing.viewer — out
+	// of scope for a single env var.
+	google: async () => ({
+		provider: 'google',
+		status: 'unavailable',
+		reason: 'no public usage API'
+	})
+};
 
 let cached: ProviderBudget[] | null = null;
 let cachedAt = 0;
@@ -36,9 +54,9 @@ export async function getProviderBudgets(options?: { force?: boolean }): Promise
 	}
 
 	const results = await Promise.all(
-		PROVIDERS.map(async (provider) => {
+		(Object.keys(FETCHERS) as GatewayName[]).map(async (provider) => {
 			try {
-				return await fetchOne(provider);
+				return await FETCHERS[provider]();
 			} catch (err) {
 				const reason = err instanceof Error ? err.message : 'Unknown error';
 				// The error already surfaces to the UI via `status: 'error'`, but
@@ -57,19 +75,6 @@ export async function getProviderBudgets(options?: { force?: boolean }): Promise
 	cached = results;
 	cachedAt = now;
 	return results;
-}
-
-function fetchOne(provider: GatewayName): Promise<ProviderBudget> {
-	switch (provider) {
-		case 'openrouter':
-			return fetchOpenRouterBudget();
-		case 'anthropic':
-			return fetchAnthropicBudget();
-		case 'openai':
-			return fetchOpenAIBudget();
-		case 'google':
-			return fetchGoogleBudget();
-	}
 }
 
 async function fetchOpenRouterBudget(): Promise<ProviderBudget> {
@@ -118,23 +123,29 @@ async function fetchOpenRouterBudget(): Promise<ProviderBudget> {
 	};
 }
 
-// Parse a USD monthly-budget env var into a positive number (or null when
-// unset/invalid). Used by both admin fetchers to give the UI bar a denominator.
-function parseMonthlyBudget(value: string | undefined): number | null {
-	if (!value) return null;
-	const n = parseFloat(value);
-	return Number.isFinite(n) && n > 0 ? n : null;
+// Month-to-date spend plus the optional *_MONTHLY_BUDGET env var (USD, positive) as
+// the bar denominator — the window and the denominator are both monthly.
+function monthToDate(
+	provider: GatewayName,
+	usage: number,
+	budgetEnv: string | undefined
+): ProviderBudget {
+	const n = budgetEnv ? parseFloat(budgetEnv) : NaN;
+	const limit = Number.isFinite(n) && n > 0 ? n : null;
+	return {
+		provider,
+		status: 'ok',
+		label: 'this month',
+		usage,
+		limit,
+		remaining: limit !== null ? Math.max(0, limit - usage) : undefined
+	};
 }
 
-// UTC window covering "today so far" — a single 1d bucket per provider.
-function todayUTCWindow(): { startSec: number; startISO: string; endISO: string } {
+// First instant of the current UTC month — start of the month-to-date window.
+function monthStartUTC(): Date {
 	const now = new Date();
-	const startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-	return {
-		startSec: Math.floor(startMs / 1000),
-		startISO: new Date(startMs).toISOString(),
-		endISO: now.toISOString()
-	};
+	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
 // Best-effort upstream-error extraction: surface the provider's own message
@@ -156,18 +167,13 @@ async function readErrorMessage(res: Response): Promise<string> {
 	return msg;
 }
 
-// Anthropic Cost API: GET /v1/organizations/cost_report with x-api-key + the
-// anthropic-version header. Only admin keys (sk-ant-admin…) are accepted by
-// the upstream; we still attempt the call with the regular ANTHROPIC_API_KEY
-// as a fallback so the user sees the real failure (invalid_api_key) rather
-// than us guessing in advance. Per Anthropic's docs, cost values are USD
-// reported as decimal strings "in lowest units (cents)" — we sum and divide.
+// Anthropic Cost API: GET /v1/organizations/cost_report, admin key (sk-ant-admin…)
+// in x-api-key. Month-to-date in 1d buckets: `limit` defaults to 7 and maxes at 31,
+// and a response with `has_more` carries a `next_page` cursor to pass as `page`.
+// Cost amounts are USD decimal strings in lowest units (cents).
+// https://docs.anthropic.com/en/api/admin-api/usage-cost/get-cost-report
 async function fetchAnthropicBudget(): Promise<ProviderBudget> {
-	const adminKey = env.ANTHROPIC_ADMIN_KEY;
-	const fallbackKey = env.ANTHROPIC_API_KEY;
-	const key = adminKey ?? fallbackKey;
-	const usingFallback = !adminKey && !!fallbackKey;
-
+	const key = env.ANTHROPIC_ADMIN_KEY;
 	if (!key) {
 		return {
 			provider: 'anthropic',
@@ -176,58 +182,45 @@ async function fetchAnthropicBudget(): Promise<ProviderBudget> {
 		};
 	}
 
-	const { startISO, endISO } = todayUTCWindow();
-	const url = new URL('https://api.anthropic.com/v1/organizations/cost_report');
-	url.searchParams.set('starting_at', startISO);
-	url.searchParams.set('ending_at', endISO);
-	url.searchParams.set('bucket_width', '1d');
-
-	const res = await fetch(url, {
-		headers: {
-			'x-api-key': key,
-			'anthropic-version': '2023-06-01'
-		},
-		signal: AbortSignal.timeout(10_000)
-	});
-
-	if (!res.ok) {
-		const upstream = await readErrorMessage(res);
-		return {
-			provider: 'anthropic',
-			status: 'error',
-			reason: usingFallback ? `${upstream} (tried regular key — admin key not set)` : upstream
-		};
-	}
-
-	const body = (await res.json()) as {
-		data?: Array<{ results?: Array<{ amount?: { amount?: string; currency?: string } }> }>;
-	};
-
-	// Sum across every bucket × every result entry. Defensive: amounts can be
-	// strings or numbers depending on the response variant.
 	let cents = 0;
-	for (const bucket of body.data ?? []) {
-		for (const result of bucket.results ?? []) {
-			const raw = result.amount?.amount;
-			const n = typeof raw === 'string' ? parseFloat(raw) : typeof raw === 'number' ? raw : 0;
-			if (Number.isFinite(n)) cents += n;
+	let page: string | undefined;
+	for (let i = 0; i < MAX_PAGES; i += 1) {
+		const url = new URL('https://api.anthropic.com/v1/organizations/cost_report');
+		url.searchParams.set('starting_at', monthStartUTC().toISOString());
+		url.searchParams.set('ending_at', new Date().toISOString());
+		url.searchParams.set('bucket_width', '1d');
+		url.searchParams.set('limit', String(MAX_MONTH_BUCKETS));
+		if (page) url.searchParams.set('page', page);
+
+		const res = await fetch(url, {
+			headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+			signal: AbortSignal.timeout(10_000)
+		});
+		if (!res.ok) {
+			return { provider: 'anthropic', status: 'error', reason: await readErrorMessage(res) };
 		}
+
+		const body = (await res.json()) as {
+			data?: Array<{ results?: Array<{ amount?: string }> }>;
+			has_more?: boolean;
+			next_page?: string | null;
+		};
+		for (const bucket of body.data ?? []) {
+			for (const result of bucket.results ?? []) {
+				const n = Number(result.amount);
+				if (Number.isFinite(n)) cents += n;
+			}
+		}
+		if (!body.has_more || !body.next_page) break;
+		page = body.next_page;
 	}
-	const usage = cents / 100;
-	const limit = parseMonthlyBudget(env.ANTHROPIC_MONTHLY_BUDGET);
-	return {
-		provider: 'anthropic',
-		status: 'ok',
-		label: usingFallback ? 'today (via regular key)' : 'today',
-		usage,
-		limit,
-		remaining: limit !== null ? Math.max(0, limit - usage) : undefined
-	};
+	return monthToDate('anthropic', cents / 100, env.ANTHROPIC_MONTHLY_BUDGET);
 }
 
-// OpenAI Costs API: GET /v1/organization/costs with a Bearer admin key. One
-// `1d` bucket since midnight UTC → today's spend, summed across every result
-// entry (each entry is one line item under that bucket).
+// OpenAI Costs API: GET /v1/organization/costs, Bearer admin key. Month-to-date in
+// 1d buckets (the only width): `limit` defaults to 7 and ranges 1–180, and `page`
+// takes the previous response's `next_page`. Each bucket's results are line items.
+// https://platform.openai.com/docs/api-reference/usage/costs
 async function fetchOpenAIBudget(): Promise<ProviderBudget> {
 	const key = env.OPENAI_ADMIN_KEY;
 	if (!key) {
@@ -238,56 +231,38 @@ async function fetchOpenAIBudget(): Promise<ProviderBudget> {
 		};
 	}
 
-	const { startSec } = todayUTCWindow();
-	const url = new URL('https://api.openai.com/v1/organization/costs');
-	url.searchParams.set('start_time', String(startSec));
-	url.searchParams.set('bucket_width', '1d');
-	url.searchParams.set('limit', '1');
-
-	const res = await fetch(url, {
-		headers: { Authorization: `Bearer ${key}` },
-		signal: AbortSignal.timeout(10_000)
-	});
-
-	if (!res.ok) {
-		return { provider: 'openai', status: 'error', reason: await readErrorMessage(res) };
-	}
-
-	// Top-level shape is the standard OpenAI page wrapper `{data: [bucket]}`,
-	// but cookbook examples sometimes show a single bucket directly — accept both.
-	const body = (await res.json()) as
-		| { data?: Array<{ results?: Array<{ amount?: { value?: number } }> }> }
-		| { results?: Array<{ amount?: { value?: number } }> };
-	const buckets = 'data' in body && body.data ? body.data : [body as { results?: unknown[] }];
 	let usage = 0;
-	for (const bucket of buckets) {
-		const results = (bucket as { results?: Array<{ amount?: { value?: number } }> }).results ?? [];
-		for (const result of results) {
-			const v = result.amount?.value;
-			if (typeof v === 'number' && Number.isFinite(v)) usage += v;
+	let page: string | undefined;
+	for (let i = 0; i < MAX_PAGES; i += 1) {
+		const url = new URL('https://api.openai.com/v1/organization/costs');
+		url.searchParams.set('start_time', String(Math.floor(monthStartUTC().getTime() / 1000)));
+		url.searchParams.set('bucket_width', '1d');
+		url.searchParams.set('limit', String(MAX_MONTH_BUCKETS));
+		if (page) url.searchParams.set('page', page);
+
+		const res = await fetch(url, {
+			headers: { Authorization: `Bearer ${key}` },
+			signal: AbortSignal.timeout(10_000)
+		});
+		if (!res.ok) {
+			return { provider: 'openai', status: 'error', reason: await readErrorMessage(res) };
 		}
+
+		const body = (await res.json()) as {
+			data?: Array<{ results?: Array<{ amount?: { value?: number } }> }>;
+			has_more?: boolean;
+			next_page?: string | null;
+		};
+		for (const bucket of body.data ?? []) {
+			for (const result of bucket.results ?? []) {
+				const v = result.amount?.value;
+				if (typeof v === 'number' && Number.isFinite(v)) usage += v;
+			}
+		}
+		if (!body.has_more || !body.next_page) break;
+		page = body.next_page;
 	}
-
-	const limit = parseMonthlyBudget(env.OPENAI_MONTHLY_BUDGET);
-	return {
-		provider: 'openai',
-		status: 'ok',
-		label: 'today',
-		usage,
-		limit,
-		remaining: limit !== null ? Math.max(0, limit - usage) : undefined
-	};
-}
-
-// Google AI Studio doesn't expose per-key usage. Vertex AI has usage data
-// only through Cloud Billing, which needs a service account with the
-// roles/billing.viewer role — out of scope for a single env var.
-async function fetchGoogleBudget(): Promise<ProviderBudget> {
-	return {
-		provider: 'google',
-		status: 'unavailable',
-		reason: 'no public usage API'
-	};
+	return monthToDate('openai', usage, env.OPENAI_MONTHLY_BUDGET);
 }
 
 export const _testing = {

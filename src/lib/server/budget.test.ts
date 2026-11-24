@@ -137,8 +137,8 @@ describe('getProviderBudgets', () => {
 						data: [
 							{
 								results: [
-									{ amount: { amount: '123.4', currency: 'USD' } },
-									{ amount: { amount: '76.6', currency: 'USD' } }
+									{ amount: '123.4', currency: 'USD' },
+									{ amount: '76.6', currency: 'USD' }
 								]
 							}
 						]
@@ -152,9 +152,20 @@ describe('getProviderBudgets', () => {
 		expect(anthropic.usage).toBeCloseTo(2.0, 5);
 	});
 
-	it('falls back to ANTHROPIC_API_KEY when no admin key is set and flags the label', async () => {
+	it('ignores the regular ANTHROPIC_API_KEY — only the admin key reads the cost API', async () => {
 		env.ANTHROPIC_API_KEY = 'sk-ant-api-x';
-		// Regular keys aren't accepted by /cost_report — surface the upstream error.
+		const fetchMock = okFetch({ data: { usage: 0 } });
+		vi.stubGlobal('fetch', fetchMock);
+		const [, anthropic] = await getProviderBudgets();
+		expect(anthropic).toMatchObject({
+			status: 'unavailable',
+			reason: 'ANTHROPIC_ADMIN_KEY not configured'
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1); // OpenRouter only
+	});
+
+	it('surfaces Anthropic upstream errors with the provider message', async () => {
+		env.ANTHROPIC_ADMIN_KEY = 'sk-ant-admin-bad';
 		vi.stubGlobal(
 			'fetch',
 			routedFetch({
@@ -168,9 +179,7 @@ describe('getProviderBudgets', () => {
 		);
 		const [, anthropic] = await getProviderBudgets();
 		expect(anthropic.status).toBe('error');
-		expect(anthropic.reason).toContain('HTTP 401');
-		expect(anthropic.reason).toContain('invalid x-api-key');
-		expect(anthropic.reason).toContain('tried regular key');
+		expect(anthropic.reason).toBe('HTTP 401: invalid x-api-key');
 	});
 
 	it('applies ANTHROPIC_MONTHLY_BUDGET as the bar denominator', async () => {
@@ -181,7 +190,7 @@ describe('getProviderBudgets', () => {
 			routedFetch({
 				'https://openrouter.ai': { payload: { data: { usage: 0 } } },
 				'https://api.anthropic.com': {
-					payload: { data: [{ results: [{ amount: { amount: '500' } }] }] }
+					payload: { data: [{ results: [{ amount: '500' }] }] }
 				}
 			})
 		);
@@ -261,6 +270,125 @@ describe('getProviderBudgets', () => {
 		expect(openai.usage).toBe(2);
 		expect(openai.limit).toBe(25);
 		expect(openai.remaining).toBe(23);
+	});
+
+	describe('month-to-date window + pagination', () => {
+		const NOW = new Date('2026-11-23T15:30:00Z');
+		const MONTH_START = '2026-11-01T00:00:00.000Z';
+
+		// Serve a queue of pages for one host and record every request URL.
+		function pagedFetch(host: string, pages: unknown[]) {
+			const urls: URL[] = [];
+			const mock = vi.fn(async (input: string | URL | Request) => {
+				const url = new URL(
+					typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+				);
+				if (!url.href.startsWith(host)) {
+					return { ok: true, status: 200, json: async () => ({ data: { usage: 0 } }) } as Response;
+				}
+				urls.push(url);
+				const payload = pages[urls.length - 1];
+				if (payload === undefined) throw new Error('requested more pages than served');
+				return { ok: true, status: 200, json: async () => payload } as Response;
+			});
+			return { mock, urls };
+		}
+
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.setSystemTime(NOW);
+		});
+
+		it('asks Anthropic for the 1st of the UTC month with the max page size', async () => {
+			env.ANTHROPIC_ADMIN_KEY = 'sk-ant-admin-x';
+			const { mock, urls } = pagedFetch('https://api.anthropic.com', [
+				{ data: [], has_more: false }
+			]);
+			vi.stubGlobal('fetch', mock);
+			const [, anthropic] = await getProviderBudgets();
+			expect(urls).toHaveLength(1);
+			expect(urls[0].searchParams.get('starting_at')).toBe(MONTH_START);
+			expect(urls[0].searchParams.get('ending_at')).toBe(NOW.toISOString());
+			expect(urls[0].searchParams.get('bucket_width')).toBe('1d');
+			expect(urls[0].searchParams.get('limit')).toBe('31');
+			expect(urls[0].searchParams.has('page')).toBe(false);
+			expect(anthropic.label).toBe('this month');
+		});
+
+		it('follows Anthropic next_page until has_more is false and sums every page', async () => {
+			env.ANTHROPIC_ADMIN_KEY = 'sk-ant-admin-x';
+			const day = (cents: string) => ({ results: [{ amount: cents, currency: 'USD' }] });
+			const { mock, urls } = pagedFetch('https://api.anthropic.com', [
+				{ data: [day('100'), day('250')], has_more: true, next_page: 'page_2' },
+				{ data: [day('50')], has_more: true, next_page: 'page_3' },
+				{ data: [day('100')], has_more: false, next_page: null }
+			]);
+			vi.stubGlobal('fetch', mock);
+			const [, anthropic] = await getProviderBudgets();
+			expect(urls.map((u) => u.searchParams.get('page'))).toEqual([null, 'page_2', 'page_3']);
+			expect(anthropic.usage).toBeCloseTo(5.0, 5); // 500 cents
+		});
+
+		it('stops paging Anthropic at the safety cap if the cursor never ends', async () => {
+			env.ANTHROPIC_ADMIN_KEY = 'sk-ant-admin-x';
+			const loop = { data: [], has_more: true, next_page: 'again' };
+			const { mock, urls } = pagedFetch('https://api.anthropic.com', Array(20).fill(loop));
+			vi.stubGlobal('fetch', mock);
+			const [, anthropic] = await getProviderBudgets();
+			expect(anthropic.status).toBe('ok');
+			expect(urls).toHaveLength(5);
+		});
+
+		it('asks OpenAI for the 1st of the UTC month in epoch seconds with limit 31', async () => {
+			env.OPENAI_ADMIN_KEY = 'sk-admin-x';
+			const { mock, urls } = pagedFetch('https://api.openai.com', [{ data: [], has_more: false }]);
+			vi.stubGlobal('fetch', mock);
+			const [, , openai] = await getProviderBudgets();
+			expect(urls[0].searchParams.get('start_time')).toBe(String(Date.parse(MONTH_START) / 1000));
+			expect(urls[0].searchParams.get('bucket_width')).toBe('1d');
+			expect(urls[0].searchParams.get('limit')).toBe('31');
+			expect(openai.label).toBe('this month');
+		});
+
+		it('follows OpenAI next_page and sums every page', async () => {
+			env.OPENAI_ADMIN_KEY = 'sk-admin-x';
+			env.OPENAI_MONTHLY_BUDGET = '10';
+			const day = (v: number) => ({ results: [{ amount: { value: v, currency: 'usd' } }] });
+			const { mock, urls } = pagedFetch('https://api.openai.com', [
+				{ data: [day(1.5), day(2)], has_more: true, next_page: 'cursor_2' },
+				{ data: [day(0.5)], has_more: false, next_page: null }
+			]);
+			vi.stubGlobal('fetch', mock);
+			const [, , openai] = await getProviderBudgets();
+			expect(urls.map((u) => u.searchParams.get('page'))).toEqual([null, 'cursor_2']);
+			expect(openai.usage).toBeCloseTo(4, 5);
+			expect(openai.remaining).toBeCloseTo(6, 5);
+		});
+
+		it('reports an error when a later page fails', async () => {
+			env.OPENAI_ADMIN_KEY = 'sk-admin-x';
+			let n = 0;
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (input: string | URL | Request) => {
+					const href =
+						typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+					if (!href.startsWith('https://api.openai.com')) {
+						return { ok: true, status: 200, json: async () => ({ data: {} }) } as Response;
+					}
+					n += 1;
+					return n === 1
+						? ({
+								ok: true,
+								status: 200,
+								json: async () => ({ data: [], has_more: true, next_page: 'p2' })
+							} as Response)
+						: ({ ok: false, status: 429, json: async () => ({}) } as Response);
+				})
+			);
+			const [, , openai] = await getProviderBudgets();
+			expect(openai).toMatchObject({ status: 'error', reason: 'HTTP 429' });
+		});
 	});
 
 	it('always marks Google as unavailable (no public per-key usage API)', async () => {

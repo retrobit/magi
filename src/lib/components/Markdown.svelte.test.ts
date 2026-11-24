@@ -106,6 +106,19 @@ describe('Markdown sanitization', () => {
 		expect(spans).toHaveLength(3);
 	});
 
+	it('keeps entities and angle brackets in emoji-bearing text as text, not markup', async () => {
+		const container = await renderSource('🙂 &amp; <b onclick="x()">bold</b> 5 < 6 "q"');
+		expect(container.querySelector('[onclick]')).toBeNull();
+		expect(container.querySelector('span.not-italic')?.textContent).toBe('🙂');
+		expect(container.textContent).toContain('& ');
+		expect(container.textContent).toContain('5 < 6 "q"');
+	});
+
+	it('wraps an emoji inside emphasis', async () => {
+		const container = await renderSource('*nice 🙂 one*');
+		expect(container.querySelector('em span.not-italic')?.textContent).toBe('🙂');
+	});
+
 	it('renders ordinary markdown structures', async () => {
 		const container = await renderSource('# Title\n\n- item\n\n`code`');
 		expect(container.querySelector('h1')?.textContent).toBe('Title');

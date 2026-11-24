@@ -18,6 +18,13 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
 };
 
+// The SPA shell (route '/') is identical for every visitor of a deployment: ssr is
+// off, the CSP is hash-mode (the hash travels in the cached headers) and the public
+// env is inlined per deployment. Vercel's CDN cache key includes the host and the
+// unique deployment URL, so a cached shell can neither outlive its deployment's
+// assets nor cross Production/Preview. Only a 200 is cached — never an error.
+const SHELL_CACHE_CONTROL = 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400';
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event, {
 		// Keep JS modulepreloads but drop CSS from the Link preload header: the
@@ -28,6 +35,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(name, value);
+	}
+	if (event.route.id === '/' && response.status === 200) {
+		response.headers.set('cache-control', SHELL_CACHE_CONTROL);
 	}
 	return response;
 };

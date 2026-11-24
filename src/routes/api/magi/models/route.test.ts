@@ -66,4 +66,35 @@ describe('GET /api/magi/models', () => {
 		const res = await call('free');
 		expect((await res.json()).models.map((m: { id: string }) => m.id)).toEqual(['a/m1:free']);
 	});
+
+	it('lets the CDN cache a non-empty free-tier list', async () => {
+		vi.mocked(getOpenRouterFreeModels).mockResolvedValue([
+			{ id: 'a/m1:free', gateway: 'openrouter', provider: 'a', displayName: 'M1' }
+		]);
+		const res = await call('free');
+		expect(res.headers.get('cache-control')).toBe(
+			'public, s-maxage=60, stale-while-revalidate=300'
+		);
+	});
+
+	it('does not cache an empty free-tier list (failed catalog fetch)', async () => {
+		vi.mocked(getOpenRouterFreeModels).mockResolvedValue([]);
+		const res = await call('free');
+		expect(res.status).toBe(200);
+		expect(res.headers.get('cache-control')).toBeNull();
+	});
+
+	it('does not cache a free list whose models are all unhealthy', async () => {
+		vi.mocked(getOpenRouterFreeModels).mockResolvedValue([
+			{ id: 'a/m1:free', gateway: 'openrouter', provider: 'a', displayName: 'M1' }
+		]);
+		vi.mocked(isModelHealthy).mockReturnValue(false);
+		const res = await call('free');
+		expect(res.headers.get('cache-control')).toBeNull();
+	});
+
+	it('does not set cache headers on paid tiers or errors', async () => {
+		expect((await call('balanced')).headers.get('cache-control')).toBeNull();
+		expect((await call('platinum')).headers.get('cache-control')).toBeNull();
+	});
 });
