@@ -165,51 +165,86 @@ function buildNodeMessages(
 	return messages;
 }
 
-// Vercel serverless function config for this route. The MAGI run streams SSE for
-// the whole debate/synthesis — on slow free-tier models that routinely exceeds
-// 60s — so request the maximum Hobby + Fluid-Compute streaming budget (300s).
-// Fluid Compute must be enabled in the Vercel dashboard for >60s to take effect.
-// See DEPLOY.md.
-// Per-call idle/stall timeouts. A hung free model can stream nothing and never
-// error, which would keep Promise.allSettled — and the whole turn — pending until
-// the maxDuration cap below. These bound a call that produces no output, turning a
-// hang into a clean failure the turn can route around. Nodes stream continuously so
-// 40s of silence means hung; consensus emits events sparsely between (non-streamed)
-// debate rounds, so it gets a longer window before we call it stalled.
+// Stall guards bound a model call that has gone quiet, turning a hang into a
+// clean failure the turn can route around (well inside the maxDuration cap
+// below). Thinking models answer only after a silent think — measured on the
+// free tier at up to ~60 s, and every paid seat now thinks too — so a call gets
+// two windows:
+// - THINKING_WINDOW_MS while it is (or may be) thinking: every call starts in
+//   it, because some providers think with no visible signal (Gemini), and any
+//   visible thinking re-arms it (Claude and GPT reasoning blocks, OpenRouter
+//   reasoning text — see _isThinkingPart).
+// - The short idle window once it is answering: each answer chunk re-arms it,
+//   so a model that goes silent mid-answer is caught quickly. Consensus emits
+//   events sparsely between (non-streamed) debate rounds, so its idle window is
+//   longer than a node's.
+const THINKING_WINDOW_MS = 120_000;
 const NODE_STALL_TIMEOUT_MS = 40_000;
 const CONSENSUS_STALL_TIMEOUT_MS = 90_000;
 
 /** A child abort signal that fires when `parent` aborts OR when `reset()` hasn't
- *  been called within `idleMs`. Call `reset()` on each streamed item and `cleanup()`
- *  when the stream ends; `timedOut()` reports whether the idle timer (not the client)
- *  tripped, so a stall can be labelled distinctly from a client teardown. The timer
- *  self-clears whenever the signal aborts, so an idle fire needs no explicit cleanup.
- *  Exported for unit tests; `_`-prefixed per the route's bare-export convention. */
-export function _createStallGuard(parent: AbortSignal, idleMs: number) {
+ *  been called within the current window — `firstMs` at the start, then the
+ *  window passed to each `reset(ms)` (default `idleMs`). Call `cleanup()` when the
+ *  stream ends. `stalledAfterMs()` is the window that tripped (null if the idle
+ *  timer never fired), so a stall can be labelled distinctly from a client
+ *  teardown and with its real length. The timer self-clears whenever the signal
+ *  aborts. Exported for unit tests; `_`-prefixed per the route's bare-export
+ *  convention. */
+export function _createStallGuard(parent: AbortSignal, idleMs: number, firstMs = idleMs) {
 	const controller = new AbortController();
-	let timedOut = false;
+	let stalledAfter: number | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const onParentAbort = () => controller.abort(parent.reason);
 	if (parent.aborted) controller.abort(parent.reason);
 	else parent.addEventListener('abort', onParentAbort, { once: true });
 	// Whatever aborts the call (idle fire or client), stop the pending timer.
 	controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
-	const reset = () => {
+	const reset = (ms = idleMs) => {
 		if (controller.signal.aborted) return;
 		clearTimeout(timer);
 		timer = setTimeout(() => {
-			timedOut = true;
-			controller.abort(new Error(`Stalled — no output for ${Math.round(idleMs / 1000)}s`));
-		}, idleMs);
+			stalledAfter = ms;
+			controller.abort(new Error(`Stalled — no output for ${Math.round(ms / 1000)}s`));
+		}, ms);
 	};
 	const cleanup = () => {
 		clearTimeout(timer);
 		parent.removeEventListener('abort', onParentAbort);
 	};
-	reset();
-	return { signal: controller.signal, reset, cleanup, timedOut: () => timedOut };
+	reset(firstMs);
+	return {
+		signal: controller.signal,
+		reset,
+		cleanup,
+		timedOut: () => stalledAfter !== null,
+		stalledAfterMs: () => stalledAfter
+	};
 }
 
+/** Whether a streamText `fullStream` part shows the model is thinking. Claude and
+ *  the GPT Responses API surface reasoning as parts; OpenRouter's chat endpoint
+ *  streams it as `delta.reasoning` text that the AI SDK's chat model drops, so it
+ *  is read from the raw chunk (requested with `includeRawChunks`). */
+export function _isThinkingPart(part: { type: string; rawValue?: unknown }): boolean {
+	if (part.type === 'reasoning-start' || part.type === 'reasoning-delta') return true;
+	if (part.type !== 'raw') return false;
+	const delta = (
+		part.rawValue as {
+			choices?: { delta?: { reasoning?: unknown; reasoning_details?: unknown } }[];
+		}
+	)?.choices?.[0]?.delta;
+	if (!delta) return false;
+	return (
+		(typeof delta.reasoning === 'string' && delta.reasoning.length > 0) ||
+		(Array.isArray(delta.reasoning_details) && delta.reasoning_details.length > 0)
+	);
+}
+
+// Vercel serverless function config for this route. The MAGI run streams SSE for
+// the whole debate/synthesis — on slow free-tier models that routinely exceeds
+// 60s — so request the maximum Hobby + Fluid-Compute streaming budget (300s).
+// Fluid Compute must be enabled in the Vercel dashboard for >60s to take effect.
+// See DEPLOY.md.
 export const config = { maxDuration: 300 };
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
@@ -595,10 +630,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 						// its onError hook, which the catch reads — so declare it in the callback
 						// scope, not inside the try, or the catch can't see it.
 						let rawStreamError: unknown;
-						// Abort THIS node if it emits no token for NODE_STALL_TIMEOUT_MS — a hung
+						// Abort THIS node if it goes quiet for too long (windows above) — a hung
 						// free model would otherwise keep the whole turn pending. A timed-out node
 						// fails cleanly and the turn proceeds with the survivors.
-						const stall = _createStallGuard(abortController.signal, NODE_STALL_TIMEOUT_MS);
+						const stall = _createStallGuard(
+							abortController.signal,
+							NODE_STALL_TIMEOUT_MS,
+							THINKING_WINDOW_MS
+						);
 						try {
 							const model = getModel(gateway, modelId, byok);
 							const temperamentPrompt = useTemperaments
@@ -647,6 +686,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 								...(useSystem && { system: temperamentPrompt }),
 								messages,
 								abortSignal: stall.signal,
+								// Only OpenRouter needs raw chunks: its reasoning text is invisible otherwise.
+								includeRawChunks: gateway === 'openrouter',
 								onError: ({ error }) => {
 									rawStreamError = error;
 								}
@@ -654,11 +695,19 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// Accumulate via array+join rather than `+=` — long responses
 							// otherwise pay O(n²) for repeated string reallocations.
 							const chunks: string[] = [];
-							for await (const chunk of result.textStream) {
-								stall.reset();
-								ttftMs ??= nodeTimer();
-								chunks.push(chunk);
-								send('model-chunk', { node, text: chunk });
+							for await (const part of result.fullStream) {
+								if (part.type === 'text-delta') {
+									stall.reset();
+									ttftMs ??= nodeTimer();
+									chunks.push(part.text);
+									send('model-chunk', { node, text: part.text });
+								} else if (_isThinkingPart(part)) {
+									stall.reset(THINKING_WINDOW_MS);
+								} else if (part.type === 'abort') {
+									// fullStream ends quietly on abort; a stall mid-answer must not
+									// pass for a complete reply. The catch labels it.
+									throw new Error('The model call was aborted.');
+								}
 							}
 							const fullText = chunks.join('');
 							const usage = await result.usage;
@@ -707,9 +756,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// NoOutputGeneratedError the stream surfaces, so the log shows the true
 							// reason (e.g. a 401) and the rethrow lets the aggregate classify it.
 							const rootErr = rawStreamError ?? err;
-							const message = stall.timedOut()
-								? `The model stalled — no output for ${NODE_STALL_TIMEOUT_MS / 1000}s.`
-								: _extractErrorMessage(rootErr);
+							const stalledAfter = stall.stalledAfterMs();
+							const message =
+								stalledAfter !== null
+									? `The model stalled — no output for ${stalledAfter / 1000}s.`
+									: _extractErrorMessage(rootErr);
 							logEvent('error', 'node.failed', {
 								requestId,
 								node,
@@ -848,11 +899,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				}
 
 				const consensusSeat = config[effectiveConsensusIndex];
-				// Same stall guard for the consensus stream — a longer idle window, since
-				// debate emits events sparsely between its (non-streamed) rounds.
+				// Same stall guard for the consensus stream: the thinking window until its
+				// first event, then a longer idle window than a node's, since debate emits
+				// events sparsely between its (non-streamed) rounds.
 				const consensusStall = _createStallGuard(
 					abortController.signal,
-					CONSENSUS_STALL_TIMEOUT_MS
+					CONSENSUS_STALL_TIMEOUT_MS,
+					THINKING_WINDOW_MS
 				);
 				const ctx: ConsensusContext = {
 					responses,
@@ -975,11 +1028,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					// Relabel a real consensus stall (the AI-SDK abort is opaque) so the
 					// outer catch surfaces the honest reason; client aborts and other
 					// errors propagate unchanged for the outer catch to classify.
-					if (!abortController.signal.aborted && consensusStall.timedOut()) {
-						throw new Error(
-							`The consensus stalled — no output for ${CONSENSUS_STALL_TIMEOUT_MS / 1000}s.`,
-							{ cause: err }
-						);
+					const stalledAfter = consensusStall.stalledAfterMs();
+					if (!abortController.signal.aborted && stalledAfter !== null) {
+						throw new Error(`The consensus stalled — no output for ${stalledAfter / 1000}s.`, {
+							cause: err
+						});
 					}
 					throw err;
 				} finally {

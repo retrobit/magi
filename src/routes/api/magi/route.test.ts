@@ -10,6 +10,7 @@ import { logEvent } from '$lib/server/logger';
 import {
 	POST,
 	_createStallGuard,
+	_isThinkingPart,
 	_extractErrorMessage,
 	_isAvailabilityError,
 	_isAuthError
@@ -60,10 +61,16 @@ vi.mock('$lib/server/logger', () => ({
 const streamTextMock = vi.mocked(streamText);
 const generateTextMock = vi.mocked(generateText);
 
-function fakeStream(text: string) {
+// Nodes read `fullStream`; the synthesis strategy reads `textStream`. Both are
+// fresh generators per call, so one mock serves either consumer.
+function fakeStream(text: string, before: { type: string; rawValue?: unknown }[] = []) {
 	return {
 		textStream: (async function* () {
 			yield text;
+		})(),
+		fullStream: (async function* () {
+			yield* before;
+			yield { type: 'text-delta', text };
 		})(),
 		usage: Promise.resolve({ inputTokens: 5, outputTokens: 3, cachedInputTokens: 1 })
 	};
@@ -730,12 +737,83 @@ describe('_createStallGuard', () => {
 		expect(guard.timedOut()).toBe(false);
 	});
 
+	it('starts with the first window, then uses the idle window or the one passed to reset', () => {
+		const parent = new AbortController();
+		const guard = _createStallGuard(parent.signal, 1000, 5000);
+		vi.advanceTimersByTime(4000);
+		expect(guard.signal.aborted).toBe(false); // still inside the first window
+		guard.reset(5000); // visible thinking re-arms the long window
+		vi.advanceTimersByTime(4000);
+		expect(guard.signal.aborted).toBe(false);
+		guard.reset(); // answering: the short idle window
+		vi.advanceTimersByTime(1000);
+		expect(guard.signal.aborted).toBe(true);
+		expect(guard.stalledAfterMs()).toBe(1000);
+	});
+
+	it('reports the first window as the stall length when nothing ever arrived', () => {
+		const guard = _createStallGuard(new AbortController().signal, 1000, 5000);
+		vi.advanceTimersByTime(5000);
+		expect(guard.stalledAfterMs()).toBe(5000);
+	});
+
 	it('cleanup() stops the timer from firing', () => {
 		const parent = new AbortController();
 		const guard = _createStallGuard(parent.signal, 1000);
 		guard.cleanup();
 		vi.advanceTimersByTime(2000);
 		expect(guard.signal.aborted).toBe(false);
+	});
+});
+
+describe('_isThinkingPart', () => {
+	it('counts reasoning parts from Claude and the GPT Responses API', () => {
+		expect(_isThinkingPart({ type: 'reasoning-start' })).toBe(true);
+		expect(_isThinkingPart({ type: 'reasoning-delta' })).toBe(true);
+		expect(_isThinkingPart({ type: 'text-delta' })).toBe(false);
+	});
+
+	it('reads OpenRouter reasoning from the raw chunk the chat model drops', () => {
+		const raw = (delta: object) => ({ type: 'raw', rawValue: { choices: [{ delta }] } });
+		expect(_isThinkingPart(raw({ reasoning: 'Let me think' }))).toBe(true);
+		expect(_isThinkingPart(raw({ reasoning_details: [{ type: 'reasoning.text' }] }))).toBe(true);
+		expect(_isThinkingPart(raw({ reasoning: '' }))).toBe(false);
+		expect(_isThinkingPart(raw({ content: 'answer' }))).toBe(false);
+		expect(_isThinkingPart({ type: 'raw', rawValue: 'not json' })).toBe(false);
+	});
+});
+
+describe('POST /api/magi — thinking models', () => {
+	it('keeps thinking out of the answer and asks OpenRouter for raw chunks only', async () => {
+		streamTextMock.mockImplementation(
+			() =>
+				fakeStream('answer', [
+					{ type: 'reasoning-start' },
+					{ type: 'raw', rawValue: { choices: [{ delta: { reasoning: 'hmm' } }] } }
+				]) as never
+		);
+		const events = await readEvents(await callPost(validBody));
+		const chunks = events
+			.filter((e) => e.event === 'model-chunk')
+			.map((e) => (e.data as { text: string }).text);
+		expect(chunks.length).toBeGreaterThan(0);
+		expect(chunks.every((t) => t === 'answer')).toBe(true);
+		const nodeCalls = streamTextMock.mock.calls.filter((c) => 'includeRawChunks' in c[0]);
+		expect(nodeCalls.every((c) => c[0].includeRawChunks === false)).toBe(true); // balanced = direct gateways
+	});
+
+	it('fails a node whose stream is aborted mid-answer instead of accepting the partial text', async () => {
+		streamTextMock.mockImplementationOnce(() => {
+			const s = fakeStream('half an ans');
+			s.fullStream = (async function* () {
+				yield { type: 'text-delta', text: 'half an ans' };
+				yield { type: 'abort' };
+			})();
+			return s as never;
+		});
+		const events = await readEvents(await callPost(validBody));
+		expect(events.filter((e) => e.event === 'model-error')).toHaveLength(1);
+		expect(events.filter((e) => e.event === 'model-response')).toHaveLength(2);
 	});
 });
 
@@ -771,6 +849,7 @@ describe('POST /api/magi — all-nodes-failure messaging', () => {
 			opts.onError?.({ error: Object.assign(new Error('User not found'), { statusCode: 401 }) });
 			return {
 				textStream: (async function* () {})(),
+				fullStream: (async function* () {})(),
 				usage: Promise.reject(new Error('No output generated. Check the stream for errors.'))
 			} as never;
 		});
