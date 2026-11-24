@@ -85,10 +85,10 @@ describe('TIER_CONFIGS', () => {
 	it('each tier config uses tier-appropriate models', () => {
 		// Frontier should use the most capable models
 		expect(TIER_CONFIGS.frontier[0].modelId).toBe('claude-opus-4-8');
-		expect(TIER_CONFIGS.frontier[2].modelId).toBe('gemini-2.5-pro');
+		expect(TIER_CONFIGS.frontier[2].modelId).toBe('gemini-4-carbon');
 		// Budget should use the cheapest models
 		expect(TIER_CONFIGS.budget[0].modelId).toBe('claude-haiku-4-5');
-		expect(TIER_CONFIGS.budget[2].modelId).toBe('gemini-3.1-flash-lite');
+		expect(TIER_CONFIGS.budget[2].modelId).toBe('gemini-3.5-flash-lite');
 	});
 
 	it('all tier configs pass validation', () => {

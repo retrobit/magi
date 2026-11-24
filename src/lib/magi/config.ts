@@ -68,7 +68,7 @@ export function buildDiverseConfig(models: AvailableModel[]): NodeAssignment[] {
 export const DEFAULT_MAGI_CONFIG: MagiConfig = [
 	{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-sonnet-5' },
 	{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4' },
-	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash' }
+	{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-4-hydrogen' }
 ];
 
 // Static fallback when the live OpenRouter list can't be fetched: the top three
@@ -84,13 +84,13 @@ export const TIER_CONFIGS: Record<TierName, MagiConfig> = {
 	frontier: [
 		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-opus-4-8' },
 		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.5' },
-		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-2.5-pro' }
+		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-4-carbon' }
 	],
 	balanced: DEFAULT_MAGI_CONFIG,
 	budget: [
 		{ node: 'MAGI_1', gateway: 'anthropic', provider: 'anthropic', modelId: 'claude-haiku-4-5' },
 		{ node: 'MAGI_2', gateway: 'openai', provider: 'openai', modelId: 'gpt-5.4-mini' },
-		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.1-flash-lite' }
+		{ node: 'MAGI_3', gateway: 'google', provider: 'google', modelId: 'gemini-3.5-flash-lite' }
 	],
 	free: FREE_MAGI_CONFIG
 };

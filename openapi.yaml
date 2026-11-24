@@ -124,7 +124,7 @@ paths:
                     - node: MAGI_3
                       gateway: google
                       provider: google
-                      modelId: gemini-3.5-flash
+                      modelId: gemini-4-hydrogen
       responses:
         '200':
           description: |

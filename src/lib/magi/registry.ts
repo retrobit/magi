@@ -62,32 +62,31 @@ export const MODEL_REGISTRY: readonly ModelEntry[] = [
 		displayName: 'GPT-5.4 Mini',
 		contextLength: 400_000
 	},
-	// Google (direct). NB: gemini-2.5-pro is still the latest GA Pro — Gemini 3.x Pro
-	// remains preview-only as re-verified 2026-07-05 (gemini-3-pro-preview and
-	// gemini-3.1-pro-preview are both live but non-GA), so the Flash line runs a
-	// generation ahead of the GA Pro. Bump frontier to a 3.x Pro once one reaches GA.
+	// Google (direct). Gemini 4 names don't encode the tier: carbon is the
+	// flagship, hydrogen Google's mid-tier default. Flash-Lite is still a 3.x
+	// line. Re-verified live 2026-11-23 (carbon needs a billed AI Studio project).
 	{
-		id: 'gemini-2.5-pro',
+		id: 'gemini-4-carbon',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'frontier',
-		displayName: 'Gemini 2.5 Pro',
+		displayName: 'Gemini 4 Carbon',
 		contextLength: 1_048_576
 	},
 	{
-		id: 'gemini-3.5-flash',
+		id: 'gemini-4-hydrogen',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'balanced',
-		displayName: 'Gemini 3.5 Flash',
+		displayName: 'Gemini 4 Hydrogen',
 		contextLength: 1_048_576
 	},
 	{
-		id: 'gemini-3.1-flash-lite',
+		id: 'gemini-3.5-flash-lite',
 		gateway: 'google',
 		provider: 'google',
 		tier: 'budget',
-		displayName: 'Gemini 3.1 Flash Lite',
+		displayName: 'Gemini 3.5 Flash Lite',
 		contextLength: 1_048_576
 	}
 ];
