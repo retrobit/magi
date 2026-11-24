@@ -505,7 +505,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 					? await getOpenRouterFreeModels()
 					: [];
 				const nodeHealth = dispatchConfig.map(({ node, gateway, provider, modelId }) => {
-					if (!isModelHealthy(modelId)) {
+					// The health cache describes the OPERATOR's access to a model. A seat
+					// running on a visitor's own key neither reads it here nor writes it on
+					// failure (below): one caller's bad key or missing model access must
+					// not mark the model down — or replay its error text — for everyone.
+					if (!byok?.[gateway] && !isModelHealthy(modelId)) {
 						const entry = getHealthStatus(modelId);
 						// Build an honest skip message that tells the client when the
 						// auto-retry window opens, so the UI can show a concrete wait.
@@ -720,7 +724,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 							// failures whose MESSAGE shows 401/403, but an opaque body like "User
 							// not found." slips through and would wrongly poison health for 2 min —
 							// burying the auth message on every following turn.
-							if (!_isAuthError(rootErr) && _isAvailabilityError(message)) {
+							if (!byok?.[gateway] && !_isAuthError(rootErr) && _isAvailabilityError(message)) {
 								markUnhealthy(modelId, message);
 							}
 							send('model-error', { node, gateway, provider, error: scrubErrorMessage(message) });

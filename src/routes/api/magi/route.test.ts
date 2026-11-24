@@ -246,6 +246,35 @@ describe('POST /api/magi — BYOK', () => {
 		);
 	});
 
+	it('keeps a visitor-keyed seat out of the shared health cache, both ways', async () => {
+		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
+		// Write side: an availability-shaped failure on a visitor's key must not
+		// mark the model down for everyone else.
+		vi.mocked(markUnhealthy).mockClear();
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('404 The model does not exist');
+		});
+		await readEvents(await callPost(validBody, { headers: byokHeader(fullCoverage) }));
+		expect(vi.mocked(markUnhealthy)).not.toHaveBeenCalled();
+		// The same failure on the operator's key still does.
+		streamTextMock.mockImplementationOnce(() => {
+			throw new Error('404 The model does not exist');
+		});
+		await readEvents(await callPost(validBody));
+		expect(vi.mocked(markUnhealthy)).toHaveBeenCalledOnce();
+
+		// Read side: an operator-side unhealthy mark does not skip a visitor-keyed seat.
+		vi.mocked(isModelHealthy).mockReturnValue(false);
+		try {
+			const events = await readEvents(
+				await callPost(validBody, { headers: byokHeader(fullCoverage) })
+			);
+			expect(events.filter((e) => e.event === 'model-response')).toHaveLength(3);
+		} finally {
+			vi.mocked(isModelHealthy).mockReturnValue(true);
+		}
+	});
+
 	it('selects the keyed rate-limit bucket if and only if keys are present', async () => {
 		publicEnv.PUBLIC_BYOK_ENABLED = 'true';
 		await callPost(validBody, { headers: byokHeader(fullCoverage) });
